@@ -16,9 +16,13 @@ use windows::{
 pub struct MediaInfo {
     pub title: String,
     pub artist: String,
+    pub album: String,
     pub is_playing: bool,
     pub app_id: String,
     pub thumbnail: Option<String>,
+    pub position_ms: u64,
+    pub position_at_ms: u64,
+    pub duration_ms: u64,
 }
 
 #[derive(Default)]
@@ -40,6 +44,9 @@ fn read_thumbnail(props: &MediaProperties) -> Option<String> {
     Some(format!("data:{mime};base64,{}", STANDARD.encode(&buf)))
 }
 
+// Selisih epoch Windows (1601) ke epoch Unix (1970), dalam satuan 100 nanodetik
+const WINDOWS_TO_UNIX: i64 = 116_444_736_000_000_000;
+
 fn snapshot(
     manager: &SessionManager,
     track_key: &mut String,
@@ -49,18 +56,40 @@ fn snapshot(
     let props = session.TryGetMediaPropertiesAsync().ok()?.join().ok()?;
     let title = props.Title().ok()?.to_string();
     let artist = props.Artist().ok()?.to_string();
+    let album = props.AlbumTitle().map(|a| a.to_string()).unwrap_or_default();
     let is_playing =
         session.GetPlaybackInfo().ok()?.PlaybackStatus().ok()? == PlaybackStatus::Playing;
     let app_id = session.SourceAppUserModelId().ok()?.to_string();
 
-    // Cover cuma dibaca ulang kalau lagunya ganti (atau belum dapet cover)
+    // Windows nyimpen waktu dalam satuan 100ns, kita ubah ke milidetik
+    let (position_ms, duration_ms, position_at_ms) = session
+        .GetTimelineProperties()
+        .ok()
+        .and_then(|t| {
+            let pos = t.Position().ok()?.Duration / 10_000;
+            let end = t.EndTime().ok()?.Duration / 10_000;
+            let updated = (t.LastUpdatedTime().ok()?.UniversalTime - WINDOWS_TO_UNIX) / 10_000;
+            Some((pos.max(0) as u64, end.max(0) as u64, updated.max(0) as u64))
+        })
+        .unwrap_or((0, 0, 0));
+
     let key = format!("{title}|{artist}");
     if key != *track_key || thumbnail.is_none() {
         *track_key = key;
         *thumbnail = read_thumbnail(&props);
     }
 
-    Some(MediaInfo { title, artist, is_playing, app_id, thumbnail: thumbnail.clone() })
+    Some(MediaInfo {
+        title,
+        artist,
+        album,
+        is_playing,
+        app_id,
+        thumbnail: thumbnail.clone(),
+        position_ms,
+        position_at_ms,
+        duration_ms,
+    })
 }
 
 pub fn start_watcher(app: AppHandle) {

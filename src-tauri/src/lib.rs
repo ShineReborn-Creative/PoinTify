@@ -1,4 +1,5 @@
 mod media;
+mod lyrics;
 
 use std::{thread, time::Duration};
 use tauri::{Emitter, Manager, PhysicalPosition, WebviewWindow};
@@ -56,7 +57,11 @@ pub fn run() {
             media::start_watcher(app.handle().clone());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![media::media_get, media::media_control])
+        .invoke_handler(tauri::generate_handler![
+            media::media_get, 
+            media::media_control,
+            lyrics::lyrics_fetch
+            ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
