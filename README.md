@@ -35,6 +35,7 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
 | **Notch** | Pil hitam di tengah atas layar. Arahin kursor ke sana, dia melebar. Klik di luar atau tekan `Esc` buat nutup. Area di sekitarnya tembus klik, jadi nggak ngalangin app lain. |
 | **Musik + lirik** | Baca lagu dari kontrol media Windows (Spotify, YouTube di browser, dll): cover, judul, artis, progress yang bisa diklik buat lompat, tombol putar. Lirik sinkron dari [LRCLIB](https://lrclib.net) jalan ngikutin lagu. |
 | **Chat dengan Claude** | Ngobrol sama Claude langsung dari notch lewat Claude Code, pakai login langganan Claude lu. Mode **Ngobrol** (cuma baca, buat brainstorm) dan **Kerjain** (boleh ngedit file di folder project). Pilih Opus, Sonnet, atau Haiku. Sesi bisa dilanjutin di Claude Desktop. |
+| **Sesi Claude Code** | Sesi `claude` yang lu jalanin di terminal mana aja muncul di tab Sesi: prompt, file yang dibaca dan diedit (+baris −baris), perintah yang dijalanin. Pas Claude minta izin, kartu nyembul dari notch dengan pilihan Izinin, Selalu, Tolak, atau jawab di terminal. Pertanyaan pilihan ganda dari Claude juga bisa dijawab dari notch. Pas sesi beres, Pip lompat senang. |
 | **Rak file** | Drag file ke notch buat disimpan sementara, drag keluar lagi ke app lain, atau lampirin ke chat Claude. |
 | **Timer fokus** | Pomodoro lengkap: fokus, istirahat pendek, istirahat panjang, statistik harian. Hitung mundurnya keliatan di notch kecil. |
 | **Pengingat minum** | Pip nyembul dari notch tiap sekian menit, ngitung gelas harian, cuma di jam aktif yang lu atur. |
@@ -45,7 +46,7 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
 ```
 src/                      React + TypeScript (tampilan)
 ├── island/               Notch: keadaan kecil, peek, kebuka + tab
-│   └── tabs/             Beranda, Chat, Rak, Fokus
+│   └── tabs/             Beranda, Chat, Sesi, Rak, Fokus
 ├── settings/             Jendela pengaturan
 ├── pip/                  Mesin animasi Pip (pegas, ekspresi, partikel)
 ├── components/           Pembungkus React buat Pip, ikon, ring progres
@@ -57,6 +58,9 @@ src-tauri/src/            Rust (backend)
 ├── media.rs              Kontrol media Windows (SMTC) lewat crate `windows`
 ├── lyrics.rs             Lirik LRCLIB + parser LRC + cache
 ├── claude.rs             Menjalankan `claude -p` dan meneruskan aliran JSON-nya
+├── agents.rs             Server lokal buat hooks: sesi terminal, izin, pertanyaan
+├── hook_relay.rs         `pointify.exe --hook`: oper kejadian hook ke PoinTify
+├── claude_hooks.rs       Pasang/copot hooks di ~/.claude/settings.json
 ├── shelf.rs              Rak file (disimpan sebagai JSON)
 ├── settings.rs           Pengaturan, autostart, shortcut global
 └── tray.rs               Menu system tray
@@ -67,6 +71,8 @@ Beberapa keputusan teknis yang menarik:
 - **Click-through yang tetap bisa di-hover.** Jendela notch selalu tembus klik. Thread Rust ngecek posisi kursor tiap 30 ms dan baru "nangkep" mouse kalau kursor masuk area pulau. Frontend ngirim ukuran pulau terbaru tiap bentuknya berubah.
 - **Posisi lagu tanpa polling berat.** Windows cuma ngasih posisi lagu pas ada kejadian (play, pause, seek). PoinTify nyimpen posisi terakhir plus kapan diambil, lalu ngitung sendiri posisi sekarang di frontend.
 - **Chat lewat Claude Code, bukan API key.** `claude -p --output-format stream-json` dijalankan di folder project. Prompt dikirim lewat stdin biar aman dari urusan tanda kutip, dan proses dihentikan pakai `taskkill /T` supaya anak prosesnya ikut berhenti.
+
+- **Hooks yang nggak pernah ngeganggu.** Claude Code menjalankan `pointify.exe --hook` di tiap kejadian. Exe yang sama dipakai sebagai relay: dia keluar sebelum aplikasi Tauri dibikin, ngoper datanya lewat socket lokal (127.0.0.1 plus token acak), dan selalu keluar dengan kode 0. Kalau PoinTify lagi mati, relay langsung keluar tanpa output, jadi Claude Code jalan seperti biasa. Permintaan izin ditahan sampai dijawab di notch, dan kalau prosesnya dibatalin dari terminal, kartunya ikut hilang.
 
 ## Menjalankan
 

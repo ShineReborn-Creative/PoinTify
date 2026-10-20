@@ -2,11 +2,13 @@ import { Icon, type IconName } from "../components/Icon";
 import type { PipMood } from "../components/Pip";
 import { api } from "../lib/api";
 import { useStore } from "../lib/store";
+import { agentsStore } from "../state/agents";
 import { chatStore } from "../state/chat";
 import { islandStore, setTab, type Tab } from "../state/island";
 import { settingsStore, updateSettings } from "../state/settings";
 import { shelfStore } from "../state/shelf";
 import { timerStore } from "../state/timer";
+import { AgentsTab } from "./tabs/AgentsTab";
 import { ChatTab } from "./tabs/ChatTab";
 import { HomeTab } from "./tabs/HomeTab";
 import { ShelfTab } from "./tabs/ShelfTab";
@@ -15,6 +17,7 @@ import { TimerTab } from "./tabs/TimerTab";
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: "home", label: "Beranda", icon: "home" },
   { id: "chat", label: "Chat", icon: "chat" },
+  { id: "agents", label: "Sesi", icon: "terminal" },
   { id: "shelf", label: "Rak", icon: "shelf" },
   { id: "timer", label: "Fokus", icon: "timer" },
 ];
@@ -25,10 +28,14 @@ export function ExpandedView({ mood }: { mood: PipMood }) {
   const shelf = useStore(shelfStore);
   const chat = useStore(chatStore);
   const timer = useStore(timerStore);
+  const agents = useStore(agentsStore);
 
   const badge = (id: Tab): string | null => (id === "shelf" && shelf.length ? String(shelf.length) : null);
   /** Titik kecil = ada yang lagi jalan di tab itu. */
-  const busy = (id: Tab) => (id === "chat" && chat.running) || (id === "timer" && timer.running);
+  const busy = (id: Tab) =>
+    (id === "chat" && chat.running) ||
+    (id === "timer" && timer.running) ||
+    (id === "agents" && agents.sessions.some((s) => s.status === "working" || s.status === "waiting"));
 
   return (
     <div className="expanded fade-in">
@@ -66,6 +73,7 @@ export function ExpandedView({ mood }: { mood: PipMood }) {
       <div className="tab-body">
         {island.tab === "home" && <HomeTab mood={mood} />}
         {island.tab === "chat" && <ChatTab mood={mood} />}
+        {island.tab === "agents" && <AgentsTab mood={mood} />}
         {island.tab === "shelf" && <ShelfTab mood={mood} />}
         {island.tab === "timer" && <TimerTab />}
       </div>

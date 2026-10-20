@@ -171,6 +171,18 @@ fn worth_forwarding(v: &Value) -> bool {
 // Commands
 // ---------------------------------------------------------------------------
 
+/// Versi Claude Code yang terpasang, misalnya "2.1.300 (Claude Code)".
+pub fn version(app: &AppHandle) -> Option<String> {
+    let path = resolve(app)?;
+    base_command(&path)
+        .arg("--version")
+        .stdin(Stdio::null())
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+}
+
 fn status_blocking(app: &AppHandle) -> ClaudeStatus {
     let Some(path) = resolve(app) else {
         return ClaudeStatus::default();
@@ -273,6 +285,8 @@ pub fn claude_send(app: AppHandle, state: State<ClaudeState>, req: SendRequest) 
         .filter(|p| p.is_dir())
         .or_else(|| app.path().home_dir().ok())
         .unwrap_or_else(|| PathBuf::from("."));
+    // Ditandai biar hooks PoinTify tahu ini chat dari notch, bukan sesi terminal.
+    cmd.env("POINTIFY_CHAT", &req.chat_id);
     cmd.current_dir(&cwd)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

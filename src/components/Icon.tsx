@@ -37,6 +37,8 @@ const PATHS: Record<string, string> = {
   minus: "M5.5 12h13",
   zip: "M7 3.5h10A1.5 1.5 0 0 1 18.5 5v14a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5zM12 3.5v2M12 7.5v2M12 11.5v2M10.5 15.5h3v3h-3z",
   pin: "M9 4h6l-1 5 3 3v1.5H7V12l3-3zM12 13.5V20",
+  terminal: "M5 5.5h14A1.5 1.5 0 0 1 20.5 7v10a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 17V7A1.5 1.5 0 0 1 5 5.5zM7.5 10l2.5 2-2.5 2M12.5 14.5h4",
+  shield: "M12 3.5 19 6v5.5c0 4.2-3 7.6-7 9-4-1.4-7-4.8-7-9V6zM9 12l2 2 4-4.5",
 };
 
 export type IconName = keyof typeof PATHS;

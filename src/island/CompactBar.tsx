@@ -3,11 +3,15 @@ import { Ring } from "../components/Ring";
 import { mmss } from "../lib/format";
 import { useNow } from "../lib/hooks";
 import { useStore } from "../lib/store";
+import { toolLabel } from "../lib/tools";
+import { activeSession, agentsStore } from "../state/agents";
 import { chatStore } from "../state/chat";
 import { mediaStore } from "../state/media";
 import { phaseDuration, remaining, timerStore } from "../state/timer";
 
-type Props = { mood: PipMood; activity: "claude" | "timer" | "music" | null };
+export type Activity = "claude" | "agent" | "timer" | "music" | null;
+
+type Props = { mood: PipMood; activity: Activity };
 
 /** Notch dalam keadaan kecil: Pip di kiri, kegiatan yang lagi jalan di kanan. */
 export function CompactBar({ mood, activity }: Props) {
@@ -16,6 +20,7 @@ export function CompactBar({ mood, activity }: Props) {
       <Pip mood={mood} size={24} />
       <div className="compact-right">
         {activity === "claude" && <ClaudeActivity />}
+        {activity === "agent" && <AgentActivity />}
         {activity === "timer" && <TimerActivity />}
         {activity === "music" && <MusicActivity />}
       </div>
@@ -34,6 +39,27 @@ function ClaudeActivity() {
         <i />
         <i />
       </span>
+    </span>
+  );
+}
+
+/** Sesi Claude Code di terminal: nama project + langkah terakhir. */
+function AgentActivity() {
+  const agents = useStore(agentsStore);
+  const s = activeSession(agents);
+  if (!s) return null;
+  const step = [...s.steps].reverse().find((x) => x.kind === "tool");
+  const what = step ? `${toolLabel(step.tool ?? "")} ${step.detail}`.trim() : "lagi mikir";
+  return (
+    <span className="compact-label" title={`${s.project}: ${what}`}>
+      <span className="compact-project">{s.project}</span>
+      <span className="ellipsis">{what}</span>
+      {step && (step.added != null || step.removed != null) && (
+        <span className="step-diff tabular">
+          {step.added != null && <span className="plus">+{step.added}</span>}
+          {step.removed != null && <span className="minus">−{step.removed}</span>}
+        </span>
+      )}
     </span>
   );
 }

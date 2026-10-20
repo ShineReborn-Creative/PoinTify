@@ -5,7 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "../components/Icon";
 import { Pip } from "../components/Pip";
-import { api, type ClaudeStatus, type Settings } from "../lib/api";
+import { api, type ClaudeStatus, type HooksStatus, type Settings } from "../lib/api";
 import { useStore } from "../lib/store";
 import { settingsStore, updateSettings } from "../state/settings";
 
@@ -20,9 +20,34 @@ const SECTIONS: { id: Section; label: string; icon: IconName }[] = [
   { id: "tentang", label: "Tentang", icon: "info" },
 ];
 
+const SECTION_KEY = "pointify.settings.section";
+
+/** Notch bisa minta pengaturan kebuka di bagian tertentu lewat localStorage. */
+function takeRequestedSection(): Section | null {
+  try {
+    const v = localStorage.getItem(SECTION_KEY);
+    if (v) localStorage.removeItem(SECTION_KEY);
+    return SECTIONS.some((s) => s.id === v) ? (v as Section) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function SettingsApp() {
   const settings = useStore(settingsStore);
-  const [section, setSection] = useState<Section>("umum");
+  const [section, setSection] = useState<Section>(() => takeRequestedSection() ?? "umum");
+
+  // Jendela udah kebuka: tetap pindah ke bagian yang diminta.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== SECTION_KEY || !e.newValue) return;
+      const next = takeRequestedSection();
+      if (next) setSection(next);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   if (!settings) return null;
 
   return (
@@ -345,6 +370,8 @@ function ClaudeSection({ s }: { s: Settings }) {
         </div>
       </div>
 
+      <HooksCard />
+
       <div className="group">
         <Row label="Model bawaan" hint="Opus paling pinter, Sonnet seimbang, Haiku paling cepat.">
           <select className="select" value={s.claudeModel} onChange={(e) => updateSettings({ claudeModel: e.target.value })}>
@@ -406,6 +433,97 @@ function ClaudeSection({ s }: { s: Settings }) {
         )}
       </div>
     </>
+  );
+}
+
+const HOOKS_TEXT: Record<HooksStatus["state"], { title: string; body: string }> = {
+  installed: {
+    title: "Sesi terminal dipantau",
+    body: "Sesi Claude Code di terminal muncul di tab Sesi. Permintaan izin dan pertanyaannya bisa dijawab dari notch.",
+  },
+  outdated: {
+    title: "Perlu dipasang ulang",
+    body: "Hooks yang terpasang nunjuk ke lokasi PoinTify yang lama. Pasang ulang biar nyambung lagi.",
+  },
+  partial: {
+    title: "Kepasang sebagian",
+    body: "Ada hooks PoinTify yang hilang dari settings.json. Pasang ulang biar lengkap.",
+  },
+  missing: {
+    title: "Pantau sesi Claude Code di terminal",
+    body: "PoinTify nambahin hooks ke settings.json Claude Code. Hooks lain punya lu nggak diubah, dan file lama di-backup dulu. Kalau PoinTify lagi mati, Claude Code tetap jalan biasa.",
+  },
+};
+
+function HooksCard() {
+  const [status, setStatus] = useState<HooksStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  useEffect(() => {
+    void api.hooksStatus().then(setStatus);
+  }, []);
+
+  const run = async (fn: () => ReturnType<typeof api.hooksInstall>, done: string) => {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    try {
+      const r = await fn();
+      setStatus(r.status);
+      setNote(r.backupPath ? `${done} Backup: ${r.backupPath}` : done);
+      setShowPreview(false);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const state = status?.state ?? "missing";
+  const text = HOOKS_TEXT[state];
+  return (
+    <div className={`status-card hooks-card${state === "installed" ? " ok" : ""}`}>
+      <div className="hooks-main">
+        <Icon name={state === "installed" ? "shield" : "terminal"} size={22} />
+        <div className="status-text">
+          <strong>{status ? text.title : "Ngecek…"}</strong>
+          <span className="muted wrap">{text.body}</span>
+        </div>
+        <div className="status-actions">
+          {state === "installed" ? (
+            <button className="btn" disabled={busy} onClick={() => void run(api.hooksUninstall, "Hooks PoinTify udah dicopot.")}>
+              Copot
+            </button>
+          ) : (
+            <>
+              <button className="btn ghost" onClick={() => setShowPreview((v) => !v)}>
+                {showPreview ? "Tutup" : "Lihat isinya"}
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={busy || !status || !!status.error}
+                onClick={() => void run(api.hooksInstall, "Terpasang. Sesi Claude Code yang baru dibuka langsung kepantau.")}
+              >
+                {busy ? "Masang…" : state === "missing" ? "Pasang" : "Pasang ulang"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+      {showPreview && status && (
+        <div className="hooks-preview">
+          <span className="muted">
+            Ditambahin ke <code>{status.settingsPath}</code>:
+          </span>
+          <pre>{status.preview}</pre>
+        </div>
+      )}
+      {(error || status?.error) && <p className="hooks-error">{error ?? status?.error}</p>}
+      {note && <p className="hooks-note muted">{note}</p>}
+    </div>
   );
 }
 

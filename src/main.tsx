@@ -4,6 +4,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { IslandApp } from "./island/IslandApp";
 import { SettingsApp } from "./settings/SettingsApp";
+import { initAgents } from "./state/agents";
 import { initChat } from "./state/chat";
 import { initMedia } from "./state/media";
 import { initSettings } from "./state/settings";
@@ -28,7 +29,7 @@ async function boot() {
     await import("./styles/settings.css");
   } else {
     await import("./styles/island.css");
-    await Promise.all([initMedia(), initShelf()]);
+    await Promise.all([initMedia(), initShelf(), initAgents()]);
     await initChat();
   }
 

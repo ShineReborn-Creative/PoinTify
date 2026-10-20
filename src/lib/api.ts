@@ -75,6 +75,67 @@ export type ClaudeSendRequest = {
   attachments: string[];
 };
 
+export type AgentStep = {
+  id: number;
+  at: number;
+  kind: "prompt" | "tool";
+  tool: string | null;
+  detail: string;
+  target: string | null;
+  added: number | null;
+  removed: number | null;
+  ok: boolean | null;
+};
+
+export type AgentSession = {
+  id: string;
+  cwd: string;
+  project: string;
+  status: "working" | "waiting" | "idle" | "ended";
+  title: string | null;
+  lastMessage: string | null;
+  startedAt: number;
+  updatedAt: number;
+  steps: AgentStep[];
+};
+
+export type AgentQuestion = {
+  question: string;
+  header?: string;
+  multiSelect?: boolean;
+  options: { label: string; description?: string }[];
+};
+
+export type PendingRequest = {
+  id: string;
+  kind: "permission" | "question";
+  sessionId: string;
+  project: string;
+  chatId: string | null;
+  tool: string;
+  detail: string;
+  target: string | null;
+  alwaysLabel: string | null;
+  questions: AgentQuestion[] | null;
+  createdAt: number;
+};
+
+export type AgentsSnapshot = { sessions: AgentSession[]; pending: PendingRequest[] };
+
+export type AgentAnswer =
+  | { action: "allow" | "always" | "deny" | "terminal" }
+  | { action: "answer"; answers: Record<string, string> };
+
+export type HooksStatus = {
+  state: "installed" | "outdated" | "partial" | "missing";
+  settingsPath: string;
+  exePath: string;
+  preview: string;
+  error: string | null;
+};
+
+export type HooksInstallResult = { status: HooksStatus; backupPath: string | null };
+
 // ---- Pembungkus command ----
 
 export const api = {
@@ -111,4 +172,11 @@ export const api = {
   claudeLogin: () => invoke("claude_login"),
   claudeOpenDesktop: (sessionId: string | null, cwd: string | null) =>
     invoke("claude_open_desktop", { sessionId, cwd }),
+
+  agentsSnapshot: () => invoke<AgentsSnapshot>("agents_snapshot"),
+  agentsRespond: (id: string, answer: AgentAnswer) => invoke("agents_respond", { id, answer }),
+  agentsDismiss: (sessionId: string) => invoke("agents_dismiss", { sessionId }),
+  hooksStatus: () => invoke<HooksStatus>("hooks_status"),
+  hooksInstall: () => invoke<HooksInstallResult>("hooks_install"),
+  hooksUninstall: () => invoke<HooksInstallResult>("hooks_uninstall"),
 };

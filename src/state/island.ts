@@ -4,7 +4,7 @@ import { createStore } from "../lib/store";
 import type { PipMood } from "../components/Pip";
 
 export type Mode = "compact" | "peek" | "expanded";
-export type Tab = "home" | "chat" | "shelf" | "timer";
+export type Tab = "home" | "chat" | "agents" | "shelf" | "timer";
 
 export type PeekAction = { label: string; primary?: boolean; run: () => void };
 
@@ -61,6 +61,7 @@ export const SIZES = {
   expanded: {
     home: { w: 620, h: 262 },
     chat: { w: 620, h: 440 },
+    agents: { w: 620, h: 360 },
     shelf: { w: 620, h: 262 },
     timer: { w: 620, h: 262 },
   } satisfies Record<Tab, { w: number; h: number }>,

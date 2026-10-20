@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PipMood } from "../components/Pip";
 import { play } from "../lib/sound";
 import { useStore } from "../lib/store";
+import { activeSession, agentsStore, onAgentFinished } from "../state/agents";
 import { chatStore, onClaudeFinished } from "../state/chat";
 import {
   blurGuard,
@@ -24,7 +25,8 @@ import { settingsStore } from "../state/settings";
 import { addToShelf } from "../state/shelf";
 import { onTimerComplete, PHASE_LABEL, syncTimerWithSettings, tickTimer, timerStore } from "../state/timer";
 import { drink, snoozeWater, waterDue, waterStore } from "../state/water";
-import { CompactBar } from "./CompactBar";
+import { ApprovalCard, approvalSize } from "./ApprovalCard";
+import { CompactBar, type Activity } from "./CompactBar";
 import { ExpandedView } from "./ExpandedView";
 import { PeekCard } from "./PeekCard";
 
@@ -34,6 +36,8 @@ export function IslandApp() {
   const timer = useStore(timerStore);
   const chat = useStore(chatStore);
   const settings = useStore(settingsStore);
+  const agents = useStore(agentsStore);
+  const request = agents.pending[0] ?? null;
 
   const [flash, setFlash] = useState<PipMood | null>("wave");
   const [lastActive, setLastActive] = useState(() => Date.now());
@@ -228,25 +232,60 @@ export function IslandApp() {
     [],
   );
 
+  // ---- Sesi Claude Code di terminal selesai ----
+  useEffect(
+    () =>
+      onAgentFinished((f) => {
+        play(f.ok ? "done" : "error");
+        flashMood(f.ok ? "happy" : "error", 3000);
+        setLastActive(Date.now());
+        const s = islandStore.get();
+        if (s.mode === "expanded" && s.tab === "agents") return;
+        showPeek({
+          kind: "claude",
+          title: f.ok ? `Claude beres di ${f.project}` : `Claude ketemu masalah di ${f.project}`,
+          body: f.message.replace(/\s+/g, " ").slice(0, 90) || undefined,
+          mood: f.ok ? "happy" : "error",
+          openTab: "agents",
+          timeoutMs: 10000,
+        });
+      }),
+    [],
+  );
+
+  // ---- Claude minta izin / nanya: bunyi sekali tiap permintaan baru ----
+  const lastRequest = useRef<string | null>(null);
+  useEffect(() => {
+    if (request && request.id !== lastRequest.current) {
+      play("chime");
+      setLastActive(Date.now());
+    }
+    lastRequest.current = request?.id ?? null;
+  }, [request]);
+
   // Durasi di pengaturan berubah -> sesuaikan timer yang lagi diam.
   useEffect(() => {
     syncTimerWithSettings();
   }, [settings?.focusMinutes, settings?.shortBreakMinutes, settings?.longBreakMinutes]);
 
   // ---- Ukuran pulau ----
-  const activity: "claude" | "timer" | "music" | null = chat.running
+  const agent = activeSession(agents);
+  const activity: Activity = chat.running
     ? "claude"
-    : timer.running
-      ? "timer"
-      : media?.isPlaying
-        ? "music"
-        : null;
+    : agent
+      ? "agent"
+      : timer.running
+        ? "timer"
+        : media?.isPlaying
+          ? "music"
+          : null;
 
   const size = useMemo(() => {
+    if (request) return approvalSize(request);
     if (island.mode === "expanded") return SIZES.expanded[island.tab];
     if (island.mode === "peek") return SIZES.peek;
     return activity ? SIZES.compactWide : SIZES.compactBase;
-  }, [island.mode, island.tab, activity]);
+  }, [island.mode, island.tab, activity, request]);
 
   useEffect(() => {
     reportHit(size.w, size.h);
@@ -254,17 +293,24 @@ export function IslandApp() {
 
   // ---- Suasana hati Pip ----
   const idleLong = !island.hover && !activity && now - lastActive > 3 * 60_000;
-  const mood: PipMood = island.fileOver
-    ? "listening"
-    : flash
-      ? flash
-      : island.mode === "peek" && island.peek
-        ? island.peek.mood
-        : chat.running
-          ? chat.lastActivity === "working"
-            ? "working"
-            : "thinking"
-          : media?.isPlaying
+  const agentTool = agent?.steps[agent.steps.length - 1]?.kind === "tool";
+  const mood: PipMood = request
+    ? "notify"
+    : island.fileOver
+      ? "listening"
+      : flash
+        ? flash
+        : island.mode === "peek" && island.peek
+          ? island.peek.mood
+          : chat.running
+            ? chat.lastActivity === "working"
+              ? "working"
+              : "thinking"
+            : agent
+              ? agentTool
+                ? "working"
+                : "thinking"
+              : media?.isPlaying
             ? "music"
             : idleLong
               ? "sleep"
@@ -282,7 +328,7 @@ export function IslandApp() {
         <span className="shoulder left" />
         <span className="shoulder right" />
         <div
-          className={`island mode-${island.mode}${island.fileOver ? " file-over" : ""}`}
+          className={`island mode-${request ? "approval" : island.mode}${island.fileOver ? " file-over" : ""}`}
           onMouseDown={() => {
             if (islandStore.get().mode === "expanded") pin(true);
           }}
@@ -290,9 +336,15 @@ export function IslandApp() {
             if (islandStore.get().mode === "compact") expand();
           }}
         >
-          {island.mode === "compact" && <CompactBar mood={mood} activity={activity} />}
-          {island.mode === "peek" && island.peek && <PeekCard peek={island.peek} mood={mood} />}
-          {island.mode === "expanded" && <ExpandedView mood={mood} />}
+          {request ? (
+            <ApprovalCard key={request.id} request={request} more={agents.pending.length - 1} />
+          ) : (
+            <>
+              {island.mode === "compact" && <CompactBar mood={mood} activity={activity} />}
+              {island.mode === "peek" && island.peek && <PeekCard peek={island.peek} mood={mood} />}
+              {island.mode === "expanded" && <ExpandedView mood={mood} />}
+            </>
+          )}
         </div>
       </div>
     </div>

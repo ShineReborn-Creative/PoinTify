@@ -1,4 +1,5 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { toolLabel } from "../../lib/tools";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
@@ -383,22 +384,6 @@ function SegView({ seg, live }: { seg: Seg; live?: boolean }) {
   );
 }
 
-const TOOL_LABEL: Record<string, string> = {
-  Read: "Baca",
-  Edit: "Edit",
-  MultiEdit: "Edit",
-  Write: "Tulis",
-  Bash: "Jalanin",
-  PowerShell: "Jalanin",
-  Glob: "Cari file",
-  Grep: "Cari teks",
-  WebFetch: "Buka web",
-  WebSearch: "Cari di web",
-  Task: "Subagent",
-  Agent: "Subagent",
-  TodoWrite: "Catat tugas",
-  NotebookEdit: "Edit notebook",
-};
 
 function toolDetail(seg: ToolSeg): string {
   const i = seg.input ?? {};
@@ -411,7 +396,7 @@ function toolDetail(seg: ToolSeg): string {
 }
 
 function ToolChip({ seg }: { seg: ToolSeg }) {
-  const label = TOOL_LABEL[seg.name] ?? seg.name.replace(/^mcp__/, "");
+  const label = toolLabel(seg.name);
   const detail = toolDetail(seg);
   return (
     <div className={`tool-chip status-${seg.status}`}>

@@ -1,10 +1,19 @@
+mod agents;
 mod claude;
+mod claude_hooks;
+mod hook_relay;
 mod island;
 mod lyrics;
 mod media;
 mod settings;
 mod shelf;
 mod tray;
+
+/// Mode relay hooks Claude Code (`pointify.exe --hook`). Dipanggil dari
+/// `main` sebelum aplikasi dibikin, jadi nggak ada jendela yang muncul.
+pub fn hook_relay() -> i32 {
+    hook_relay::run()
+}
 
 #[cfg_attr(mobile, mobile_entry_point)]
 pub fn run() {
@@ -27,6 +36,7 @@ pub fn run() {
         .manage(lyrics::LyricsCache::default())
         .manage(shelf::ShelfState::default())
         .manage(claude::ClaudeState::default())
+        .manage(agents::AgentsState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             settings::init(&handle)?;
@@ -34,6 +44,7 @@ pub fn run() {
             island::init(&handle)?;
             media::start_watcher(handle.clone());
             tray::init(&handle)?;
+            agents::start(&handle);
             settings::apply_shortcut(&handle);
             Ok(())
         })
@@ -59,6 +70,12 @@ pub fn run() {
             claude::claude_stop,
             claude::claude_login,
             claude::claude_open_desktop,
+            agents::agents_snapshot,
+            agents::agents_respond,
+            agents::agents_dismiss,
+            claude_hooks::hooks_status,
+            claude_hooks::hooks_install,
+            claude_hooks::hooks_uninstall,
         ])
         .run(tauri::generate_context!())
         .expect("PoinTify gagal dijalankan");
