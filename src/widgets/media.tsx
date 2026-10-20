@@ -8,6 +8,7 @@ import { useStore } from "../lib/store";
 import { activeLyricIndex, lyricsStore, mediaStore, positionAt, trackKey } from "../state/media";
 import { dragPipOut } from "../state/pet";
 import { settingsStore } from "../state/settings";
+import { useClaimPip } from "../state/pipSpot";
 import type { WidgetProps } from "./common";
 
 type Props = WidgetProps & { mood: PipMood };
@@ -20,23 +21,7 @@ export function MusicWidget({ size, mood }: Props) {
   const barRef = useRef<HTMLDivElement>(null);
 
   if (!media) {
-    if (size === "w") {
-      return (
-        <div className="w-music-empty-w">
-          <Icon name="music" size={18} />
-          <span className="muted">Puter lagu di Spotify atau YouTube</span>
-        </div>
-      );
-    }
-    return (
-      <div className={`music empty w-music size-${size}`}>
-        <Pip mood={mood} size={size === "xl" ? 64 : 52} glow interactive onDragOut={dragPipOut} />
-        <div>
-          <strong className="music-greet">{greeting()}</strong>
-          <p className="muted">Puter lagu di Spotify atau YouTube, nanti lagunya muncul di sini lengkap sama liriknya.</p>
-        </div>
-      </div>
-    );
+    return <MusicEmpty size={size} mood={mood} />;
   }
 
   const pos = positionAt(media, now);
@@ -132,7 +117,51 @@ export function MusicWidget({ size, mood }: Props) {
   );
 }
 
+/** Belum ada lagu: Pip yang nyapa (kecuali Pip-nya lagi main di desktop). */
+function MusicEmpty({ size, mood }: { size: Props["size"]; mood: PipMood }) {
+  const away = !!useStore(settingsStore)?.petMode;
+  useClaimPip(!away);
+  if (size === "w") {
+    return (
+      <div className="w-music-empty-w">
+        {away ? <Icon name="music" size={18} /> : <Pip mood={mood} size={34} glow interactive onDragOut={dragPipOut} />}
+        <div>
+          <strong>{greeting()}</strong>
+          <span className="muted">Puter lagu di Spotify atau YouTube</span>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className={`music empty w-music size-${size}`}>
+      {away ? (
+        <span className="w-pip-away-icon">
+          <Icon name="music" size={24} />
+        </span>
+      ) : (
+        <Pip mood={mood} size={size === "xl" ? 64 : 52} glow interactive onDragOut={dragPipOut} />
+      )}
+      <div>
+        <strong className="music-greet">{greeting()}</strong>
+        <p className="muted">Puter lagu di Spotify atau YouTube, nanti lagunya muncul di sini lengkap sama liriknya.</p>
+      </div>
+    </div>
+  );
+}
+
 export function PipWidget({ size, mood }: Props) {
+  const away = !!useStore(settingsStore)?.petMode;
+  useClaimPip(!away);
+  if (away) {
+    return (
+      <div className={`w-pip away size-${size}`}>
+        <span className="muted">Pip lagi main di desktop</span>
+        <button className="btn small" onClick={() => void api.petHome()}>
+          Panggil balik
+        </button>
+      </div>
+    );
+  }
   return (
     <div className={`w-pip size-${size}`}>
       <Pip mood={mood === "sleep" ? "idle" : mood} size={size === "s" ? 50 : 56} glow interactive onDragOut={dragPipOut} />

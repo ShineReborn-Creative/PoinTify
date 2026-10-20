@@ -596,3 +596,10 @@ html, body, #root {
 .shelf-head-actions { display: flex; align-items: center; gap: 2px; }
 .shelf-head-actions .shelf-pick { margin-top: 0; }
 .shelf-warn { font-size: 12.5px; line-height: 1.5; max-width: 400px; color: #ffcf85; }
+
+/* Pip di tab bar */
+.tabbar-left { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.header-pip { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex-shrink: 0; cursor: grab; animation: fade-in 0.24s ease both; }
+.header-pip-away { display: grid; place-items: center; width: 22px; height: 30px; flex-shrink: 0; border-radius: 8px; }
+.header-pip-away i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: 0.7; transition: transform 0.15s ease, opacity 0.15s ease; }
+.header-pip-away:hover i { transform: scale(1.5); opacity: 1; }

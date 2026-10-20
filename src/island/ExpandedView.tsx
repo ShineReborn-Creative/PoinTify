@@ -1,5 +1,7 @@
 import { Icon, type IconName } from "../components/Icon";
-import type { PipMood } from "../components/Pip";
+import { Pip, type PipMood } from "../components/Pip";
+import { canvasPipStore } from "../state/pipSpot";
+import { dragPipOut } from "../state/pet";
 import { api } from "../lib/api";
 import { useStore } from "../lib/store";
 import { agentsStore } from "../state/agents";
@@ -40,6 +42,8 @@ export function ExpandedView({ mood }: { mood: PipMood }) {
   return (
     <div className="expanded fade-in">
       <nav className="tabbar" onClick={(e) => e.stopPropagation()}>
+        <div className="tabbar-left">
+        <HeaderPip mood={mood} />
         <div className="tabs" role="tablist">
           {TABS.map((t) => (
             <button
@@ -55,6 +59,7 @@ export function ExpandedView({ mood }: { mood: PipMood }) {
               {busy(t.id) && <span className="tab-dot" aria-label="lagi jalan" />}
             </button>
           ))}
+        </div>
         </div>
         <div className="tabbar-right">
           {island.tab === "home" && <EditToggle />}
@@ -79,5 +84,29 @@ export function ExpandedView({ mood }: { mood: PipMood }) {
         {island.tab === "timer" && <TimerTab />}
       </div>
     </div>
+  );
+}
+
+/**
+ * Pip di pojok tab bar: maskotnya selalu ada walau Beranda nggak punya widget
+ * Pip. Tarik ke bawah buat bawa dia ke desktop. Kalau lagi di desktop, titik
+ * kecilnya bisa diklik buat manggil dia balik.
+ */
+function HeaderPip({ mood }: { mood: PipMood }) {
+  const settings = useStore(settingsStore);
+  const island = useStore(islandStore);
+  const onCanvas = useStore(canvasPipStore);
+  if (settings?.petMode) {
+    return (
+      <button className="header-pip-away" title="Pip lagi di desktop. Klik buat manggil balik." aria-label="Panggil Pip balik" onClick={() => void api.petHome()}>
+        <i />
+      </button>
+    );
+  }
+  if (island.tab === "home" && onCanvas > 0) return null;
+  return (
+    <span className="header-pip" title="Klik buat nyolek, tarik ke bawah buat bawa ke desktop">
+      <Pip mood={mood} size={24} interactive onDragOut={dragPipOut} />
+    </span>
   );
 }
