@@ -45,7 +45,7 @@ const ENDED_TTL_MS: u64 = 20 * 60_000;
 pub struct Step {
     pub id: u64,
     pub at: u64,
-    /// "prompt" | "tool"
+    /// "prompt" | "tool" | "task" (langkah dari daftar tugas chat)
     pub kind: String,
     pub tool: Option<String>,
     /// Ringkasan pendek: nama file, perintah, pola pencarian, isi prompt.
@@ -64,6 +64,8 @@ pub struct Step {
 #[serde(rename_all = "camelCase")]
 pub struct AgentSession {
     pub id: String,
+    /// "terminal" = Claude Code lewat hooks, "chat" = chat Claude yang ngabarin lewat folder feed.
+    pub source: String,
     pub cwd: String,
     pub project: String,
     /// "working" | "waiting" | "idle" | "ended"
@@ -136,11 +138,11 @@ pub struct AgentsState {
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 
-fn next_id() -> u64 {
+pub fn next_id() -> u64 {
     NEXT_ID.fetch_add(1, Ordering::Relaxed)
 }
 
-fn now_ms() -> u64 {
+pub fn now_ms() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
 }
 
@@ -443,6 +445,7 @@ fn touch_session(app: &AppHandle, id: &str, cwd: &str, f: impl FnOnce(&mut Agent
         None => {
             sessions.insert(0, AgentSession {
                 id: id.to_string(),
+                source: "terminal".into(),
                 cwd: cwd.to_string(),
                 project: project_name(cwd),
                 status: "idle".into(),
@@ -580,7 +583,7 @@ fn always_label(suggestions: &[Value]) -> Option<String> {
 // Ringkasan tool
 // ---------------------------------------------------------------------------
 
-fn clip(s: &str, max: usize) -> String {
+pub fn clip(s: &str, max: usize) -> String {
     let one = s.split_whitespace().collect::<Vec<_>>().join(" ");
     if one.chars().count() <= max {
         one
@@ -640,6 +643,74 @@ fn diff_counts(tool: &str, input: &Value) -> (Option<usize>, Option<usize>) {
         "Write" => (Some(line_count(str_of(input, "content"))), None),
         _ => (None, None),
     }
+}
+
+// ---------------------------------------------------------------------------
+// Dipakai sumber lain (feed chat)
+// ---------------------------------------------------------------------------
+
+/// Bikin langkah dari luar modul ini (field `tool_use_id` sengaja privat).
+pub fn task_step(id: u64, at: u64, detail: String, ok: Option<bool>) -> Step {
+    Step {
+        id,
+        at,
+        kind: "task".into(),
+        tool: None,
+        detail,
+        target: None,
+        added: None,
+        removed: None,
+        ok,
+        tool_use_id: None,
+    }
+}
+
+/// Ganti atau tambahin satu sesi utuh, lalu kabarin frontend.
+pub fn put_session(app: &AppHandle, session: AgentSession) {
+    let state = app.state::<AgentsState>();
+    {
+        let mut sessions = state.sessions.lock().unwrap();
+        sessions.retain(|s| s.id != session.id);
+        sessions.push(session);
+        sessions.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        sessions.truncate(MAX_SESSIONS);
+    }
+    publish(app);
+}
+
+pub fn remove_session(app: &AppHandle, id: &str) {
+    let state = app.state::<AgentsState>();
+    let before = state.sessions.lock().unwrap().len();
+    state.sessions.lock().unwrap().retain(|s| s.id != id);
+    if state.sessions.lock().unwrap().len() != before {
+        publish(app);
+    }
+}
+
+/// Kabar "udah beres" (notif + Pip senang).
+pub fn emit_finished(app: &AppHandle, session_id: &str, project: &str, message: &str, ok: bool) {
+    let _ = app.emit(
+        "agent-finished",
+        Finished {
+            session_id: session_id.into(),
+            project: project.into(),
+            message: message.into(),
+            ok,
+        },
+    );
+}
+
+/// Kabar "Claude butuh jawaban lu di chat".
+pub fn emit_attention(app: &AppHandle, session_id: &str, project: &str, message: &str) {
+    let _ = app.emit(
+        "agent-attention",
+        Finished {
+            session_id: session_id.into(),
+            project: project.into(),
+            message: message.into(),
+            ok: true,
+        },
+    );
 }
 
 // ---------------------------------------------------------------------------

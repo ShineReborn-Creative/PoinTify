@@ -582,3 +582,7 @@ html, body, #root {
 .option-desc { font-size: 11px; color: var(--muted); max-width: 100%; }
 .approval-actions { display: flex; align-items: center; gap: 6px; margin-top: auto; }
 .approval-actions .spacer { flex: 1; }
+.compact-count { color: var(--muted); flex-shrink: 0; }
+.step.todo { color: var(--faint); }
+.todo-dot { width: 10px; height: 10px; margin: 0 1px; border-radius: 50%; border: 1.5px solid var(--faint); flex-shrink: 0; }
+.step-note { font-size: 12px; padding: 4px 4px 0 26px; line-height: 1.5; }

@@ -73,8 +73,8 @@ function SessionView({ session }: { session: AgentSession }) {
       <div className="session-head">
         <div className="session-title">
           <strong className="ellipsis">{session.title || session.project}</strong>
-          <span className="muted ellipsis" title={session.cwd}>
-            {session.cwd}
+          <span className="muted ellipsis" title={session.cwd || undefined}>
+            {session.source === "chat" ? `Chat Claude · ${session.project}` : session.cwd}
           </span>
         </div>
         {(totals.added > 0 || totals.removed > 0) && (
@@ -99,6 +99,9 @@ function SessionView({ session }: { session: AgentSession }) {
         {session.steps.map((s) => (
           <StepRow key={s.id} step={s} />
         ))}
+        {session.lastMessage && session.status === "working" && session.source === "chat" && (
+          <p className="step-note muted">{session.lastMessage}</p>
+        )}
         {session.lastMessage && session.status !== "working" && (
           <div className="step-final">
             <Pip mood="happy" size={18} still />
@@ -111,6 +114,26 @@ function SessionView({ session }: { session: AgentSession }) {
 }
 
 function StepRow({ step }: { step: AgentStep }) {
+  if (step.kind === "todo") {
+    return (
+      <div className="step todo">
+        <span className="todo-dot" aria-hidden="true" />
+        <span className="step-detail ellipsis">{step.detail}</span>
+      </div>
+    );
+  }
+  if (step.kind === "task") {
+    return (
+      <div className={`step tool${step.ok === false ? " failed" : ""}`}>
+        {step.ok === null ? (
+          <span className="spinner" aria-label="lagi dikerjain" />
+        ) : (
+          <Icon name={step.ok ? "check" : "close"} size={12} />
+        )}
+        <span className={`ellipsis${step.ok === null ? " step-name" : " step-detail"}`}>{step.detail}</span>
+      </div>
+    );
+  }
   if (step.kind === "prompt") {
     return (
       <div className="step prompt">
@@ -152,7 +175,7 @@ function EmptySessions({ mood }: { mood: PipMood }) {
         <strong>{installed ? "Belum ada sesi yang jalan" : "Pantau Claude Code dari sini"}</strong>
         <p className="muted">
           {installed
-            ? "Jalanin claude di terminal mana aja. Langkah-langkahnya muncul di sini, dan kalau Claude minta izin, lu bisa jawab langsung dari notch."
+            ? "Kerjaan Claude muncul di sini: dari chat di app Claude (selama chat-nya nyambung ke PC ini) dan dari claude di terminal. Kalau Claude minta izin, lu bisa jawab langsung dari notch."
             : "Lihat Claude Code di terminal lagi ngapain, izinin perintahnya, dan jawab pertanyaannya tanpa bolak-balik ke terminal."}
         </p>
         {hooks && !installed && (

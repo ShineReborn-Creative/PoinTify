@@ -1,6 +1,7 @@
 mod agents;
 mod claude;
 mod claude_hooks;
+mod feed;
 mod hook_relay;
 mod island;
 mod lyrics;
@@ -45,6 +46,7 @@ pub fn run() {
             media::start_watcher(handle.clone());
             tray::init(&handle)?;
             agents::start(&handle);
+            feed::start(&handle);
             settings::apply_shortcut(&handle);
             Ok(())
         })

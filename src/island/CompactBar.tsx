@@ -48,6 +48,18 @@ function AgentActivity() {
   const agents = useStore(agentsStore);
   const s = activeSession(agents);
   if (!s) return null;
+  if (s.source === "chat") {
+    const tasks = s.steps.filter((x) => x.kind === "task" || x.kind === "todo");
+    const done = tasks.filter((x) => x.kind === "task" && x.ok !== null).length;
+    const active = tasks.find((x) => x.kind === "task" && x.ok === null);
+    return (
+      <span className="compact-label">
+        <span className="compact-project">Claude</span>
+        <span className="ellipsis">{active?.detail ?? s.title ?? s.project}</span>
+        {tasks.length > 0 && <span className="compact-count tabular">{`${done}/${tasks.length}`}</span>}
+      </span>
+    );
+  }
   const step = [...s.steps].reverse().find((x) => x.kind === "tool");
   const what = step ? `${toolLabel(step.tool ?? "")} ${step.detail}`.trim() : "lagi mikir";
   return (

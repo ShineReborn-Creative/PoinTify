@@ -7,6 +7,15 @@ export const agentsStore = createStore<AgentsSnapshot>({ sessions: [], pending: 
 
 type Finished = { sessionId: string; project: string; message: string; ok: boolean };
 const finishedHandlers = new Set<(f: Finished) => void>();
+const attentionHandlers = new Set<(f: Finished) => void>();
+
+/** Chat Claude butuh jawaban lu (lagi nanya sesuatu). */
+export function onAgentAttention(fn: (f: Finished) => void) {
+  attentionHandlers.add(fn);
+  return () => {
+    attentionHandlers.delete(fn);
+  };
+}
 
 export function onAgentFinished(fn: (f: Finished) => void) {
   finishedHandlers.add(fn);
@@ -24,6 +33,7 @@ export async function initAgents() {
   }
   void listen<AgentsSnapshot>("agents-changed", (e) => agentsStore.set(e.payload));
   void listen<Finished>("agent-finished", (e) => finishedHandlers.forEach((fn) => fn(e.payload)));
+  void listen<Finished>("agent-attention", (e) => attentionHandlers.forEach((fn) => fn(e.payload)));
 }
 
 export async function answerRequest(id: string, answer: AgentAnswer) {

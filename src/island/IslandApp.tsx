@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PipMood } from "../components/Pip";
 import { play } from "../lib/sound";
 import { useStore } from "../lib/store";
-import { activeSession, agentsStore, onAgentFinished } from "../state/agents";
+import { activeSession, agentsStore, onAgentAttention, onAgentFinished } from "../state/agents";
 import { chatStore, onClaudeFinished } from "../state/chat";
 import {
   blurGuard,
@@ -253,6 +253,24 @@ export function IslandApp() {
     [],
   );
 
+  // ---- Chat Claude nanya sesuatu: jawabnya tetap di chat ----
+  useEffect(
+    () =>
+      onAgentAttention((f) => {
+        play("chime");
+        setLastActive(Date.now());
+        showPeek({
+          kind: "claude",
+          title: "Claude nanya sesuatu",
+          body: f.message.replace(/\s+/g, " ").slice(0, 90) || "Balik ke chat buat jawab.",
+          mood: "notify",
+          openTab: "agents",
+          timeoutMs: 20000,
+        });
+      }),
+    [],
+  );
+
   // ---- Claude minta izin / nanya: bunyi sekali tiap permintaan baru ----
   const lastRequest = useRef<string | null>(null);
   useEffect(() => {
@@ -293,7 +311,7 @@ export function IslandApp() {
 
   // ---- Suasana hati Pip ----
   const idleLong = !island.hover && !activity && now - lastActive > 3 * 60_000;
-  const agentTool = agent?.steps[agent.steps.length - 1]?.kind === "tool";
+  const agentTool = !!agent?.steps.some((s) => (s.kind === "tool" || s.kind === "task") && s.ok === null);
   const mood: PipMood = request
     ? "notify"
     : island.fileOver

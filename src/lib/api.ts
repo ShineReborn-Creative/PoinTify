@@ -78,7 +78,7 @@ export type ClaudeSendRequest = {
 export type AgentStep = {
   id: number;
   at: number;
-  kind: "prompt" | "tool";
+  kind: "prompt" | "tool" | "task" | "todo";
   tool: string | null;
   detail: string;
   target: string | null;
@@ -89,6 +89,8 @@ export type AgentStep = {
 
 export type AgentSession = {
   id: string;
+  /** "terminal" = Claude Code lewat hooks, "chat" = chat Claude yang ngabarin lewat folder feed. */
+  source: "terminal" | "chat";
   cwd: string;
   project: string;
   status: "working" | "waiting" | "idle" | "ended";
