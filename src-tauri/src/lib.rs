@@ -1,6 +1,7 @@
 mod agents;
 mod claude;
 mod claude_hooks;
+mod drop_catcher;
 mod feed;
 mod hook_relay;
 mod island;
@@ -45,6 +46,7 @@ pub fn run() {
             settings::init(&handle)?;
             shelf::init(&handle)?;
             island::init(&handle)?;
+            drop_catcher::start(&handle);
             media::start_watcher(handle.clone());
             tray::init(&handle)?;
             agents::start(&handle);
@@ -52,6 +54,18 @@ pub fn run() {
             pet::restore_later(&handle);
             settings::apply_shortcut(&handle);
             Ok(())
+        })
+        // Catatan di terminal tiap ada file diseret ke notch, buat ngelacak masalah Rak.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::DragDrop(e) = event {
+                let what = match e {
+                    tauri::DragDropEvent::Enter { paths, .. } => format!("masuk ({} item)", paths.len()),
+                    tauri::DragDropEvent::Drop { paths, .. } => format!("dilepas ({} item)", paths.len()),
+                    tauri::DragDropEvent::Leave => "keluar".into(),
+                    _ => return,
+                };
+                eprintln!("[pointify] drag file di jendela {}: {what}", window.label());
+            }
         })
         .invoke_handler(tauri::generate_handler![
             island::island_set_hit,
@@ -67,6 +81,7 @@ pub fn run() {
             shelf::shelf_open,
             shelf::shelf_reveal,
             shelf::shelf_drag_icon,
+            shelf::shelf_diagnose,
             settings::settings_get,
             settings::settings_set,
             settings::settings_open,

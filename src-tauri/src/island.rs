@@ -82,6 +82,26 @@ fn place(win: &WebviewWindow) {
     }
 }
 
+/// Kotak pulau (plus `margin` px logis) dalam piksel fisik layar: (x, y, w, h).
+fn screen_rect(win: &WebviewWindow, rect: Rect, margin: f64) -> Option<(i32, i32, i32, i32)> {
+    if rect.w <= 0.0 || rect.h <= 0.0 {
+        return None;
+    }
+    let pos = win.outer_position().ok()?;
+    let scale = win.scale_factor().ok()?;
+    let x = pos.x as f64 + (rect.x - margin) * scale;
+    let y = pos.y as f64 + (rect.y - margin).max(0.0) * scale;
+    let w = (rect.w + margin * 2.0) * scale;
+    let h = (rect.h + margin) * scale;
+    Some((x.round() as i32, y.round() as i32, w.round() as i32, h.round() as i32))
+}
+
+fn cursor_in_screen_rect(win: &WebviewWindow, r: (i32, i32, i32, i32)) -> bool {
+    win.cursor_position().is_ok_and(|c| {
+        c.x >= r.0 as f64 && c.x <= (r.0 + r.2) as f64 && c.y >= (r.1 as f64).min(r.1 as f64 - 2.0) && c.y <= (r.1 + r.3) as f64
+    })
+}
+
 fn cursor_inside(win: &WebviewWindow, rect: Rect) -> bool {
     if rect.w <= 0.0 || rect.h <= 0.0 {
         return false;
@@ -119,6 +139,9 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
         let mut last_slow_check = Instant::now() - Duration::from_secs(10);
         let own_hwnd = window_handle(&win);
         let mut last_cursor = CursorPos { x: f64::NAN, y: f64::NAN };
+        // Buat penangkap file: tombol kiri mulai ditekan di luar notch?
+        let mut was_down = false;
+        let mut pressed_outside = false;
         let mut last_cursor_sent = Instant::now();
 
         loop {
@@ -145,6 +168,7 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
             }
 
             if hidden_for_fullscreen {
+                crate::drop_catcher::place(None);
                 if inside {
                     inside = false;
                     let _ = win.set_ignore_cursor_events(true);
@@ -164,6 +188,21 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
                 let _ = win.set_ignore_cursor_events(!inside);
                 let _ = app.emit("island-hover", inside);
             }
+
+            // Ada yang diseret dari luar (misalnya file dari Explorer) ke atas notch:
+            // pasang penangkap file native di atas pulau. Kalau ditekannya di dalam
+            // notch (nyeret file keluar dari rak, nyeret Pip), penangkapnya nggak dipasang.
+            let down = crate::drop_catcher::left_button_down();
+            if down && !was_down {
+                pressed_outside = !now_inside;
+            }
+            if !down {
+                pressed_outside = false;
+            }
+            was_down = down;
+            let zone = screen_rect(&win, rect, 24.0);
+            let catch = zone.filter(|z| down && pressed_outside && cursor_in_screen_rect(&win, *z));
+            crate::drop_catcher::place(catch);
 
             // Buat mata Pip: kirim posisi kursor kalau geraknya kerasa.
             if last_cursor_sent.elapsed() >= CURSOR_EVERY {

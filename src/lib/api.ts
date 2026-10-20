@@ -168,6 +168,7 @@ export const api = {
   shelfOpen: (id: string) => invoke("shelf_open", { id }),
   shelfReveal: (id: string) => invoke("shelf_reveal", { id }),
   shelfDragIcon: () => invoke<string>("shelf_drag_icon"),
+  shelfDiagnose: () => invoke<{ elevated: boolean }>("shelf_diagnose"),
 
   settingsGet: () => invoke<Settings>("settings_get"),
   settingsSet: (settings: Settings) => invoke<Settings>("settings_set", { settings }),

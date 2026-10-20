@@ -28,6 +28,8 @@ base64 = "0.22"
 reqwest = { version = "0.13", default-features = false, features = ["native-tls", "json", "query", "charset", "http2"] }
 
 [target.'cfg(windows)'.dependencies]
+# Dipakai macro `#[implement]` buat target drop OLE (penangkap file di notch).
+windows-core = "0.62"
 windows = { version = "0.62", features = [
   # Musik: kontrol media bawaan Windows (SMTC)
   "Foundation",
@@ -39,6 +41,15 @@ windows = { version = "0.62", features = [
   "Win32_UI_WindowsAndMessaging",
   # Pip di desktop: baca tombol mouse pas Pip lagi diseret
   "Win32_UI_Input_KeyboardAndMouse",
+  # Rak: cek apakah PoinTify jalan sebagai Administrator (drag dari Explorer keblok)
+  "Win32_Security",
+  "Win32_System_Threading",
+  # Rak: jendela native penangkap file yang diseret ke notch
+  "Win32_System_Com",
+  "Win32_System_Ole",
+  "Win32_System_SystemServices",
+  "Win32_System_LibraryLoader",
+  "Win32_UI_Shell",
 ] }
 
 [profile.release]

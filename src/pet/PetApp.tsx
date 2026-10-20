@@ -31,6 +31,17 @@ export function PetApp() {
     return () => window.clearTimeout(t);
   }, []);
 
+  // File yang nggak sengaja dijatuhin ke Pip jangan sampai dibuka sama WebView.
+  useEffect(() => {
+    const stop = (e: DragEvent) => e.preventDefault();
+    window.addEventListener("dragover", stop);
+    window.addEventListener("drop", stop);
+    return () => {
+      window.removeEventListener("dragover", stop);
+      window.removeEventListener("drop", stop);
+    };
+  }, []);
+
   // Area badan Pip dikirim ke Rust, biar sisa jendela tembus klik.
   useEffect(() => {
     const report = () => {

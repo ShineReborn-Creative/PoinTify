@@ -118,25 +118,40 @@ export function IslandApp() {
   }, []);
 
   // ---- Drag file ke notch ----
+  // Dua jalur: event drag-drop bawaan Tauri, dan penangkap file native dari Rust
+  // (`native-file-drag`) yang dipakai di Windows karena jendela notch tembus klik.
   useEffect(() => {
+    let lastDrop = 0;
+    const onEnter = () => {
+      setFileOver(true);
+      expand("shelf");
+    };
+    const onLeave = () => setFileOver(false);
+    const onDrop = (paths: string[]) => {
+      setFileOver(false);
+      pin(true);
+      const now = Date.now();
+      if (!paths.length || now - lastDrop < 800) return;
+      lastDrop = now;
+      void addToShelf(paths);
+      play("drop");
+      flashMood("happy");
+    };
     const un = getCurrentWebview().onDragDropEvent((event) => {
       const p = event.payload;
-      if (p.type === "enter") {
-        setFileOver(true);
-        expand("shelf");
-      } else if (p.type === "drop") {
-        setFileOver(false);
-        if (p.paths.length) {
-          void addToShelf(p.paths);
-          play("drop");
-          flashMood("happy");
-        }
-        pin(true);
-      } else if (p.type === "leave") {
-        setFileOver(false);
-      }
+      if (p.type === "enter") onEnter();
+      else if (p.type === "drop") onDrop(p.paths);
+      else if (p.type === "leave") onLeave();
     });
-    return () => void un.then((f) => f());
+    const unNative = listen<{ kind: "enter" | "leave" | "drop"; paths: string[] }>("native-file-drag", (e) => {
+      if (e.payload.kind === "enter") onEnter();
+      else if (e.payload.kind === "drop") onDrop(e.payload.paths);
+      else onLeave();
+    });
+    return () => {
+      void un.then((f) => f());
+      void unNative.then((f) => f());
+    };
   }, []);
 
   // ---- Fokus jendela: klik di luar = tutup ----

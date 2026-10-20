@@ -1,19 +1,68 @@
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
-import { useRef } from "react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { useEffect, useRef, useState } from "react";
 import { fileIcon, Icon } from "../../components/Icon";
 import { Pip, type PipMood } from "../../components/Pip";
 import { api, type ShelfItem } from "../../lib/api";
 import { fileSize } from "../../lib/format";
 import { useStore } from "../../lib/store";
 import { attach } from "../../state/chat";
-import { guardBlur, islandStore, setTab } from "../../state/island";
-import { shelfStore } from "../../state/shelf";
+import { guardBlur, islandStore, pin, setTab } from "../../state/island";
+import { addToShelf, shelfStore } from "../../state/shelf";
 
 let dragIcon: string | null = null;
+/** Dicek sekali aja: status Administrator nggak berubah selama app jalan. */
+let elevatedCache: boolean | null = null;
+
+function useElevated() {
+  const [elevated, setElevated] = useState(elevatedCache ?? false);
+  useEffect(() => {
+    if (elevatedCache !== null) return;
+    void api
+      .shelfDiagnose()
+      .then((d) => {
+        elevatedCache = !!d?.elevated;
+        setElevated(elevatedCache);
+      })
+      .catch(() => {});
+  }, []);
+  return elevated;
+}
+
+/** Cara lain naruh file: pilih lewat jendela Windows. */
+async function pickToShelf(directory: boolean) {
+  guardBlur(120_000);
+  pin(true);
+  try {
+    const picked = await openDialog({
+      multiple: true,
+      directory,
+      title: directory ? "Pilih folder buat ditaruh di rak" : "Pilih file buat ditaruh di rak",
+    });
+    const paths = Array.isArray(picked) ? picked : picked ? [picked] : [];
+    if (paths.length) await addToShelf(paths);
+  } finally {
+    guardBlur(400);
+  }
+}
+
+function PickButtons({ compact }: { compact?: boolean }) {
+  return (
+    <div className="shelf-pick">
+      <button className={compact ? "btn ghost" : "btn"} onClick={() => void pickToShelf(false)}>
+        <Icon name="file" size={14} /> {compact ? "File" : "Pilih file"}
+      </button>
+      <button className={compact ? "btn ghost" : "btn"} onClick={() => void pickToShelf(true)}>
+        <Icon name="folder" size={14} /> {compact ? "Folder" : "Pilih folder"}
+      </button>
+    </div>
+  );
+}
 
 export function ShelfTab({ mood }: { mood: PipMood }) {
   const items = useStore(shelfStore);
   const island = useStore(islandStore);
+  const elevated = useElevated();
 
   if (!items.length || island.fileOver) {
     return (
@@ -21,10 +70,19 @@ export function ShelfTab({ mood }: { mood: PipMood }) {
         <Pip mood={island.fileOver ? "listening" : mood} size={72} glow interactive />
         <div>
           <strong>{island.fileOver ? "Lepas aja, gue tangkep" : "Taruh file di sini"}</strong>
-          <p className="muted">
-            Drag file dari mana aja ke notch. File-nya tetap di tempat asal, rak cuma nyimpen jalan pintasnya.
-            Nanti bisa di-drag keluar lagi atau ditanyain ke Claude.
-          </p>
+          {elevated ? (
+            <p className="shelf-warn">
+              PoinTify lagi jalan sebagai Administrator, jadi Windows ngeblok file yang diseret dari File Explorer.
+              Tutup VS Code atau terminal-nya, buka lagi biasa (bukan Run as administrator), terus jalanin ulang.
+              Sementara itu pakai tombol di bawah.
+            </p>
+          ) : (
+            <p className="muted">
+              Drag file atau folder dari mana aja ke notch, atau pilih lewat tombol di bawah. File-nya tetap di tempat
+              asal, rak cuma nyimpen jalan pintasnya.
+            </p>
+          )}
+          {!island.fileOver && <PickButtons />}
         </div>
       </div>
     );
@@ -36,9 +94,12 @@ export function ShelfTab({ mood }: { mood: PipMood }) {
         <span className="muted">
           {items.length} file · drag keluar buat dipakai di app lain
         </span>
-        <button className="btn ghost" onClick={() => void api.shelfClear()}>
-          <Icon name="trash" size={14} /> Kosongin rak
-        </button>
+        <div className="shelf-head-actions">
+          <PickButtons compact />
+          <button className="btn ghost" onClick={() => void api.shelfClear()}>
+            <Icon name="trash" size={14} /> Kosongin
+          </button>
+        </div>
       </div>
       <div className="shelf-list">
         {items.map((item) => (
