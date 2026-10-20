@@ -1,4 +1,5 @@
 import { Pip, type PipMood } from "../components/Pip";
+import { compactPip } from "../state/islandDrag";
 import { dragPipOut } from "../state/pet";
 import { settingsStore } from "../state/settings";
 import { Ring } from "../components/Ring";
@@ -49,7 +50,7 @@ function ClaudeActivity() {
 function CompactPip({ mood }: { mood: PipMood }) {
   const settings = useStore(settingsStore);
   if (settings?.petMode) return <span className="compact-pip-away" title="Pip lagi di desktop" />;
-  return <Pip mood={mood} size={24} onDragOut={dragPipOut} />;
+  return <Pip mood={mood} size={24} onDragOut={dragPipOut} onEngine={(e) => (compactPip.engine = e)} />;
 }
 
 /** Sesi Claude Code di terminal: nama project + langkah terakhir. */

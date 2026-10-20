@@ -195,6 +195,10 @@ fn notch_spot(app: &AppHandle, offset: i32) -> Option<(i32, i32)> {
 }
 
 fn in_notch_zone(app: &AppHandle, cx: f64, cy: f64) -> bool {
+    // Notch bisa digeser: pakai kotak pulau yang sekarang.
+    if let Some((x, y, w, h)) = crate::island::island_screen_rect(app, 40.0) {
+        return cx >= x as f64 && cx <= (x + w) as f64 && cy >= y as f64 - 4.0 && cy <= (y + h) as f64;
+    }
     let Some(monitor) = app
         .primary_monitor()
         .ok()

@@ -32,7 +32,22 @@ export type IslandState = {
   fileOver: boolean;
   /** Notch keliatan (nggak lagi sembunyi karena app fullscreen). */
   visible: boolean;
+  /** Geseran notch dari tengah layar (px logis). Kebuka penuh selalu di tengah. */
+  offset: number;
+  /** Notch lagi diseret kanan-kiri. */
+  dragging: boolean;
 };
+
+const OFFSET_KEY = "pointify.island.offset";
+
+function loadOffset(): number {
+  try {
+    const v = Number(localStorage.getItem(OFFSET_KEY));
+    return Number.isFinite(v) ? v : 0;
+  } catch {
+    return 0;
+  }
+}
 
 export const islandStore = createStore<IslandState>({
   mode: "compact",
@@ -42,9 +57,36 @@ export const islandStore = createStore<IslandState>({
   pinned: false,
   fileOver: false,
   visible: true,
+  offset: loadOffset(),
+  dragging: false,
 });
 
-export const WINDOW_W = 640;
+/** Jendela notch selebar layar; pulau ditaruh di tengah plus `offset`. */
+export function windowWidth() {
+  return window.innerWidth || 640;
+}
+
+/** Batasi geseran biar pulau selebar `w` nggak keluar layar. */
+export function clampOffset(offset: number, w: number) {
+  const max = Math.max(0, windowWidth() / 2 - w / 2 - 12);
+  return Math.max(-max, Math.min(max, offset));
+}
+
+export function setOffset(offset: number) {
+  patch({ offset });
+}
+
+export function setDragging(dragging: boolean) {
+  patch({ dragging });
+}
+
+export function saveOffset() {
+  try {
+    localStorage.setItem(OFFSET_KEY, String(Math.round(islandStore.get().offset)));
+  } catch {
+    // Nggak kesimpen: next nyala balik ke tengah, nggak apa-apa.
+  }
+}
 
 /** Selama `until` belum lewat, hilangnya fokus jendela nggak bikin notch nutup
  *  (misalnya pas dialog pilih folder kebuka atau file lagi di-drag keluar). */
@@ -131,6 +173,6 @@ export function setVisible(visible: boolean) {
 }
 
 /** Kirim kotak area pulau ke Rust (buat click-through & deteksi hover). */
-export function reportHit(w: number, h: number) {
-  void api.setHit({ x: (WINDOW_W - w) / 2, y: 0, w, h });
+export function reportHit(w: number, h: number, offset = 0) {
+  void api.setHit({ x: (windowWidth() - w) / 2 + offset, y: 0, w, h });
 }

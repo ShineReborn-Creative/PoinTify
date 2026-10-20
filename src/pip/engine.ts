@@ -218,6 +218,8 @@ export class PipEngine {
   private lastInteraction = 0;
   private reaction: { kind: ReactionKind; until: number; data?: number } | null = null;
   private taps: number[] = [];
+  private shakes: number[] = [];
+  private shakeDir = 0;
   private tapTimer = 0;
   private hovering = false;
   private hoverSince = 0;
@@ -388,6 +390,38 @@ export class PipEngine {
     }
     if (!on && this.reaction?.kind === "love") this.reaction = null;
     this.hovering = on;
+  }
+
+  /**
+   * Notch lagi diseret: Pip ketinggalan dikit (miring ke belakang, titiknya
+   * telat ngikut), dan kalau diguncang bolak-balik terus dia pusing.
+   * `vx` = kecepatan geser (px per frame), positif ke kanan.
+   */
+  nudge(vx: number) {
+    const now = performance.now() / 1000;
+    this.interact();
+    const v = clamp(vx, -40, 40);
+    const speed = Math.abs(v);
+    this.tilt.kick(-v * 8);
+    this.sx.kick(speed * 0.04);
+    this.sy.kick(-speed * 0.04);
+    this.dotX.kick(-v * 9);
+    this.dotY.kick(-speed * 2);
+    this.localLook = { x: clamp(-v / 10, -1, 1), y: -0.3, at: this.t };
+
+    const dir = Math.sign(v);
+    if (speed > 5 && dir !== 0 && dir !== this.shakeDir) {
+      if (this.shakeDir !== 0) this.shakes.push(now);
+      this.shakeDir = dir;
+    }
+    this.shakes = this.shakes.filter((t) => now - t < 1.4);
+    const r = this.activeReaction();
+    if (this.shakes.length >= 4 && r?.kind !== "dizzy") {
+      this.shakes = [];
+      this.dizzy();
+    } else if (!r || IDLE_REACTIONS.has(r.kind)) {
+      this.react("surprised", 0.5);
+    }
   }
 
   /** Lompat kecil (dipakai pas Pip jalan-jalan di desktop). */

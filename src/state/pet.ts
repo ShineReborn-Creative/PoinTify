@@ -1,5 +1,5 @@
 import { api } from "../lib/api";
-import { collapse } from "./island";
+import { collapse, islandStore } from "./island";
 
 /** Di Windows, Rust baca tombol mouse langsung. Event pointerup dari webview
  *  bisa nyasar pas jendelanya lagi digeser, jadi cuma dipakai di sistem lain. */
@@ -10,6 +10,7 @@ export const petDrag = { suppressClickUntil: 0 };
 
 /** Pip ditarik keluar dari notch: jadi Pip desktop yang ngikut kursor. */
 export function dragPipOut() {
+  if (islandStore.get().dragging) return;
   petDrag.suppressClickUntil = Date.now() + 1500;
   collapse();
   void api.petSpawnCarry().catch(() => {});

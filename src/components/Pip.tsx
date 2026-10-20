@@ -22,7 +22,7 @@ type Props = {
   className?: string;
 };
 
-/** Jarak seret (px) sebelum dianggap "narik Pip keluar", bukan klik. */
+/** Jarak tarik ke bawah (px) sebelum dianggap "narik Pip keluar", bukan klik. */
 const DRAG_OUT_PX = 14;
 
 // viewBox mesin: x -20..150, y -32..158. Huruf P-nya ada di 0..130 x 0..150,
@@ -96,7 +96,10 @@ function PipImpl({
           ? (e) => {
               const s = dragStart.current;
               if (!s || dragged.current || !(e.buttons & 1)) return;
-              if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > DRAG_OUT_PX) {
+              const dx = e.clientX - s.x;
+              const dy = e.clientY - s.y;
+              // Ditarik ke bawah = keluar dari notch. Geser ke samping itu buat mindahin notch.
+              if (dy > DRAG_OUT_PX && dy > Math.abs(dx)) {
                 dragged.current = true;
                 dragStart.current = null;
                 onDragOut();

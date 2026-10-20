@@ -8,6 +8,7 @@ import { activeSession, agentsStore, onAgentAttention, onAgentFinished } from ".
 import { chatStore, onClaudeFinished } from "../state/chat";
 import {
   blurGuard,
+  clampOffset,
   collapse,
   dismissPeek,
   expand,
@@ -27,6 +28,7 @@ import { addToShelf } from "../state/shelf";
 import { onTimerComplete, PHASE_LABEL, syncTimerWithSettings, tickTimer, timerStore } from "../state/timer";
 import { drink, snoozeWater, waterDue, waterStore } from "../state/water";
 import { ApprovalCard, approvalSize } from "./ApprovalCard";
+import { useIslandDrag } from "./useIslandDrag";
 import { CompactBar, type Activity } from "./CompactBar";
 import { ExpandedView } from "./ExpandedView";
 import { PeekCard } from "./PeekCard";
@@ -321,9 +323,13 @@ export function IslandApp() {
     return activity ? SIZES.compactWide : SIZES.compactBase;
   }, [island.mode, island.tab, activity, request]);
 
+  // Kebuka penuh selalu di tengah; selain itu di tempat terakhir notch digeser.
+  const offset = island.mode === "expanded" && !request ? 0 : clampOffset(island.offset, size.w);
+  const drag = useIslandDrag(size.w);
+
   useEffect(() => {
-    reportHit(size.w, size.h);
-  }, [size.w, size.h]);
+    reportHit(size.w, size.h, offset);
+  }, [size.w, size.h, offset]);
 
   // ---- Suasana hati Pip ----
   const idleLong = !island.hover && !activity && now - lastActive > 3 * 60_000;
@@ -368,7 +374,7 @@ export function IslandApp() {
   }, []);
 
   const alertActive = petMode && (!!request || (island.mode === "peek" && !!island.peek));
-  const alertOffset = Math.round(size.w / 2 + 44);
+  const alertOffset = Math.round(offset + size.w / 2 + 44);
   useEffect(() => {
     if (!petMode) return;
     void emitTo("pet", "pet-alert", { active: alertActive, offset: alertOffset });
@@ -378,8 +384,8 @@ export function IslandApp() {
   if (!settings) return null;
 
   return (
-    <div className="stage">
-      <div className="island-shell" style={{ width: size.w, height: size.h }}>
+    <div className={`stage${island.dragging ? " dragging" : ""}`}>
+      <div className="island-shell" style={{ width: size.w, height: size.h, transform: `translateX(${offset}px)` }}>
         <span className="shoulder left" />
         <span className="shoulder right" />
         <div
@@ -387,6 +393,7 @@ export function IslandApp() {
           onMouseDown={() => {
             if (islandStore.get().mode === "expanded") pin(true);
           }}
+          {...drag}
           onClick={() => {
             if (Date.now() < petDrag.suppressClickUntil) return;
             if (islandStore.get().mode === "compact") expand();

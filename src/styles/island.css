@@ -16,8 +16,11 @@ html, body, #root {
 
 .island-shell {
   position: relative;
-  transition: width 0.44s var(--ease), height 0.44s var(--ease);
+  transition: width 0.44s var(--ease), height 0.44s var(--ease), transform 0.44s var(--ease);
 }
+/* Lagi diseret: ikut kursor langsung, tanpa jeda animasi. */
+.stage.dragging .island-shell { transition: width 0.3s var(--ease), height 0.3s var(--ease); }
+.stage.dragging .island { cursor: grabbing; }
 
 /* "Bahu" cekung di kiri-kanan atas, biar nyatu sama tepi layar kayak notch beneran. */
 .shoulder {

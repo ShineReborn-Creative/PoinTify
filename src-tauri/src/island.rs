@@ -15,7 +15,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
-use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, State, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewWindow};
 
 #[derive(Clone, Copy, Deserialize, Default, Debug)]
 pub struct Rect {
@@ -63,23 +63,34 @@ fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window("main")
 }
 
-/// Taruh jendela pas di tengah atas monitor utama.
+/// Tinggi jendela notch (logis). Lebarnya selebar layar, biar pulau bisa
+/// digeser kanan-kiri dengan animasi CSS. Area di luar pulau tetap tembus klik.
+const WINDOW_H: f64 = 460.0;
+
+/// Taruh jendela di atas monitor utama, selebar layarnya.
 fn place(win: &WebviewWindow) {
     let monitor = win
         .primary_monitor()
         .ok()
         .flatten()
         .or_else(|| win.current_monitor().ok().flatten());
-    let (Some(monitor), Ok(size)) = (monitor, win.outer_size()) else {
-        return;
-    };
+    let Some(monitor) = monitor else { return };
     let screen = monitor.size();
     let origin = monitor.position();
-    let x = origin.x + (screen.width as i32 - size.width as i32) / 2;
-    let y = origin.y;
-    if win.outer_position().map(|p| p.x != x || p.y != y).unwrap_or(true) {
-        let _ = win.set_position(PhysicalPosition::new(x, y));
+    let want = PhysicalSize::new(screen.width, (WINDOW_H * monitor.scale_factor()).round() as u32);
+    if win.outer_size().map(|s| s != want).unwrap_or(true) {
+        let _ = win.set_size(want);
     }
+    if win.outer_position().map(|p| p.x != origin.x || p.y != origin.y).unwrap_or(true) {
+        let _ = win.set_position(PhysicalPosition::new(origin.x, origin.y));
+    }
+}
+
+/// Kotak pulau sekarang dalam piksel fisik layar (dipakai Pip desktop).
+pub fn island_screen_rect(app: &AppHandle, margin: f64) -> Option<(i32, i32, i32, i32)> {
+    let win = main_window(app)?;
+    let rect = *app.state::<IslandState>().hit.lock().unwrap();
+    screen_rect(&win, rect, margin)
 }
 
 /// Kotak pulau (plus `margin` px logis) dalam piksel fisik layar: (x, y, w, h).
@@ -142,6 +153,7 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
         // Buat penangkap file: tombol kiri mulai ditekan di luar notch?
         let mut was_down = false;
         let mut pressed_outside = false;
+        let mut pressed_inside = false;
         let mut last_cursor_sent = Instant::now();
 
         loop {
@@ -179,7 +191,23 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
             }
 
             let rect = *state.hit.lock().unwrap();
-            let now_inside = cursor_inside(&win, rect);
+            let raw_inside = cursor_inside(&win, rect);
+
+            // Tombol kiri: ditekan di dalam atau di luar notch?
+            let down = crate::drop_catcher::left_button_down();
+            if down && !was_down {
+                pressed_outside = !raw_inside;
+                pressed_inside = raw_inside;
+            }
+            if !down {
+                pressed_outside = false;
+                pressed_inside = false;
+            }
+            was_down = down;
+            // Lagi nyeret notch (atau apa pun yang mulai dari dalam notch): jangan
+            // dilepas jadi tembus klik walau kursor sempat keluar kotaknya.
+            let now_inside = raw_inside || (down && pressed_inside);
+
             if state.resync.swap(false, Ordering::Relaxed) {
                 let _ = win.set_ignore_cursor_events(!now_inside);
             }
@@ -192,14 +220,6 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
             // Ada yang diseret dari luar (misalnya file dari Explorer) ke atas notch:
             // pasang penangkap file native di atas pulau. Kalau ditekannya di dalam
             // notch (nyeret file keluar dari rak, nyeret Pip), penangkapnya nggak dipasang.
-            let down = crate::drop_catcher::left_button_down();
-            if down && !was_down {
-                pressed_outside = !now_inside;
-            }
-            if !down {
-                pressed_outside = false;
-            }
-            was_down = down;
             let zone = screen_rect(&win, rect, 24.0);
             let catch = zone.filter(|z| down && pressed_outside && cursor_in_screen_rect(&win, *z));
             crate::drop_catcher::place(catch);
