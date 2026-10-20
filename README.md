@@ -17,6 +17,12 @@ Notch ala Dynamic Island dengan musik dan lirik sinkron, timer fokus, pengingat 
 
 ---
 
+## Unduh
+
+Ambil installer terbaru di [halaman Releases](https://github.com/ShineReborn-Creative/PoinTify/releases/latest): file `PoinTify_<versi>_x64-setup.exe`. Installer-nya dipasang buat akun lu aja, jadi nggak minta izin Administrator.
+
+Installer-nya belum ditandatangani, jadi Windows mungkin nampilin "Windows protected your PC". Klik **More info**, lalu **Run anyway**.
+
 ## Kenalan sama Pip
 
 Maskot PoinTify namanya **Pip**: huruf P yang hidup. Titik bercahaya di sampingnya itu unsur **"point"**, dan pas ada yang perlu lu tahu, titik itu berubah jadi badge notifikasi yang lompat-lompat, itu unsur **"tify"**.
@@ -93,6 +99,8 @@ Bikin installer:
 ```powershell
 npm run tauri build
 ```
+
+Hasilnya ada di `src-tauri\target\release\bundle\nsis\PoinTify_<versi>_x64-setup.exe`. Tiap tag versi baru (misalnya `v0.3.0`) yang di-push ke GitHub, workflow [Rilis](.github/workflows/release.yml) bikin installer yang sama secara otomatis dan nyiapin draft rilis.
 
 ### Chat dengan Claude
 

@@ -1,0 +1,47 @@
+# Bikin installer Windows otomatis tiap ada tag versi baru (misalnya v0.3.0).
+# Hasilnya draft di halaman Releases: cek dulu, terus klik Publish.
+name: Rilis
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Pasang dependensi
+        run: npm ci
+
+      - name: Build installer dan bikin rilis
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "PoinTify __VERSION__"
+          releaseBody: |
+            Installer Windows (64-bit): unduh file `PoinTify_..._x64-setup.exe` di bawah.
+
+            Windows mungkin nampilin "Windows protected your PC" karena installer-nya belum ditandatangani. Klik **More info** → **Run anyway**.
+
+            Fitur chat dan pantau sesi butuh [Claude Code](https://code.claude.com/docs/en/setup) yang udah login.
+          releaseDraft: true
+          prerelease: false
