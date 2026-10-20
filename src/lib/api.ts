@@ -56,7 +56,22 @@ export type Settings = {
   petMode: boolean;
   petWander: boolean;
   petPos: [number, number] | null;
+  /** Kanvas widget Beranda (bentuknya diatur src/widgets/layout.ts). */
+  widgets: unknown;
 };
+
+export type SysStats = {
+  cpu: number;
+  memUsed: number;
+  memTotal: number;
+  diskFree: number;
+  diskTotal: number;
+  battery: { percent: number; charging: boolean } | null;
+  netDown: number;
+  netUp: number;
+};
+
+export type ClipItem = { text: string; at: number };
 
 export type CarryResult = { moved: boolean; home: boolean };
 
@@ -197,4 +212,13 @@ export const api = {
   petWander: () => invoke<number>("pet_wander"),
   petVisit: (offset: number) => invoke("pet_visit", { offset }),
   petReturn: () => invoke("pet_return"),
+
+  sysStats: () => invoke<SysStats>("sys_stats"),
+  sysMediaKey: (action: "volumeUp" | "volumeDown" | "mute") => invoke("sys_media_key", { action }),
+  sysMic: (toggle: boolean) => invoke<boolean>("sys_mic", { toggle }),
+  clipboardList: () => invoke<ClipItem[]>("clipboard_list"),
+  clipboardCopy: (text: string) => invoke("clipboard_copy", { text }),
+  clipboardClear: () => invoke("clipboard_clear"),
+  httpGetJson: <T = unknown>(url: string) => invoke<T>("http_get_json", { url }),
+  launchOpen: (target: string) => invoke("launch_open", { target }),
 };

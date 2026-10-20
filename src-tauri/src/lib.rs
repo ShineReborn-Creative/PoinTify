@@ -1,5 +1,6 @@
 mod agents;
 mod claude;
+mod clipboard;
 mod claude_hooks;
 mod drop_catcher;
 mod feed;
@@ -10,7 +11,9 @@ mod media;
 mod pet;
 mod settings;
 mod shelf;
+mod sys;
 mod tray;
+mod widgets;
 
 /// Mode relay hooks Claude Code (`pointify.exe --hook`). Dipanggil dari
 /// `main` sebelum aplikasi dibikin, jadi nggak ada jendela yang muncul.
@@ -41,6 +44,8 @@ pub fn run() {
         .manage(claude::ClaudeState::default())
         .manage(agents::AgentsState::default())
         .manage(pet::PetState::default())
+        .manage(sys::SysState::default())
+        .manage(clipboard::ClipState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             settings::init(&handle)?;
@@ -52,6 +57,7 @@ pub fn run() {
             agents::start(&handle);
             feed::start(&handle);
             pet::restore_later(&handle);
+            clipboard::start(&handle);
             settings::apply_shortcut(&handle);
             Ok(())
         })
@@ -105,6 +111,14 @@ pub fn run() {
             pet::pet_wander,
             pet::pet_visit,
             pet::pet_return,
+            sys::sys_stats,
+            sys::sys_media_key,
+            sys::sys_mic,
+            clipboard::clipboard_list,
+            clipboard::clipboard_copy,
+            clipboard::clipboard_clear,
+            widgets::http_get_json,
+            widgets::launch_open,
         ])
         .run(tauri::generate_context!())
         .expect("PoinTify gagal dijalankan");

@@ -47,7 +47,10 @@ type ReactionKind =
   | "play"
   | "stretch"
   | "hop";
-type ParticleKind = "heart" | "sparkle" | "z" | "note" | "bang" | "question" | "sweat";
+type ParticleKind = "heart" | "sparkle" | "z" | "note" | "bang" | "question" | "sweat" | "rain";
+
+/** Keadaan sekitar yang bikin Pip bereaksi pas lagi santai. */
+export type PipConditions = { hot?: boolean; tired?: boolean; rain?: boolean };
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const P_PATH = "M30 45a15 15 0 0 1 15-15h17a34 34 0 0 1 0 68h-2v27a15 15 0 0 1-30 0z";
@@ -152,6 +155,7 @@ const PARTICLE_PATH: Partial<Record<ParticleKind, { d: string; fill: string }>> 
   heart: { d: "M0 3.2C-6-1-4-7.5 0-4.2 4-7.5 6-1 0 3.2z", fill: "#FF6B8B" },
   sparkle: { d: "M0-5 1.3-1.3 5 0 1.3 1.3 0 5-1.3 1.3-5 0-1.3-1.3z", fill: "#FFD66B" },
   sweat: { d: "M0-5C2 -2 3 0 3 1.6a3 3 0 0 1-6 0C-3 0-2-2 0-5z", fill: "#7CC4FF" },
+  rain: { d: "M0-4C1.4-1.6 2 0 2 1.2a2 2 0 0 1-4 0C-2 0-1.4-1.6 0-4z", fill: "#8FB8FF" },
 };
 const PARTICLE_TEXT: Partial<Record<ParticleKind, { text: string; fill: string; size: number }>> = {
   z: { text: "z", fill: "#A3A3B5", size: 13 },
@@ -233,6 +237,8 @@ export class PipEngine {
   private pointerLook: { x: number; y: number } | null = null;
   private skipped = 0;
   private settleUntil = 0;
+  private cond: PipConditions = {};
+  private lastCond = 0;
 
   constructor(svg: SVGSVGElement, opts: PipOptions = {}) {
     this.svg = svg;
@@ -318,6 +324,16 @@ export class PipEngine {
       this.sy.kick(3);
       this.spawn("question", 0);
     }
+  }
+
+  /** Panas (CPU mentok), capek (baterai lemah), hujan (dari widget cuaca). */
+  setConditions(c: PipConditions) {
+    if (!!c.hot === !!this.cond.hot && !!c.tired === !!this.cond.tired && !!c.rain === !!this.cond.rain) return;
+    const was = this.cond;
+    this.cond = { ...c };
+    this.wake();
+    if (c.hot && !was.hot) this.spawn("sweat", 0);
+    if (c.tired && !was.tired) this.sy.kick(1.5);
   }
 
   setBadge(text: string | number | undefined) {
@@ -598,6 +614,12 @@ export class PipEngine {
       );
       el.textContent = tx.text;
     }
+    if (kind === "rain") {
+      this.particles.push({
+        el, x: rand(-6, 136), y: rand(-34, -20), vx: -6, vy: rand(70, 95), life: 0, max: 1.5, spin: 0, rot: 0, scale: rand(0.8, 1.1),
+      });
+      return;
+    }
     const isBang = kind === "bang" || kind === "question" || kind === "sweat";
     this.particles.push({
       el,
@@ -747,6 +769,32 @@ export class PipEngine {
       }
       default:
         break;
+    }
+
+    // ---- Keadaan sekitar (cuma pas lagi santai) ----
+    if (mood === "idle" || mood === "music") {
+      const c = this.cond;
+      if (c.tired) {
+        lidOpen = Math.min(lidOpen, 0.5);
+        breathePeriod = 4.8;
+        breatheAmp = 0.035;
+        tiltTarget += 3;
+        dotOpacity = Math.min(dotOpacity, 0.7);
+        dot = { x: dot.x, y: dot.y + 6 };
+      }
+      if (c.hot) {
+        lidOpen = Math.min(lidOpen, 0.75);
+        mouth = mouth === "none" ? "wavy" : mouth;
+        if (t - this.lastCond > 2.4) {
+          this.lastCond = t;
+          this.spawn("sweat", 0);
+        }
+      }
+      if (c.rain && !c.hot && t - this.lastCond > 0.35) {
+        this.lastCond = t;
+        this.spawn("rain");
+        lookTarget ??= { x: 0, y: -0.7 };
+      }
     }
 
     // ---- Reaksi sementara menimpa suasana ----

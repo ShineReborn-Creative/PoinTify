@@ -1,5 +1,7 @@
 import { memo, useEffect, useRef } from "react";
 import { usePrefersReducedMotion } from "../lib/hooks";
+import { useStore } from "../lib/store";
+import { pipConditionStore } from "../widgets/data";
 import { MOOD_COLOR, PipEngine, type PipMood } from "../pip/engine";
 
 export { MOOD_COLOR, type PipMood };
@@ -73,6 +75,12 @@ function PipImpl({
   useEffect(() => {
     engineRef.current?.setBadge(badge === "" ? undefined : badge);
   }, [badge]);
+
+  // Keringetan pas CPU panas, lemes pas baterai mau habis, kehujanan kalau di luar hujan.
+  const cond = useStore(pipConditionStore);
+  useEffect(() => {
+    engineRef.current?.setConditions(isStill ? {} : cond);
+  }, [cond, isStill]);
 
   const unit = size / VB.ph;
   return (

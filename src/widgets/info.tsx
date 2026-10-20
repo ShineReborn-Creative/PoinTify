@@ -1,0 +1,293 @@
+import { useEffect } from "react";
+import { Icon, type IconName } from "../components/Icon";
+import { api } from "../lib/api";
+import { useNow } from "../lib/hooks";
+import { duration, str, WLabel, WState, type WidgetProps } from "./common";
+import { geocode, pipConditionStore, setLive, usePolled } from "./data";
+
+// ---------------------------------------------------------------------------
+// Cuaca (Open-Meteo, gratis tanpa API key)
+// ---------------------------------------------------------------------------
+
+type Forecast = {
+  place: string;
+  current: { temperature_2m: number; weather_code: number; is_day: number };
+  daily: { time: string[]; temperature_2m_max: number[]; temperature_2m_min: number[]; weather_code: number[] };
+};
+
+function weatherInfo(code: number, day = true): { label: string; icon: IconName; rain: boolean } {
+  if (code === 0) return { label: "Cerah", icon: day ? "sun" : "moon", rain: false };
+  if (code <= 2) return { label: "Cerah berawan", icon: day ? "sun" : "moon", rain: false };
+  if (code === 3) return { label: "Berawan", icon: "cloud", rain: false };
+  if (code === 45 || code === 48) return { label: "Berkabut", icon: "cloud", rain: false };
+  if (code >= 51 && code <= 57) return { label: "Gerimis", icon: "rain", rain: true };
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { label: "Hujan", icon: "rain", rain: true };
+  if (code >= 71 && code <= 77) return { label: "Salju", icon: "cloud", rain: false };
+  if (code >= 95) return { label: "Badai petir", icon: "storm", rain: true };
+  return { label: "Berawan", icon: "cloud", rain: false };
+}
+
+export function useWeather(city: string) {
+  return usePolled<Forecast>(
+    city ? `weather:${city.toLowerCase()}` : null,
+    async () => {
+      const p = await geocode(city);
+      const f = await api.httpGetJson<Omit<Forecast, "place">>(
+        `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=3`,
+      );
+      return { ...f, place: p.name };
+    },
+    15 * 60_000,
+  );
+}
+
+const DAY = (iso: string) => new Date(iso).toLocaleDateString("id-ID", { weekday: "short" });
+
+export function WeatherWidget({ item, size }: WidgetProps) {
+  const city = str(item.cfg.city, "Nabire");
+  const { data, error } = useWeather(city);
+  const info = data ? weatherInfo(data.current.weather_code, data.current.is_day === 1) : null;
+  useEffect(() => {
+    pipConditionStore.set((c) => (c.rain === !!info?.rain ? c : { ...c, rain: !!info?.rain }));
+  }, [info?.rain]);
+  if (!data || !info) return <WState error={!!error}>{error ?? "Ngecek cuaca…"}</WState>;
+  const temp = Math.round(data.current.temperature_2m);
+  if (size === "s") {
+    return (
+      <div className="w-weather-s">
+        <WLabel icon="cloud">{data.place}</WLabel>
+        <div className="w-weather-now">
+          <Icon name={info.icon} size={26} />
+          <strong className="tabular">{temp}°</strong>
+        </div>
+        <span className="muted ellipsis">{info.label}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="w-weather">
+      <div className="w-weather-left">
+        <WLabel icon="cloud">{data.place}</WLabel>
+        <div className="w-weather-now">
+          <Icon name={info.icon} size={28} />
+          <strong className="tabular">{temp}°</strong>
+        </div>
+        <span className="muted ellipsis">
+          {info.label} · {Math.round(data.daily.temperature_2m_min[0])}°/{Math.round(data.daily.temperature_2m_max[0])}°
+        </span>
+      </div>
+      <div className="w-weather-days">
+        {data.daily.time.slice(1, 3).map((t, i) => {
+          const d = weatherInfo(data.daily.weather_code[i + 1]);
+          return (
+            <div key={t} className="w-weather-day" title={d.label}>
+              <span className="muted">{DAY(t)}</span>
+              <Icon name={d.icon} size={16} />
+              <span className="tabular">{Math.round(data.daily.temperature_2m_max[i + 1])}°</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Jadwal sholat (Aladhan, metode Kemenag RI)
+// ---------------------------------------------------------------------------
+
+const PRAYERS: [string, string][] = [
+  ["Fajr", "Subuh"],
+  ["Dhuhr", "Dzuhur"],
+  ["Asr", "Ashar"],
+  ["Maghrib", "Maghrib"],
+  ["Isha", "Isya"],
+];
+
+type Timings = { data: { timings: Record<string, string> } };
+
+function dateKey(d = new Date()) {
+  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
+}
+
+function usePrayer(city: string) {
+  const day = dateKey();
+  return usePolled<Timings>(
+    city ? `prayer:${city.toLowerCase()}:${day}` : null,
+    async () => {
+      const p = await geocode(city);
+      return api.httpGetJson<Timings>(`https://api.aladhan.com/v1/timings/${day}?latitude=${p.lat}&longitude=${p.lon}&method=20`);
+    },
+    60 * 60_000,
+  );
+}
+
+function prayerTimes(t: Timings | undefined, now: number) {
+  if (!t) return null;
+  const base = new Date(now);
+  const list = PRAYERS.map(([key, name]) => {
+    const [h, m] = (t.data.timings[key] ?? "00:00").split(":").map((x) => parseInt(x, 10));
+    const at = new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m).getTime();
+    return { key, name, text: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, at };
+  });
+  const next = list.find((p) => p.at > now) ?? { ...list[0], at: list[0].at + 86_400_000 };
+  const current = [...list].reverse().find((p) => p.at <= now && now - p.at < 15 * 60_000) ?? null;
+  return { list, next, current };
+}
+
+export function PrayerWidget({ item, size }: WidgetProps) {
+  const city = str(item.cfg.city, "Nabire");
+  const now = useNow(1000);
+  const { data, error } = usePrayer(city);
+  const p = prayerTimes(data, now);
+  if (!p) return <WState error={!!error}>{error ?? "Ngambil jadwal sholat…"}</WState>;
+  if (size === "s") {
+    return (
+      <div className="w-prayer-s">
+        <WLabel icon="moon">{p.current ? "Waktunya" : "Berikutnya"}</WLabel>
+        <strong>{p.current?.name ?? p.next.name}</strong>
+        <span className="muted tabular">{p.current ? p.current.text : `${p.next.text} · ${duration(p.next.at - now)}`}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="w-prayer">
+      <WLabel icon="moon" right={<span className="tabular">{p.current ? `Waktunya ${p.current.name}` : `${p.next.name} ${duration(p.next.at - now)} lagi`}</span>}>
+        {city}
+      </WLabel>
+      <div className="w-prayer-row">
+        {p.list.map((x) => (
+          <div key={x.key} className={`w-prayer-cell${x.key === (p.current?.key ?? p.next.key) ? " next" : ""}`}>
+            <span>{x.name}</span>
+            <b className="tabular">{x.text}</b>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function PrayerLive({ item }: WidgetProps) {
+  const city = str(item.cfg.city, "Nabire");
+  const now = useNow(1000);
+  const { data } = usePrayer(city);
+  const p = prayerTimes(data, now);
+  const soon = p && p.next.at - now <= 15 * 60_000 ? p.next : null;
+  const key = p?.current ? `now:${p.current.key}` : soon ? `soon:${soon.key}:${Math.floor((soon.at - now) / 1000)}` : "";
+  useEffect(() => {
+    if (p?.current) setLive(item.id, { priority: 8, icon: "moon", label: "Waktunya", value: p.current.name, tone: "accent" });
+    else if (soon) setLive(item.id, { priority: 7, icon: "moon", label: soon.name, value: duration(soon.at - now), tone: "accent" });
+    else setLive(item.id, null);
+  }, [item.id, key]);
+  useEffect(() => () => setLive(item.id, null), [item.id]);
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Kurs (Frankfurter, kurs referensi ECB)
+// ---------------------------------------------------------------------------
+
+export const CURRENCIES = ["USD", "EUR", "SGD", "JPY", "CNY", "AUD", "GBP", "MYR", "KRW", "IDR"];
+
+export function CurrencyWidget({ item }: WidgetProps) {
+  const base = str(item.cfg.base, "USD");
+  const quote = str(item.cfg.quote, "IDR");
+  const { data, error } = usePolled<{ rates: Record<string, number>; date: string }>(
+    base === quote ? null : `fx:${base}:${quote}`,
+    () => api.httpGetJson(`https://api.frankfurter.dev/v1/latest?base=${base}&symbols=${quote}`),
+    60 * 60_000,
+  );
+  const rate = data?.rates?.[quote];
+  return (
+    <div className="w-fx">
+      <WLabel icon="money">
+        {base} → {quote}
+      </WLabel>
+      {base === quote ? (
+        <WState>Pilih dua mata uang yang beda.</WState>
+      ) : rate ? (
+        <>
+          <strong className="w-big tabular">{rate.toLocaleString("id-ID", { maximumFractionDigits: rate < 10 ? 4 : 0 })}</strong>
+          <span className="muted">1 {base} · {new Date(data.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>
+        </>
+      ) : (
+        <WState error={!!error}>{error ?? "Ngambil kurs…"}</WState>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// GitHub (API publik)
+// ---------------------------------------------------------------------------
+
+type Gh = {
+  stars: number;
+  forks: number;
+  issues: number;
+  commit?: { message: string; date: string };
+  release?: string;
+};
+
+function ago(iso: string, now: number) {
+  const ms = now - Date.parse(iso);
+  if (ms < 3_600_000) return `${Math.max(1, Math.round(ms / 60_000))} mnt lalu`;
+  if (ms < 86_400_000) return `${Math.round(ms / 3_600_000)} jam lalu`;
+  return `${Math.round(ms / 86_400_000)} hari lalu`;
+}
+
+export function GithubWidget({ item }: WidgetProps) {
+  const repo = str(item.cfg.repo, "ShineReborn-Creative/PoinTify").trim();
+  const now = useNow(60_000);
+  const { data, error } = usePolled<Gh>(
+    repo.includes("/") ? `gh:${repo}` : null,
+    async () => {
+      const base = `https://api.github.com/repos/${repo}`;
+      type Repo = { stargazers_count: number; forks_count: number; open_issues_count: number };
+      type Commit = { commit: { message: string; author: { date: string } } }[];
+      const [r, c, rel] = await Promise.all([
+        api.httpGetJson<Repo>(base),
+        api.httpGetJson<Commit>(`${base}/commits?per_page=1`).catch(() => [] as Commit),
+        api.httpGetJson<{ tag_name: string }>(`${base}/releases/latest`).catch(() => null),
+      ]);
+      return {
+        stars: r.stargazers_count,
+        forks: r.forks_count,
+        issues: r.open_issues_count,
+        commit: c[0] ? { message: c[0].commit.message.split("\n")[0], date: c[0].commit.author.date } : undefined,
+        release: rel?.tag_name,
+      };
+    },
+    15 * 60_000,
+  );
+  return (
+    <div className="w-gh">
+      <WLabel icon="code" right={data?.release}>
+        {repo.split("/").pop() || "Repo"}
+      </WLabel>
+      {data ? (
+        <>
+          <div className="w-gh-stats">
+            <span>
+              <Icon name="star" size={13} /> <b className="tabular">{data.stars}</b>
+            </span>
+            <span>
+              <Icon name="commit" size={13} /> <b className="tabular">{data.forks}</b> fork
+            </span>
+            <span>
+              <Icon name="info" size={13} /> <b className="tabular">{data.issues}</b> isu
+            </span>
+          </div>
+          {data.commit && (
+            <div className="w-gh-commit">
+              <span className="ellipsis">{data.commit.message}</span>
+              <span className="muted">{ago(data.commit.date, now)}</span>
+            </div>
+          )}
+        </>
+      ) : (
+        <WState error={!!error}>{error ?? "Ngambil data repo…"}</WState>
+      )}
+    </div>
+  );
+}

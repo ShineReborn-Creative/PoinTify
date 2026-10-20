@@ -11,6 +11,8 @@ import { initMedia } from "./state/media";
 import { initSettings } from "./state/settings";
 import { initShelf } from "./state/shelf";
 import { setPointer } from "./pip/engine";
+import { initClipboard } from "./widgets/data";
+import { initWidgets } from "./widgets/layout";
 import "./styles/base.css";
 import "./styles/pip.css";
 
@@ -32,8 +34,11 @@ async function boot() {
     await import("./styles/pet.css");
   } else {
     await import("./styles/island.css");
+    await import("./styles/widgets.css");
     await Promise.all([initMedia(), initShelf(), initAgents()]);
     await initChat();
+    initWidgets();
+    initClipboard();
   }
 
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

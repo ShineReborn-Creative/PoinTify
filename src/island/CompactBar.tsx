@@ -11,19 +11,22 @@ import { activeSession, agentsStore } from "../state/agents";
 import { chatStore } from "../state/chat";
 import { mediaStore } from "../state/media";
 import { phaseDuration, remaining, timerStore } from "../state/timer";
+import type { LiveInfo } from "../widgets/data";
+import { LiveActivity } from "../widgets/live";
 
-export type Activity = "claude" | "agent" | "timer" | "music" | null;
+export type Activity = "claude" | "agent" | "live" | "timer" | "music" | null;
 
-type Props = { mood: PipMood; activity: Activity };
+type Props = { mood: PipMood; activity: Activity; live?: LiveInfo | null };
 
 /** Notch dalam keadaan kecil: Pip di kiri, kegiatan yang lagi jalan di kanan. */
-export function CompactBar({ mood, activity }: Props) {
+export function CompactBar({ mood, activity, live }: Props) {
   return (
     <div className="compact fade-in">
       <CompactPip mood={mood} />
       <div className="compact-right">
         {activity === "claude" && <ClaudeActivity />}
         {activity === "agent" && <AgentActivity />}
+        {activity === "live" && live && <LiveActivity info={live} />}
         {activity === "timer" && <TimerActivity />}
         {activity === "music" && <MusicActivity />}
       </div>

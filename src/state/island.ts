@@ -1,6 +1,7 @@
 import { api } from "../lib/api";
 import { play } from "../lib/sound";
 import { createStore } from "../lib/store";
+import { quietStore } from "./quiet";
 import type { PipMood } from "../components/Pip";
 
 export type Mode = "compact" | "peek" | "expanded";
@@ -138,6 +139,8 @@ let peekTimer: number | undefined;
 
 /** Tampilkan kartu notifikasi kecil (kalau pulau lagi nggak kebuka). */
 export function showPeek(peek: Omit<Peek, "id">) {
+  // Mode tenang: notif kecil nggak usah nyembul.
+  if (quietStore.get()) return;
   const s = islandStore.get();
   const full: Peek = { ...peek, id: `${Date.now()}` };
   window.clearTimeout(peekTimer);

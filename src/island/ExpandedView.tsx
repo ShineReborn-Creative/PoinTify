@@ -10,7 +10,7 @@ import { shelfStore } from "../state/shelf";
 import { timerStore } from "../state/timer";
 import { AgentsTab } from "./tabs/AgentsTab";
 import { ChatTab } from "./tabs/ChatTab";
-import { HomeTab } from "./tabs/HomeTab";
+import { EditToggle, WidgetCanvas } from "../widgets/WidgetCanvas";
 import { ShelfTab } from "./tabs/ShelfTab";
 import { TimerTab } from "./tabs/TimerTab";
 
@@ -57,6 +57,7 @@ export function ExpandedView({ mood }: { mood: PipMood }) {
           ))}
         </div>
         <div className="tabbar-right">
+          {island.tab === "home" && <EditToggle />}
           <button
             className="icon-btn"
             aria-label={settings?.sounds ? "Matikan suara" : "Nyalakan suara"}
@@ -71,7 +72,7 @@ export function ExpandedView({ mood }: { mood: PipMood }) {
         </div>
       </nav>
       <div className="tab-body">
-        {island.tab === "home" && <HomeTab mood={mood} />}
+        {island.tab === "home" && <WidgetCanvas mood={mood} />}
         {island.tab === "chat" && <ChatTab mood={mood} />}
         {island.tab === "agents" && <AgentsTab mood={mood} />}
         {island.tab === "shelf" && <ShelfTab mood={mood} />}

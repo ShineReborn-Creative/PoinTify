@@ -32,6 +32,8 @@ import { useIslandDrag } from "./useIslandDrag";
 import { CompactBar, type Activity } from "./CompactBar";
 import { ExpandedView } from "./ExpandedView";
 import { PeekCard } from "./PeekCard";
+import { currentPack, editStore, homePanelWidth, setEditing, widgetStore } from "../widgets/layout";
+import { LiveProbes, useTopLive } from "../widgets/live";
 
 export function IslandApp() {
   const island = useStore(islandStore);
@@ -41,6 +43,9 @@ export function IslandApp() {
   const settings = useStore(settingsStore);
   const agents = useStore(agentsStore);
   const request = agents.pending[0] ?? null;
+  const widgets = useStore(widgetStore);
+  const edit = useStore(editStore);
+  const live = useTopLive();
 
   const [flash, setFlash] = useState<PipMood | null>("wave");
   const [lastActive, setLastActive] = useState(() => Date.now());
@@ -306,22 +311,38 @@ export function IslandApp() {
 
   // ---- Ukuran pulau ----
   const agent = activeSession(agents);
+  // Live widget yang penting (prioritas ≥ 3) nyalip timer & musik; yang santai cuma kalau sepi.
   const activity: Activity = chat.running
     ? "claude"
     : agent
       ? "agent"
-      : timer.running
-        ? "timer"
-        : media?.isPlaying
-          ? "music"
-          : null;
+      : live && live.priority >= 3
+        ? "live"
+        : timer.running
+          ? "timer"
+          : media?.isPlaying
+            ? "music"
+            : live
+              ? "live"
+              : null;
+
+  // Beranda melebar ngikutin jumlah kolom widget.
+  const homeCols = useMemo(() => currentPack(widgets, edit.editing).cols, [widgets, edit.editing]);
+  const homeW = homePanelWidth(homeCols);
+
+  // Keluar dari mode Atur pas notch ditutup atau pindah tab.
+  useEffect(() => {
+    if (edit.editing && (island.mode !== "expanded" || island.tab !== "home")) setEditing(false);
+  }, [island.mode, island.tab, edit.editing]);
 
   const size = useMemo(() => {
     if (request) return approvalSize(request);
-    if (island.mode === "expanded") return SIZES.expanded[island.tab];
+    if (island.mode === "expanded") {
+      return island.tab === "home" ? { ...SIZES.expanded.home, w: homeW } : SIZES.expanded[island.tab];
+    }
     if (island.mode === "peek") return SIZES.peek;
     return activity ? SIZES.compactWide : SIZES.compactBase;
-  }, [island.mode, island.tab, activity, request]);
+  }, [island.mode, island.tab, activity, request, homeW]);
 
   // Kebuka penuh selalu di tengah; selain itu di tempat terakhir notch digeser.
   const offset = island.mode === "expanded" && !request ? 0 : clampOffset(island.offset, size.w);
@@ -385,6 +406,7 @@ export function IslandApp() {
 
   return (
     <div className={`stage${island.dragging ? " dragging" : ""}`}>
+      <LiveProbes />
       <div className="island-shell" style={{ width: size.w, height: size.h, transform: `translateX(${offset}px)` }}>
         <span className="shoulder left" />
         <span className="shoulder right" />
@@ -403,7 +425,7 @@ export function IslandApp() {
             <ApprovalCard key={request.id} request={request} more={agents.pending.length - 1} />
           ) : (
             <>
-              {island.mode === "compact" && <CompactBar mood={mood} activity={activity} />}
+              {island.mode === "compact" && <CompactBar mood={mood} activity={activity} live={live} />}
               {island.mode === "peek" && island.peek && <PeekCard peek={island.peek} mood={mood} />}
               {island.mode === "expanded" && <ExpandedView mood={mood} />}
             </>

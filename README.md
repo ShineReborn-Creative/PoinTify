@@ -48,6 +48,9 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
 | Fitur | Yang terjadi |
 |---|---|
 | **Notch** | Pil hitam di atas layar. Arahin kursor ke sana, dia melebar di tengah layar. Pilnya bisa diseret ke kiri atau kanan kalau ngalangin (Pip-nya ikut kegoncang, diguncang terus malah pusing), dan posisinya diinget. Klik di luar atau tekan `Esc` buat nutup. Area di sekitarnya tembus klik, jadi nggak ngalangin app lain. |
+| **Beranda = kanvas widget** | Beranda isinya widget yang bisa lu susun sendiri: 2 baris, dan notch-nya makin lebar tiap widget nambah (kalau udah mentok lebar layar, tinggal geser). Tahan lama widget mana aja atau klik ikon grid buat masuk mode **Atur**: widget goyang, seret buat mindahin, ganti ukuran (kecil, lebar, besar, jumbo), hapus, atur isinya, atau tambah dari galeri. Susunannya kesimpen di pengaturan. |
+| **22 widget** | Jam (+zona kedua), kalender, hitung mundur, to-do, catatan, riwayat clipboard, timer fokus, minum air, peluncur app/folder/link, usage Claude (hitung mundur reset + notif), prompt cepat (`{clipboard}` diganti teks yang lagi dicopy), sesi Claude, musik, Pip, sistem (CPU, RAM, disk, baterai), internet, tombol cepat (volume, mic, mode tenang), cuaca ([Open-Meteo](https://open-meteo.com)), jadwal sholat ([Aladhan](https://aladhan.com), metode Kemenag), kurs ([Frankfurter](https://frankfurter.dev)), GitHub, dan widget kustom yang ngambil angka dari API JSON mana aja. |
+| **Live di notch kecil** | Widget yang Live-nya nyala ngelapor ke notch kecil pas ada yang penting: hitung mundur tinggal sejam, 15 menit sebelum sholat, usage mau reset, baterai sekarat, CPU mentok, disk mau penuh. Pip juga ikut ngerasain: keringetan pas CPU panas, lemes pas baterai mau habis, kehujanan kalau di luar hujan. |
 | **Musik + lirik** | Baca lagu dari kontrol media Windows (Spotify, YouTube di browser, dll): cover, judul, artis, progress yang bisa diklik buat lompat, tombol putar. Lirik sinkron dari [LRCLIB](https://lrclib.net) jalan ngikutin lagu. |
 | **Chat dengan Claude** | Ngobrol sama Claude langsung dari notch lewat Claude Code, pakai login langganan Claude lu. Mode **Ngobrol** (cuma baca, buat brainstorm) dan **Kerjain** (boleh ngedit file di folder project). Pilih Opus, Sonnet, atau Haiku. Sesi bisa dilanjutin di Claude Desktop. |
 | **Sesi Claude Code** | Sesi `claude` yang lu jalanin di terminal mana aja muncul di tab Sesi: prompt, file yang dibaca dan diedit (+baris −baris), perintah yang dijalanin. Pas Claude minta izin, kartu nyembul dari notch dengan pilihan Izinin, Selalu, Tolak, atau jawab di terminal. Pertanyaan pilihan ganda dari Claude juga bisa dijawab dari notch. Pas sesi beres, Pip lompat senang. |
@@ -62,7 +65,8 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
 ```
 src/                      React + TypeScript (tampilan)
 ├── island/               Notch: keadaan kecil, peek, kebuka + tab
-│   └── tabs/             Beranda, Chat, Sesi, Rak, Fokus
+│   └── tabs/             Chat, Sesi, Rak, Fokus
+├── widgets/              Kanvas Beranda: grid, mode Atur, galeri, semua widget, Live
 ├── settings/             Jendela pengaturan
 ├── pip/                  Mesin animasi Pip (pegas, ekspresi, partikel)
 ├── pet/                  Tampilan Pip di desktop
@@ -81,6 +85,9 @@ src-tauri/src/            Rust (backend)
 ├── feed.rs               Pantau ~/.pointify/feed buat progres chat Claude
 ├── pet.rs                Jendela Pip di desktop: seret, jalan-jalan, mampir ke notch
 ├── shelf.rs              Rak file (disimpan sebagai JSON)
+├── sys.rs                CPU, RAM, disk, baterai, internet, volume & mic (API Windows langsung)
+├── clipboard.rs          Riwayat clipboard di memori (nggak pernah ditulis ke disk)
+├── widgets.rs            Ambil JSON dari internet & buka app/folder/link buat widget
 ├── settings.rs           Pengaturan, autostart, shortcut global
 └── tray.rs               Menu system tray
 ```
@@ -90,6 +97,8 @@ Beberapa keputusan teknis yang menarik:
 - **Click-through yang tetap bisa di-hover.** Jendela notch selalu tembus klik. Thread Rust ngecek posisi kursor tiap 30 ms dan baru "nangkep" mouse kalau kursor masuk area pulau. Frontend ngirim ukuran pulau terbaru tiap bentuknya berubah.
 - **Posisi lagu tanpa polling berat.** Windows cuma ngasih posisi lagu pas ada kejadian (play, pause, seek). PoinTify nyimpen posisi terakhir plus kapan diambil, lalu ngitung sendiri posisi sekarang di frontend.
 - **Chat lewat Claude Code, bukan API key.** `claude -p --output-format stream-json` dijalankan di folder project. Prompt dikirim lewat stdin biar aman dari urusan tanda kutip, dan proses dihentikan pakai `taskkill /T` supaya anak prosesnya ikut berhenti.
+
+- **Widget yang hemat.** Data yang dipakai banyak widget (misalnya statistik sistem) diambil sekali dan dibagi bareng, cuma selama ada widget yang nampilin. Permintaan internet lewat Rust (nggak kena CORS), dibatesin 12 detik dan 2 MB. Grid-nya disusun kolom demi kolom (2 baris), jadi lebar notch tinggal ngikutin jumlah kolom.
 
 - **Hooks yang nggak pernah ngeganggu.** Claude Code menjalankan `pointify.exe --hook` di tiap kejadian. Exe yang sama dipakai sebagai relay: dia keluar sebelum aplikasi Tauri dibikin, ngoper datanya lewat socket lokal (127.0.0.1 plus token acak), dan selalu keluar dengan kode 0. Kalau PoinTify lagi mati, relay langsung keluar tanpa output, jadi Claude Code jalan seperti biasa. Permintaan izin ditahan sampai dijawab di notch, dan kalau prosesnya dibatalin dari terminal, kartunya ikut hilang.
 

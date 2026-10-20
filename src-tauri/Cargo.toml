@@ -50,6 +50,19 @@ windows = { version = "0.62", features = [
   "Win32_System_SystemServices",
   "Win32_System_LibraryLoader",
   "Win32_UI_Shell",
+  # Widget: statistik sistem, internet, mic, clipboard
+  "Win32_System_SystemInformation",
+  "Win32_System_Power",
+  "Win32_Storage_FileSystem",
+  "Win32_NetworkManagement_IpHelper",
+  "Win32_NetworkManagement_Ndis",
+  "Win32_Networking_WinSock",
+  "Win32_Media_Audio",
+  "Win32_Media_Audio_Endpoints",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+  "Win32_System_DataExchange",
+  "Win32_System_Memory",
 ] }
 
 [profile.release]

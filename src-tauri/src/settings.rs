@@ -50,6 +50,9 @@ pub struct Settings {
     pub pet_mode: bool,
     pub pet_wander: bool,
     pub pet_pos: Option<[i32; 2]>,
+    // Kanvas widget di Beranda: susunan, ukuran, dan isi tiap widget.
+    // Bentuknya diatur frontend, Rust cuma nyimpen.
+    pub widgets: serde_json::Value,
 }
 
 impl Default for Settings {
@@ -82,6 +85,7 @@ impl Default for Settings {
             pet_mode: false,
             pet_wander: true,
             pet_pos: None,
+            widgets: serde_json::Value::Null,
         }
     }
 }

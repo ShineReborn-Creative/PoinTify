@@ -1,3 +1,4 @@
+import { quietStore } from "../state/quiet";
 import { settingsStore } from "../state/settings";
 
 /**
@@ -41,6 +42,8 @@ function tone(
 
 export function play(name: SoundName) {
   if (!settingsStore.get()?.sounds) return;
+  // Mode tenang: cuma bunyi buat kartu izin Claude (chime) yang tetap jalan.
+  if (quietStore.get() && name !== "chime") return;
   const ac = audio();
   if (!ac) return;
   const t = ac.currentTime + 0.01;
