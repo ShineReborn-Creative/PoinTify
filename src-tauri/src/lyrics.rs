@@ -1,4 +1,10 @@
+//! Lirik sinkron dari LRCLIB. Request dilakukan dari Rust biar bisa pasang
+//! User-Agent dan nggak kena urusan CORS. Hasil disimpan di memori supaya
+//! lagu yang sama nggak dicari berkali-kali.
+
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, sync::Mutex};
+use tauri::State;
 
 const API: &str = "https://lrclib.net/api";
 const USER_AGENT: &str = concat!("PoinTify/", env!("CARGO_PKG_VERSION"));
@@ -16,11 +22,14 @@ struct LrcLibTrack {
     synced_lyrics: Option<String>,
 }
 
-// "01:23.45" -> 83450 ms
+#[derive(Default)]
+pub struct LyricsCache(pub Mutex<HashMap<String, Option<Vec<LyricLine>>>>);
+
+/// "01:23.45" -> 83450 ms
 fn parse_time(tag: &str) -> Option<u64> {
     let (min, sec) = tag.split_once(':')?;
-    let min: u64 = min.parse().ok()?;
-    let sec: f64 = sec.parse().ok()?;
+    let min: u64 = min.trim().parse().ok()?;
+    let sec: f64 = sec.trim().parse().ok()?;
     Some(min * 60_000 + (sec * 1000.0).round() as u64)
 }
 
@@ -53,6 +62,22 @@ fn first_synced(tracks: Vec<LrcLibTrack>) -> Option<String> {
         .find_map(|t| t.synced_lyrics.filter(|s| !s.trim().is_empty()))
 }
 
+/// Judul video YouTube sering kayak "Artis - Judul (Official Video)".
+/// Buang bagian dalam kurung biar pencarian lebih kena.
+fn clean_title(title: &str) -> String {
+    let mut out = String::new();
+    let mut depth = 0;
+    for c in title.chars() {
+        match c {
+            '(' | '[' => depth += 1,
+            ')' | ']' => depth = (depth - 1).max(0),
+            _ if depth == 0 => out.push(c),
+            _ => {}
+        }
+    }
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 async fn fetch_synced(
     client: &reqwest::Client,
     title: &str,
@@ -78,7 +103,7 @@ async fn fetch_synced(
         }
     }
 
-    // 2. Pencarian berdasarkan judul + artis
+    // 2. Pencarian judul + artis
     let by_fields = [("track_name", title), ("artist_name", artist)];
     if let Ok(res) = client.get(format!("{API}/search")).query(&by_fields).send().await {
         if let Ok(list) = res.json::<Vec<LrcLibTrack>>().await {
@@ -88,22 +113,39 @@ async fn fetch_synced(
         }
     }
 
-    // 3. Pencarian bebas (buat judul video YouTube yang formatnya aneh-aneh)
-    let q = format!("{artist} {title}");
+    // 3. Pencarian bebas pakai judul yang udah dibersihin
+    let q = format!("{artist} {}", clean_title(title));
     let res = client.get(format!("{API}/search")).query(&[("q", q)]).send().await.ok()?;
     first_synced(res.json::<Vec<LrcLibTrack>>().await.ok()?)
 }
 
 #[tauri::command]
 pub async fn lyrics_fetch(
+    cache: State<'_, LyricsCache>,
     title: String,
     artist: String,
     album: String,
     duration_ms: u64,
-) -> Option<Vec<LyricLine>> {
-    let client = reqwest::Client::builder().user_agent(USER_AGENT).build().ok()?;
+) -> Result<Option<Vec<LyricLine>>, String> {
+    let key = format!("{}|{}", title.to_lowercase(), artist.to_lowercase());
+    if let Some(hit) = cache.0.lock().unwrap().get(&key) {
+        return Ok(hit.clone());
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent(USER_AGENT)
+        .timeout(std::time::Duration::from_secs(12))
+        .build()
+        .map_err(|e| e.to_string())?;
     let duration_secs = (duration_ms > 0).then(|| (duration_ms + 500) / 1000);
-    let lrc = fetch_synced(&client, &title, &artist, &album, duration_secs).await?;
-    let lines = parse_lrc(&lrc);
-    (!lines.is_empty()).then_some(lines)
+    let lines = fetch_synced(&client, &title, &artist, &album, duration_secs)
+        .await
+        .map(|lrc| parse_lrc(&lrc))
+        .filter(|l| !l.is_empty());
+
+    // Cuma simpan yang ketemu: kalau gagal karena koneksi, lain kali dicoba lagi.
+    if lines.is_some() {
+        cache.0.lock().unwrap().insert(key, lines.clone());
+    }
+    Ok(lines)
 }

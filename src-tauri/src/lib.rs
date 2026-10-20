@@ -1,67 +1,65 @@
-mod media;
+mod claude;
+mod island;
 mod lyrics;
-
-use std::{thread, time::Duration};
-use tauri::{Emitter, Manager, PhysicalPosition, WebviewWindow};
-
-const WIN_W: f64 = 420.0;
-const COLLAPSED: (f64, f64) = (180.0, 32.0);
-const EXPANDED: (f64, f64) = (400.0, 180.0);
-
-fn cursor_inside(win: &WebviewWindow, (w, h): (f64, f64)) -> bool {
-    let (Ok(cursor), Ok(pos), Ok(scale)) =
-        (win.cursor_position(), win.outer_position(), win.scale_factor())
-    else {
-        return false;
-    };
-    let left = pos.x as f64 + (WIN_W - w) / 2.0 * scale;
-    let top = pos.y as f64;
-    cursor.x >= left
-        && cursor.x <= left + w * scale
-        && cursor.y >= top
-        && cursor.y <= top + h * scale
-}
-
-fn start_hover_watcher(win: WebviewWindow) {
-    thread::spawn(move || {
-        let mut expanded = false;
-        let _ = win.set_ignore_cursor_events(true);
-        loop {
-            let area = if expanded { EXPANDED } else { COLLAPSED };
-            let inside = cursor_inside(&win, area);
-            if inside != expanded {
-                expanded = inside;
-                let _ = win.set_ignore_cursor_events(!expanded);
-                let _ = win.emit("notch-hover", expanded);
-            }
-            thread::sleep(Duration::from_millis(30));
-        }
-    });
-}
+mod media;
+mod settings;
+mod shelf;
+mod tray;
 
 #[cfg_attr(mobile, mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Harus paling atas: buka PoinTify kedua kali = munculin yang udah jalan.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            island::reveal(app);
+        }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_drag::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .manage(settings::SettingsState::default())
+        .manage(island::IslandState::default())
         .manage(media::MediaState::default())
+        .manage(lyrics::LyricsCache::default())
+        .manage(shelf::ShelfState::default())
+        .manage(claude::ClaudeState::default())
         .setup(|app| {
-            let win = app.get_webview_window("main").unwrap();
-            if let Some(monitor) = win.current_monitor()? {
-                let screen = monitor.size();
-                let size = win.outer_size()?;
-                let x = monitor.position().x + (screen.width as i32 - size.width as i32) / 2;
-                let y = monitor.position().y;
-                win.set_position(PhysicalPosition::new(x, y))?;
-            }
-            start_hover_watcher(win.clone());
-            media::start_watcher(app.handle().clone());
+            let handle = app.handle().clone();
+            settings::init(&handle)?;
+            shelf::init(&handle)?;
+            island::init(&handle)?;
+            media::start_watcher(handle.clone());
+            tray::init(&handle)?;
+            settings::apply_shortcut(&handle);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            media::media_get, 
+            island::island_set_hit,
+            island::island_focus,
+            media::media_get,
             media::media_control,
-            lyrics::lyrics_fetch
-            ])
+            media::media_seek,
+            lyrics::lyrics_fetch,
+            shelf::shelf_list,
+            shelf::shelf_add,
+            shelf::shelf_remove,
+            shelf::shelf_clear,
+            shelf::shelf_open,
+            shelf::shelf_reveal,
+            shelf::shelf_drag_icon,
+            settings::settings_get,
+            settings::settings_set,
+            settings::settings_open,
+            claude::claude_status,
+            claude::claude_send,
+            claude::claude_stop,
+            claude::claude_login,
+            claude::claude_open_desktop,
+        ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .expect("PoinTify gagal dijalankan");
 }

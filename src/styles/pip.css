@@ -1,0 +1,102 @@
+/* Pip: semua animasi punya alasan:
+   napas & kedip = karakter hidup, titik muter = lagi mikir,
+   titik lompat = ada yang perlu dilihat, loncat = selesai. */
+
+.pip-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.pip-glow::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--pip-color) 38%, transparent) 0%, transparent 65%);
+  transition: background 0.5s ease;
+  pointer-events: none;
+}
+
+.pip {
+  position: relative;
+  overflow: visible;
+}
+
+.pip-shape { fill: #f6f3ff; }
+.pip-eye { fill: #15131c; }
+.pip-shine { fill: #fff; }
+.pip-cheek { fill: #f4a3c0; opacity: 0.55; }
+.pip-mouth,
+.pip-eyes-happy path,
+.pip-eyes-sleep path,
+.pip-eyes-error path {
+  fill: none;
+  stroke: #15131c;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+
+.pip-dot { fill: var(--pip-color); transition: fill 0.35s ease; transform-box: fill-box; transform-origin: center; }
+.pip-badge { fill: #fff; font-size: 11px; font-weight: 700; font-family: inherit; }
+.pip-z { fill: #8e8e93; font-size: 14px; opacity: 0; font-family: inherit; }
+
+.pip-eyes { transition: transform 0.25s ease; }
+.pip-eyes-happy, .pip-eyes-sleep, .pip-eyes-error, .pip-mouth { opacity: 0; }
+
+.pip-body { transform-origin: 60px 130px; animation: pip-breathe 3.6s ease-in-out infinite; }
+.pip-eye { transform-box: fill-box; transform-origin: center; animation: pip-blink 5s infinite; }
+
+@keyframes pip-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes pip-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+
+/* Mikir / kerja: titik muter ngelilingin kepala */
+.mood-thinking .pip-dot-orbit,
+.mood-working .pip-dot-orbit { transform-origin: 63px 64px; animation: pip-orbit 1.6s linear infinite; }
+.mood-working .pip-dot-orbit { animation-duration: 0.9s; }
+.mood-thinking .pip-eyes-open { transform: translate(3px, -3px); }
+.mood-working .pip-eyes-open { transform: translate(0, 3px); }
+@keyframes pip-orbit { to { transform: rotate(360deg); } }
+
+/* Ngasih tahu: titik membesar jadi badge dan lompat */
+.mood-notify .pip-dot { animation: pip-jump 0.7s ease-in-out infinite; }
+.mood-notify .pip-body { animation: pip-tilt 0.7s ease-in-out infinite; }
+@keyframes pip-jump { 0%, 100% { transform: translateY(0) scale(1.35); } 50% { transform: translateY(-8px) scale(1.5); } }
+@keyframes pip-tilt { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+
+/* Selesai / nyapa */
+.mood-happy .pip-eyes-open, .mood-wave .pip-eyes-open, .mood-music .pip-eyes-open { opacity: 0; }
+.mood-happy .pip-eyes-happy, .mood-wave .pip-eyes-happy, .mood-music .pip-eyes-happy,
+.mood-happy .pip-mouth, .mood-wave .pip-mouth { opacity: 1; }
+.mood-happy .pip-body { animation: pip-hop 0.55s ease-in-out 3; }
+.mood-wave .pip-body { animation: pip-wave 0.6s ease-in-out 3; }
+@keyframes pip-hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes pip-wave { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-8deg); } 70% { transform: rotate(8deg); } }
+
+/* Musik: goyang ngikutin lagu */
+.mood-music .pip-body { animation: pip-groove 0.9s ease-in-out infinite; }
+@keyframes pip-groove { 0%, 100% { transform: rotate(-4deg) translateY(0); } 50% { transform: rotate(4deg) translateY(-3px); } }
+
+/* Tidur */
+.mood-sleep .pip-eyes-open { opacity: 0; }
+.mood-sleep .pip-eyes-sleep { opacity: 1; }
+.mood-sleep .pip-dot { opacity: 0.4; }
+.mood-sleep .pip-z { opacity: 1; animation: pip-float 2.6s ease-in-out infinite; }
+.mood-sleep .pip-body { animation: pip-breathe 5s ease-in-out infinite; }
+@keyframes pip-float { 0% { transform: translate(0, 0); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(8px, -14px); opacity: 0; } }
+
+/* Nunggu file */
+.mood-listening .pip-body { animation: none; transform: scale(1.06) translateY(-2px); transition: transform 0.2s ease; }
+.mood-listening .pip-eye { animation: none; transform: scale(1.2); }
+.mood-listening .pip-dot { animation: pip-pulse 0.9s ease-in-out infinite; }
+@keyframes pip-pulse { 50% { transform: scale(1.4); } }
+
+/* Error */
+.mood-error .pip-eyes-open { opacity: 0; }
+.mood-error .pip-eyes-error { opacity: 1; }
+.mood-error .pip-body { animation: pip-shake 0.4s ease-in-out 2; }
+@keyframes pip-shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pip *, .pip-body, .pip-dot-orbit { animation: none !important; }
+}
