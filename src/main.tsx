@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { IslandApp } from "./island/IslandApp";
+import { PetApp } from "./pet/PetApp";
 import { SettingsApp } from "./settings/SettingsApp";
 import { initAgents } from "./state/agents";
 import { initChat } from "./state/chat";
@@ -27,6 +28,8 @@ async function boot() {
 
   if (label === "settings") {
     await import("./styles/settings.css");
+  } else if (label === "pet") {
+    await import("./styles/pet.css");
   } else {
     await import("./styles/island.css");
     await Promise.all([initMedia(), initShelf(), initAgents()]);
@@ -34,7 +37,9 @@ async function boot() {
   }
 
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-    <React.StrictMode>{label === "settings" ? <SettingsApp /> : <IslandApp />}</React.StrictMode>,
+    <React.StrictMode>
+      {label === "settings" ? <SettingsApp /> : label === "pet" ? <PetApp /> : <IslandApp />}
+    </React.StrictMode>,
   );
 }
 

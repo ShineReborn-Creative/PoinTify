@@ -15,8 +15,15 @@ type Props = {
   interactive?: boolean;
   /** Nggak gerak sendiri. Buat Pip kecil yang jumlahnya banyak. */
   still?: boolean;
+  /** Dipanggil kalau Pip diseret keluar (buat mindahin Pip ke desktop). */
+  onDragOut?: () => void;
+  /** Akses langsung ke mesin animasinya. */
+  onEngine?: (engine: PipEngine | null) => void;
   className?: string;
 };
+
+/** Jarak seret (px) sebelum dianggap "narik Pip keluar", bukan klik. */
+const DRAG_OUT_PX = 14;
 
 // viewBox mesin: x -20..150, y -32..158. Huruf P-nya ada di 0..130 x 0..150,
 // jadi SVG dibikin lebih besar dari kotaknya dan sisanya dibiarkan meluber
@@ -31,8 +38,12 @@ function PipImpl({
   glow = false,
   interactive = false,
   still = false,
+  onDragOut,
+  onEngine,
   className,
 }: Props) {
+  const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const dragged = useRef(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const engineRef = useRef<PipEngine | null>(null);
   const reduced = usePrefersReducedMotion();
@@ -45,7 +56,9 @@ function PipImpl({
     engine.setMood(mood);
     engine.setBadge(badge);
     engineRef.current = engine;
+    onEngine?.(engine);
     return () => {
+      onEngine?.(null);
       engine.destroy();
       engineRef.current = null;
     };
@@ -69,9 +82,39 @@ function PipImpl({
       aria-hidden="true"
       onPointerEnter={interactive ? () => engineRef.current?.hover(true) : undefined}
       onPointerLeave={interactive ? () => engineRef.current?.hover(false) : undefined}
-      onClick={
-        interactive
+      onPointerDown={
+        onDragOut
           ? (e) => {
+              if (e.button !== 0) return;
+              dragStart.current = { x: e.clientX, y: e.clientY };
+              dragged.current = false;
+            }
+          : undefined
+      }
+      onPointerMove={
+        onDragOut
+          ? (e) => {
+              const s = dragStart.current;
+              if (!s || dragged.current || !(e.buttons & 1)) return;
+              if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > DRAG_OUT_PX) {
+                dragged.current = true;
+                dragStart.current = null;
+                onDragOut();
+              }
+            }
+          : undefined
+      }
+      onPointerUp={onDragOut ? () => (dragStart.current = null) : undefined}
+      onClick={
+        interactive || onDragOut
+          ? (e) => {
+              if (dragged.current) {
+                // Abis diseret keluar: klik ini bukan buat notch.
+                e.stopPropagation();
+                dragged.current = false;
+                return;
+              }
+              if (!interactive) return;
               e.stopPropagation();
               engineRef.current?.tap();
             }

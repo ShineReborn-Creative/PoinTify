@@ -1,4 +1,4 @@
-import { listen } from "@tauri-apps/api/event";
+import { emitTo, listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PipMood } from "../components/Pip";
@@ -21,6 +21,7 @@ import {
   SIZES,
 } from "../state/island";
 import { mediaStore } from "../state/media";
+import { petDrag } from "../state/pet";
 import { settingsStore } from "../state/settings";
 import { addToShelf } from "../state/shelf";
 import { onTimerComplete, PHASE_LABEL, syncTimerWithSettings, tickTimer, timerStore } from "../state/timer";
@@ -338,6 +339,27 @@ export function IslandApp() {
     if (activity) setLastActive(Date.now());
   }, [activity]);
 
+  // ---- Pip di desktop: kirim mood, dan panggil dia ke notch pas ada notif ----
+  const petMode = settings?.petMode ?? false;
+  const moodRef = useRef(mood);
+  moodRef.current = mood;
+  useEffect(() => {
+    if (petMode) void emitTo("pet", "pip-mood", { mood });
+  }, [mood, petMode]);
+  // Jendela Pip desktop baru kebuka: kasih tahu mood sekarang.
+  useEffect(() => {
+    const un = listen("pet-ready", () => void emitTo("pet", "pip-mood", { mood: moodRef.current }));
+    return () => void un.then((f) => f());
+  }, []);
+
+  const alertActive = petMode && (!!request || (island.mode === "peek" && !!island.peek));
+  const alertOffset = Math.round(size.w / 2 + 44);
+  useEffect(() => {
+    if (!petMode) return;
+    void emitTo("pet", "pet-alert", { active: alertActive, offset: alertOffset });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alertActive, petMode]);
+
   if (!settings) return null;
 
   return (
@@ -351,6 +373,7 @@ export function IslandApp() {
             if (islandStore.get().mode === "expanded") pin(true);
           }}
           onClick={() => {
+            if (Date.now() < petDrag.suppressClickUntil) return;
             if (islandStore.get().mode === "compact") expand();
           }}
         >

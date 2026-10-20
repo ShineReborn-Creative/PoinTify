@@ -53,7 +53,12 @@ export type Settings = {
   claudeMode: string;
   projects: Project[];
   activeProject: string | null;
+  petMode: boolean;
+  petWander: boolean;
+  petPos: [number, number] | null;
 };
+
+export type CarryResult = { moved: boolean; home: boolean };
 
 export type ClaudeStatus = {
   installed: boolean;
@@ -181,4 +186,14 @@ export const api = {
   hooksStatus: () => invoke<HooksStatus>("hooks_status"),
   hooksInstall: () => invoke<HooksInstallResult>("hooks_install"),
   hooksUninstall: () => invoke<HooksInstallResult>("hooks_uninstall"),
+
+  petShow: () => invoke("pet_show"),
+  petSpawnCarry: () => invoke<CarryResult>("pet_spawn_carry"),
+  petCarry: (grabX: number, grabY: number) => invoke<CarryResult>("pet_carry", { grabX, grabY }),
+  petDrop: () => invoke("pet_drop"),
+  petHome: () => invoke("pet_home"),
+  petSetHit: (rect: { x: number; y: number; w: number; h: number }) => invoke("pet_set_hit", { rect }),
+  petWander: () => invoke<number>("pet_wander"),
+  petVisit: (offset: number) => invoke("pet_visit", { offset }),
+  petReturn: () => invoke("pet_return"),
 };

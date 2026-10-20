@@ -390,6 +390,21 @@ export class PipEngine {
     this.hovering = on;
   }
 
+  /** Lompat kecil (dipakai pas Pip jalan-jalan di desktop). */
+  jump(power = 1) {
+    this.hop.kick(-120 * power);
+    this.sy.kick(-1.4 * power);
+    this.sx.kick(1.0 * power);
+  }
+
+  /** Mendarat abis diseret: gepeng sebentar terus mantul. */
+  land() {
+    this.interact();
+    this.sy.kick(-3.6);
+    this.sx.kick(3.2);
+    this.tilt.kick(rand(-90, 90));
+  }
+
   surprise() {
     this.react("surprised", 0.9);
     this.sy.kick(3);

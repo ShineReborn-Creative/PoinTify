@@ -220,6 +220,12 @@ function GeneralSection({ s }: { s: Settings }) {
         <Row label="Jeda sebelum kebuka" hint="Biar notch nggak kebuka pas kursor cuma lewat sekilas.">
           <Stepper label="jeda" value={s.hoverDelayMs} min={0} max={1000} step={50} suffix="ms" onChange={(v) => updateSettings({ hoverDelayMs: v })} />
         </Row>
+        <Row label="Pip di desktop" hint="Pip keluar dari notch dan nongkrong di layar. Bisa juga dengan nyeret Pip keluar dari notch.">
+          <Toggle label="Pip di desktop" checked={s.petMode} onChange={(v) => updateSettings({ petMode: v })} />
+        </Row>
+        <Row label="Pip jalan-jalan sendiri" hint="Sesekali Pip geser dikit ke kiri atau kanan kalau lagi santai.">
+          <Toggle label="Pip jalan-jalan" checked={s.petWander} onChange={(v) => updateSettings({ petWander: v })} />
+        </Row>
         <Row label="Sembunyi pas app fullscreen" hint="Nonton film atau main game tanpa diganggu.">
           <Toggle label="Sembunyi pas fullscreen" checked={s.hideInFullscreen} onChange={(v) => updateSettings({ hideInFullscreen: v })} />
         </Row>

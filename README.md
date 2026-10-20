@@ -25,6 +25,7 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
 
 - **Ngikutin kursor.** Rust ngirim posisi kursor global, jadi mata Pip ngelirik ke mana pun kursor lu di layar, badannya ikut condong dikit.
 - **Bisa diajak main.** Klik sekali dia kesel, klik dua kali dia dadah, klik tiga kali cepet dia pusing. Tahan kursor di atasnya dua detik, matanya jadi hati.
+- **Bisa keluar dari notch.** Seret Pip keluar, dia jadi teman kecil di desktop: diem di tempat lu naruh dia (diinget walau PoinTify ditutup), sesekali jalan-jalan, dan terbang ke sebelah notch tiap ada notif. Seret balik ke notch buat masukin lagi.
 - **Hidup sendiri.** Ngedip di waktu acak, lirik kanan-kiri, ngulet, mainin titiknya sendiri, dan nguap kalau lama didiemin.
 - **Ekspresi per keadaan.** Santai, nyapa, mikir (titiknya muter), kerja, ngasih tahu, senang pas tugas beres, nunggu file, goyang ngikutin ketukan pas musik diputer, error, dan tidur.
 
@@ -50,6 +51,7 @@ src/                      React + TypeScript (tampilan)
 │   └── tabs/             Beranda, Chat, Sesi, Rak, Fokus
 ├── settings/             Jendela pengaturan
 ├── pip/                  Mesin animasi Pip (pegas, ekspresi, partikel)
+├── pet/                  Tampilan Pip di desktop
 ├── components/           Pembungkus React buat Pip, ikon, ring progres
 ├── state/                Store kecil per fitur (tanpa library state)
 └── lib/                  Pembungkus command Tauri, suara, markdown
@@ -63,6 +65,7 @@ src-tauri/src/            Rust (backend)
 ├── hook_relay.rs         `pointify.exe --hook`: oper kejadian hook ke PoinTify
 ├── claude_hooks.rs       Pasang/copot hooks di ~/.claude/settings.json
 ├── feed.rs               Pantau ~/.pointify/feed buat progres chat Claude
+├── pet.rs                Jendela Pip di desktop: seret, jalan-jalan, mampir ke notch
 ├── shelf.rs              Rak file (disimpan sebagai JSON)
 ├── settings.rs           Pengaturan, autostart, shortcut global
 └── tray.rs               Menu system tray

@@ -6,6 +6,7 @@ mod hook_relay;
 mod island;
 mod lyrics;
 mod media;
+mod pet;
 mod settings;
 mod shelf;
 mod tray;
@@ -38,6 +39,7 @@ pub fn run() {
         .manage(shelf::ShelfState::default())
         .manage(claude::ClaudeState::default())
         .manage(agents::AgentsState::default())
+        .manage(pet::PetState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             settings::init(&handle)?;
@@ -47,6 +49,7 @@ pub fn run() {
             tray::init(&handle)?;
             agents::start(&handle);
             feed::start(&handle);
+            pet::restore_later(&handle);
             settings::apply_shortcut(&handle);
             Ok(())
         })
@@ -78,6 +81,15 @@ pub fn run() {
             claude_hooks::hooks_status,
             claude_hooks::hooks_install,
             claude_hooks::hooks_uninstall,
+            pet::pet_show,
+            pet::pet_spawn_carry,
+            pet::pet_carry,
+            pet::pet_drop,
+            pet::pet_home,
+            pet::pet_set_hit,
+            pet::pet_wander,
+            pet::pet_visit,
+            pet::pet_return,
         ])
         .run(tauri::generate_context!())
         .expect("PoinTify gagal dijalankan");

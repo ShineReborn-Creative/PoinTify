@@ -1,4 +1,6 @@
 import { Pip, type PipMood } from "../components/Pip";
+import { dragPipOut } from "../state/pet";
+import { settingsStore } from "../state/settings";
 import { Ring } from "../components/Ring";
 import { mmss } from "../lib/format";
 import { useNow } from "../lib/hooks";
@@ -17,7 +19,7 @@ type Props = { mood: PipMood; activity: Activity };
 export function CompactBar({ mood, activity }: Props) {
   return (
     <div className="compact fade-in">
-      <Pip mood={mood} size={24} />
+      <CompactPip mood={mood} />
       <div className="compact-right">
         {activity === "claude" && <ClaudeActivity />}
         {activity === "agent" && <AgentActivity />}
@@ -41,6 +43,13 @@ function ClaudeActivity() {
       </span>
     </span>
   );
+}
+
+/** Pip di notch kecil. Bisa diseret keluar jadi Pip desktop; kalau lagi di desktop, tempatnya kosong. */
+function CompactPip({ mood }: { mood: PipMood }) {
+  const settings = useStore(settingsStore);
+  if (settings?.petMode) return <span className="compact-pip-away" title="Pip lagi di desktop" />;
+  return <Pip mood={mood} size={24} onDragOut={dragPipOut} />;
 }
 
 /** Sesi Claude Code di terminal: nama project + langkah terakhir. */

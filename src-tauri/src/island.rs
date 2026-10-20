@@ -172,7 +172,7 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
                     if moved || last_cursor.x.is_nan() {
                         last_cursor = c;
                         last_cursor_sent = Instant::now();
-                        let _ = app.emit("cursor-pos", c);
+                        let _ = app.emit_to("main", "cursor-pos", c);
                     }
                 }
             }
@@ -229,17 +229,17 @@ pub fn island_focus(app: AppHandle) {
 // ---------------------------------------------------------------------------
 
 #[cfg(windows)]
-fn window_handle(win: &WebviewWindow) -> isize {
+pub(crate) fn window_handle(win: &WebviewWindow) -> isize {
     win.hwnd().map(|h| h.0 as isize).unwrap_or(0)
 }
 
 #[cfg(not(windows))]
-fn window_handle(_win: &WebviewWindow) -> isize {
+pub(crate) fn window_handle(_win: &WebviewWindow) -> isize {
     0
 }
 
 #[cfg(windows)]
-fn foreground_is_fullscreen(own: isize) -> bool {
+pub(crate) fn foreground_is_fullscreen(own: isize) -> bool {
     use windows::Win32::Foundation::RECT;
     use windows::Win32::Graphics::Gdi::{
         GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
@@ -286,6 +286,6 @@ fn foreground_is_fullscreen(own: isize) -> bool {
 }
 
 #[cfg(not(windows))]
-fn foreground_is_fullscreen(_own: isize) -> bool {
+pub(crate) fn foreground_is_fullscreen(_own: isize) -> bool {
     false
 }

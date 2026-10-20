@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Izin untuk jendela notch dan jendela pengaturan",
-  "windows": ["main", "settings"],
+  "description": "Izin untuk jendela notch, pengaturan, dan Pip di desktop",
+  "windows": ["main", "settings", "pet"],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",

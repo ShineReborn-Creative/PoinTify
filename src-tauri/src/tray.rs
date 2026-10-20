@@ -11,10 +11,11 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
     let chat = MenuItem::with_id(app, "chat", "Chat dengan Claude", true, Some("Ctrl+Alt+P"))?;
     let settings = MenuItem::with_id(app, "settings", "Pengaturan…", true, None::<&str>)?;
     let pause = MenuItem::with_id(app, "pause", "Sembunyikan notch", true, None::<&str>)?;
+    let pet = MenuItem::with_id(app, "pet", "Pip di desktop: keluar/masuk", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Keluar", true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
-    let menu = Menu::with_items(app, &[&open, &chat, &settings, &sep1, &pause, &sep2, &quit])?;
+    let menu = Menu::with_items(app, &[&open, &chat, &settings, &sep1, &pet, &pause, &sep2, &quit])?;
 
     let pause_item = pause.clone();
     let mut builder = TrayIconBuilder::with_id("pointify")
@@ -25,6 +26,7 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
             "open" => crate::island::reveal(app),
             "chat" => crate::island::toggle_chat(app),
             "settings" => crate::settings::open_window_later(app),
+            "pet" => crate::pet::toggle_later(app),
             "pause" => {
                 let paused = !crate::island::is_paused(app);
                 crate::island::set_paused(app, paused);

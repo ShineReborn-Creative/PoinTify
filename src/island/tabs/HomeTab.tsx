@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { dragPipOut } from "../../state/pet";
 import { Icon } from "../../components/Icon";
 import { Pip, type PipMood } from "../../components/Pip";
 import { Ring } from "../../components/Ring";
@@ -34,7 +35,7 @@ function MusicCard({ mood }: { mood: PipMood }) {
   if (!media) {
     return (
       <section className="card music empty">
-        <Pip mood={mood} size={64} glow interactive />
+        <Pip mood={mood} size={64} glow interactive onDragOut={dragPipOut} />
         <div>
           <strong className="music-greet">{greeting()}</strong>
           <p className="muted">Puter lagu di Spotify atau YouTube, nanti lagunya muncul di sini lengkap sama liriknya.</p>

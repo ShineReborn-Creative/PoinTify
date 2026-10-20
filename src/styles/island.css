@@ -586,3 +586,6 @@ html, body, #root {
 .step.todo { color: var(--faint); }
 .todo-dot { width: 10px; height: 10px; margin: 0 1px; border-radius: 50%; border: 1.5px solid var(--faint); flex-shrink: 0; }
 .step-note { font-size: 12px; padding: 4px 4px 0 26px; line-height: 1.5; }
+.compact-pip-away { width: 6px; height: 6px; margin: 0 9px; border-radius: 50%; background: var(--accent); opacity: 0.7; flex-shrink: 0; }
+.peek > .peek-text:first-child { padding-left: 6px; }
+.approval-head:not(:has(.pip-wrap)) .approval-title { padding-left: 2px; }

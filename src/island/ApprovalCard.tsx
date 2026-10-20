@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Icon } from "../components/Icon";
 import { Pip } from "../components/Pip";
+import { useStore } from "../lib/store";
+import { settingsStore } from "../state/settings";
 import type { AgentQuestion, PendingRequest } from "../lib/api";
 import { toolLabel } from "../lib/tools";
 import { answerRequest } from "../state/agents";
@@ -28,9 +30,10 @@ export function ApprovalCard({ request, more }: { request: PendingRequest; more:
 
 function Header({ request, title, more }: { request: PendingRequest; title: string; more: number }) {
   const source = request.chatId ? "Chat PoinTify" : request.project;
+  const petMode = useStore(settingsStore)?.petMode ?? false;
   return (
     <div className="approval-head">
-      <Pip mood="notify" size={34} glow badge={more > 0 ? more + 1 : undefined} />
+      {!petMode && <Pip mood="notify" size={34} glow badge={more > 0 ? more + 1 : undefined} />}
       <div className="approval-title">
         <strong>{title}</strong>
         <span className="muted ellipsis">

@@ -1,0 +1,39 @@
+/* Jendela Pip di desktop: transparan, cuma badan Pip yang kelihatan. */
+html, body, #root {
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+}
+
+.pet-stage {
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 10px;
+}
+
+.pet-body {
+  position: relative;
+  padding: 10px 14px 4px;
+  cursor: grab;
+  touch-action: none;
+}
+.pet-body.carried { cursor: grabbing; }
+
+.pet-home {
+  position: absolute;
+  top: -2px;
+  right: -6px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(20, 20, 26, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f5f5f7;
+  animation: pet-pop 0.18s ease-out;
+}
+.pet-home:hover { background: #2a2a33; }
+@keyframes pet-pop { from { transform: scale(0.6); opacity: 0; } }

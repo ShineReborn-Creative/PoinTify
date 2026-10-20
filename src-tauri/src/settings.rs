@@ -46,6 +46,10 @@ pub struct Settings {
     pub claude_mode: String,
     pub projects: Vec<Project>,
     pub active_project: Option<String>,
+    // Pip di desktop
+    pub pet_mode: bool,
+    pub pet_wander: bool,
+    pub pet_pos: Option<[i32; 2]>,
 }
 
 impl Default for Settings {
@@ -75,6 +79,9 @@ impl Default for Settings {
             claude_mode: "chat".into(),
             projects: Vec::new(),
             active_project: None,
+            pet_mode: false,
+            pet_wander: true,
+            pet_pos: None,
         }
     }
 }
@@ -107,6 +114,20 @@ fn save(app: &AppHandle, s: &Settings) -> Result<(), String> {
     }
     let json = serde_json::to_string_pretty(s).map_err(|e| e.to_string())?;
     fs::write(path, json).map_err(|e| e.to_string())
+}
+
+/// Ubah pengaturan dari Rust (misalnya posisi Pip), simpan, dan kabarin semua jendela.
+pub fn update(app: &AppHandle, f: impl FnOnce(&mut Settings)) {
+    let next = {
+        let state = app.state::<SettingsState>();
+        let mut s = state.0.lock().unwrap();
+        f(&mut s);
+        s.clone()
+    };
+    if let Err(e) = save(app, &next) {
+        eprintln!("[pointify] pengaturan gagal disimpan: {e}");
+    }
+    let _ = app.emit("settings-changed", &next);
 }
 
 /// Daftarin shortcut global (buka chat dari mana aja).
@@ -153,6 +174,9 @@ pub fn settings_set(app: AppHandle, settings: Settings) -> Result<Settings, Stri
     }
     if previous.launch_at_startup != settings.launch_at_startup {
         apply_autostart(&app, settings.launch_at_startup);
+    }
+    if previous.pet_mode != settings.pet_mode {
+        crate::pet::apply_mode_later(&app, settings.pet_mode);
     }
     let _ = app.emit("settings-changed", &settings);
     Ok(settings)
