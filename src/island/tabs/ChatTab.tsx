@@ -294,7 +294,7 @@ function EmptyChat({ mood }: { mood: PipMood }) {
     : ["Bantu gue brainstorm ide project", "Jelasin konsep ini pakai contoh sederhana", "Bikinin rencana belajar Rust seminggu"];
   return (
     <div className="chat-empty">
-      <Pip mood={mood === "sleep" ? "idle" : mood} size={60} glow />
+      <Pip mood={mood === "sleep" ? "idle" : mood} size={60} glow interactive />
       <strong>{work ? "Mau dikerjain apa?" : "Mau ngobrolin apa?"}</strong>
       <span className="muted">
         {hasProject
@@ -344,7 +344,7 @@ const MessageView = memo(function MessageView({ message, showAvatar }: { message
   }
   return (
     <div className="msg assistant">
-      <div className="avatar">{showAvatar && <Pip mood="idle" size={22} />}</div>
+      <div className="avatar">{showAvatar && <Pip mood="idle" size={22} still />}</div>
       <div className="assistant-body">
         {message.segs.map((seg, i) => (
           <SegView key={i} seg={seg} />

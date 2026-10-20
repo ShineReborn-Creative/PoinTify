@@ -411,14 +411,17 @@ function ClaudeSection({ s }: { s: Settings }) {
 
 function AboutSection() {
   const [version, setVersion] = useState("");
+  const [greeting, setGreeting] = useState(true);
   useEffect(() => {
     void getVersion().then(setVersion);
+    const id = window.setTimeout(() => setGreeting(false), 2400);
+    return () => window.clearTimeout(id);
   }, []);
   return (
     <>
       <Heading title="Tentang" desc="Asisten kecil di atas layar Windows lu." />
       <div className="about">
-        <Pip mood="wave" size={96} glow />
+        <Pip mood={greeting ? "wave" : "idle"} size={96} glow interactive />
         <div>
           <h2>PoinTify {version && <span className="muted">v{version}</span>}</h2>
           <p className="muted">

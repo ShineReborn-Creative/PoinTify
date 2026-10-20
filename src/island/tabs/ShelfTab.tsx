@@ -18,7 +18,7 @@ export function ShelfTab({ mood }: { mood: PipMood }) {
   if (!items.length || island.fileOver) {
     return (
       <div className={`dropzone${island.fileOver ? " active" : ""}`}>
-        <Pip mood={island.fileOver ? "listening" : mood} size={72} glow />
+        <Pip mood={island.fileOver ? "listening" : mood} size={72} glow interactive />
         <div>
           <strong>{island.fileOver ? "Lepas aja, gue tangkep" : "Taruh file di sini"}</strong>
           <p className="muted">

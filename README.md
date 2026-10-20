@@ -19,9 +19,14 @@ Notch ala Dynamic Island dengan musik dan lirik sinkron, timer fokus, pengingat 
 
 ## Kenalan sama Pip
 
-Maskot PoinTify namanya **Pip**: huruf P yang hidup. Titik bercahaya di sampingnya itu unsur **"point"**, dan pas ada yang perlu lu tahu, titik itu berubah jadi badge notifikasi yang lompat-lompat, itu unsur **"tify"**. Pip digambar sepenuhnya pakai kode (SVG + CSS), nggak pakai gambar atau Lottie.
+Maskot PoinTify namanya **Pip**: huruf P yang hidup. Titik bercahaya di sampingnya itu unsur **"point"**, dan pas ada yang perlu lu tahu, titik itu berubah jadi badge notifikasi yang lompat-lompat, itu unsur **"tify"**.
 
-Pip punya ekspresi sendiri buat tiap keadaan: santai, nyapa, mikir (titiknya muter), kerja, ngasih tahu, senang pas tugas beres, nunggu file, goyang pas musik diputer, error, dan tidur kalau lama nggak dipakai.
+Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/engine.ts)), tanpa gambar, Lottie, atau library animasi. Tiap bagian badannya (gepeng, miring, lompat, arah mata, kelopak, posisi titik) pakai simulasi pegas, jadi gerakannya mantul dan nyambung, bukan animasi yang diulang-ulang.
+
+- **Ngikutin kursor.** Rust ngirim posisi kursor global, jadi mata Pip ngelirik ke mana pun kursor lu di layar, badannya ikut condong dikit.
+- **Bisa diajak main.** Klik sekali dia kesel, klik dua kali dia dadah, klik tiga kali cepet dia pusing. Tahan kursor di atasnya dua detik, matanya jadi hati.
+- **Hidup sendiri.** Ngedip di waktu acak, lirik kanan-kiri, ngulet, mainin titiknya sendiri, dan nguap kalau lama didiemin.
+- **Ekspresi per keadaan.** Santai, nyapa, mikir (titiknya muter), kerja, ngasih tahu, senang pas tugas beres, nunggu file, goyang ngikutin ketukan pas musik diputer, error, dan tidur.
 
 ## Fitur
 
@@ -42,7 +47,8 @@ src/                      React + TypeScript (tampilan)
 ├── island/               Notch: keadaan kecil, peek, kebuka + tab
 │   └── tabs/             Beranda, Chat, Rak, Fokus
 ├── settings/             Jendela pengaturan
-├── components/           Pip, ikon, ring progres
+├── pip/                  Mesin animasi Pip (pegas, ekspresi, partikel)
+├── components/           Pembungkus React buat Pip, ikon, ring progres
 ├── state/                Store kecil per fitur (tanpa library state)
 └── lib/                  Pembungkus command Tauri, suara, markdown
 

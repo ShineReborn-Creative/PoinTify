@@ -6,7 +6,7 @@
 //! klik di luar kotak itu diteruskan ke app di bawahnya, dan frontend
 //! dikabarin tiap kursor masuk atau keluar kotak.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -25,6 +25,12 @@ pub struct Rect {
     pub h: f64,
 }
 
+#[derive(Clone, Copy, Serialize)]
+struct CursorPos {
+    x: f64,
+    y: f64,
+}
+
 #[derive(Default)]
 pub struct IslandState {
     /// Kotak pulau dalam satuan logis, relatif ke pojok kiri atas jendela.
@@ -38,6 +44,20 @@ pub struct IslandState {
 const POLL: Duration = Duration::from_millis(30);
 /// Area pemicu ekstra di sekitar pulau, biar gampang dikenai kursor.
 const MARGIN: f64 = 6.0;
+/// Jeda minimal antar kiriman posisi kursor ke frontend (buat mata Pip).
+const CURSOR_EVERY: Duration = Duration::from_millis(50);
+
+/// Posisi kursor dalam satuan logis relatif ke pojok kiri atas jendela,
+/// sama kayak `clientX/clientY` di webview.
+fn cursor_in_window(win: &WebviewWindow) -> Option<CursorPos> {
+    let cursor = win.cursor_position().ok()?;
+    let pos = win.outer_position().ok()?;
+    let scale = win.scale_factor().ok()?;
+    Some(CursorPos {
+        x: (cursor.x - pos.x as f64) / scale,
+        y: (cursor.y - pos.y as f64) / scale,
+    })
+}
 
 fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window("main")
@@ -98,6 +118,8 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
         let mut hidden_for_fullscreen = false;
         let mut last_slow_check = Instant::now() - Duration::from_secs(10);
         let own_hwnd = window_handle(&win);
+        let mut last_cursor = CursorPos { x: f64::NAN, y: f64::NAN };
+        let mut last_cursor_sent = Instant::now();
 
         loop {
             let state = app.state::<IslandState>();
@@ -141,6 +163,18 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
                 inside = now_inside;
                 let _ = win.set_ignore_cursor_events(!inside);
                 let _ = app.emit("island-hover", inside);
+            }
+
+            // Buat mata Pip: kirim posisi kursor kalau geraknya kerasa.
+            if last_cursor_sent.elapsed() >= CURSOR_EVERY {
+                if let Some(c) = cursor_in_window(&win) {
+                    let moved = (c.x - last_cursor.x).abs() >= 2.0 || (c.y - last_cursor.y).abs() >= 2.0;
+                    if moved || last_cursor.x.is_nan() {
+                        last_cursor = c;
+                        last_cursor_sent = Instant::now();
+                        let _ = app.emit("cursor-pos", c);
+                    }
+                }
             }
             thread::sleep(POLL);
         }

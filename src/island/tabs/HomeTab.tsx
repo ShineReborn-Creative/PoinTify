@@ -34,7 +34,7 @@ function MusicCard({ mood }: { mood: PipMood }) {
   if (!media) {
     return (
       <section className="card music empty">
-        <Pip mood={mood} size={64} glow />
+        <Pip mood={mood} size={64} glow interactive />
         <div>
           <strong className="music-greet">{greeting()}</strong>
           <p className="muted">Puter lagu di Spotify atau YouTube, nanti lagunya muncul di sini lengkap sama liriknya.</p>
