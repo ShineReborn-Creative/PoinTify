@@ -13,6 +13,12 @@ Notch ala Dynamic Island dengan musik dan lirik sinkron, timer fokus, pengingat 
 ![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 
+<br>
+
+<img src="assets/demo/demo-notch.gif" width="800" alt="Demo PoinTify: notch melebar nampilin lagu dan lirik, chat Claude, kartu izin perintah dari sesi Claude Code, lalu notif pas Claude beres">
+
+<sub>Musik dan lirik, chat sama Claude, izinin perintah Claude Code dari notch, dan notif pas kerjaannya beres. Demo pakai data contoh.</sub>
+
 </div>
 
 ---
@@ -24,6 +30,8 @@ Ambil installer terbaru di [halaman Releases](https://github.com/ShineReborn-Cre
 Installer-nya belum ditandatangani, jadi Windows mungkin nampilin "Windows protected your PC". Klik **More info**, lalu **Run anyway**.
 
 ## Kenalan sama Pip
+
+<p align="center"><img src="assets/demo/demo-pip.gif" width="480" alt="Pip bereaksi: matanya ngikutin kursor, kesel pas diklik, pusing pas diklik tiga kali, jatuh cinta pas ditahan kursor, goyang pas musik, dan lompat senang"></p>
 
 Maskot PoinTify namanya **Pip**: huruf P yang hidup. Titik bercahaya di sampingnya itu unsur **"point"**, dan pas ada yang perlu lu tahu, titik itu berubah jadi badge notifikasi yang lompat-lompat, itu unsur **"tify"**.
 
