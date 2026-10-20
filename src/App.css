@@ -1,0 +1,46 @@
+html, body, #root {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+
+.stage {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  height: 100%;
+}
+
+.notch {
+  width: 180px;
+  height: 32px;
+  background: #000;
+  border-radius: 0 0 16px 16px;
+  color: #fff;
+  font-family: system-ui, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  cursor: default;
+  transition:
+    width 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+    height 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.35s;
+}
+
+.notch.expanded {
+  width: 400px;
+  height: 180px;
+  border-radius: 0 0 28px 28px;
+}
+
+.content {
+  opacity: 0;
+  animation: fade 0.25s 0.15s forwards;
+}
+
+@keyframes fade {
+  to { opacity: 1; }
+}
