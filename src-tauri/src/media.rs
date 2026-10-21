@@ -27,31 +27,27 @@ pub fn media_get(state: State<MediaState>) -> Option<MediaInfo> {
     state.0.lock().unwrap().clone()
 }
 
-#[cfg(windows)]
-use imp as platform;
 #[cfg(not(windows))]
 use fallback as platform;
+#[cfg(windows)]
+use imp as platform;
 
 pub use platform::start_watcher;
 
 #[tauri::command]
 pub async fn media_control(action: String) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || platform::control(&action))
-        .await
-        .map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || platform::control(&action)).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
 pub async fn media_seek(position_ms: u64) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || platform::seek(position_ms))
-        .await
-        .map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || platform::seek(position_ms)).await.map_err(|e| e.to_string())?
 }
 
 #[cfg(windows)]
 mod imp {
     use super::{MediaInfo, MediaState};
-    use base64::{engine::general_purpose::STANDARD, Engine};
+    use base64::{Engine, engine::general_purpose::STANDARD};
     use std::{thread, time::Duration};
     use tauri::{AppHandle, Emitter, Manager};
     use windows::{
@@ -82,11 +78,7 @@ mod imp {
         Some(format!("data:{mime};base64,{}", STANDARD.encode(&buf)))
     }
 
-    fn snapshot(
-        manager: &SessionManager,
-        track_key: &mut String,
-        thumbnail: &mut Option<String>,
-    ) -> Option<MediaInfo> {
+    fn snapshot(manager: &SessionManager, track_key: &mut String, thumbnail: &mut Option<String>) -> Option<MediaInfo> {
         let session = manager.GetCurrentSession().ok()?;
         let props = session.TryGetMediaPropertiesAsync().ok()?.join().ok()?;
         let title = props.Title().ok()?.to_string();
@@ -95,8 +87,7 @@ mod imp {
         }
         let artist = props.Artist().ok()?.to_string();
         let album = props.AlbumTitle().map(|a| a.to_string()).unwrap_or_default();
-        let is_playing =
-            session.GetPlaybackInfo().ok()?.PlaybackStatus().ok()? == PlaybackStatus::Playing;
+        let is_playing = session.GetPlaybackInfo().ok()?.PlaybackStatus().ok()? == PlaybackStatus::Playing;
         let app_id = session.SourceAppUserModelId().ok()?.to_string();
 
         let (position_ms, duration_ms, position_at_ms) = session
@@ -105,8 +96,7 @@ mod imp {
             .and_then(|t| {
                 let pos = t.Position().ok()?.Duration / 10_000;
                 let end = t.EndTime().ok()?.Duration / 10_000;
-                let updated =
-                    (t.LastUpdatedTime().ok()?.UniversalTime - WINDOWS_TO_UNIX) / 10_000;
+                let updated = (t.LastUpdatedTime().ok()?.UniversalTime - WINDOWS_TO_UNIX) / 10_000;
                 Some((pos.max(0) as u64, end.max(0) as u64, updated.max(0) as u64))
             })
             .unwrap_or((0, 0, 0));
@@ -118,17 +108,7 @@ mod imp {
             *thumbnail = read_thumbnail(&props);
         }
 
-        Some(MediaInfo {
-            title,
-            artist,
-            album,
-            is_playing,
-            app_id,
-            thumbnail: thumbnail.clone(),
-            position_ms,
-            position_at_ms,
-            duration_ms,
-        })
+        Some(MediaInfo { title, artist, album, is_playing, app_id, thumbnail: thumbnail.clone(), position_ms, position_at_ms, duration_ms })
     }
 
     pub fn start_watcher(app: AppHandle) {
@@ -157,14 +137,10 @@ mod imp {
 
     fn with_session<F>(f: F) -> Result<(), String>
     where
-        F: FnOnce(
-            windows::Media::Control::GlobalSystemMediaTransportControlsSession,
-        ) -> windows::core::Result<()>,
+        F: FnOnce(windows::Media::Control::GlobalSystemMediaTransportControlsSession) -> windows::core::Result<()>,
     {
-        let session = SessionManager::RequestAsync()
-            .and_then(|op| op.join())
-            .and_then(|m| m.GetCurrentSession())
-            .map_err(|e| e.to_string())?;
+        let session =
+            SessionManager::RequestAsync().and_then(|op| op.join()).and_then(|m| m.GetCurrentSession()).map_err(|e| e.to_string())?;
         f(session).map_err(|e| e.to_string())
     }
 

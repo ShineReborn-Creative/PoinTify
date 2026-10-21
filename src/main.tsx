@@ -2,6 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { IslandApp } from "./island/IslandApp";
 import { PetApp } from "./pet/PetApp";
 import { SettingsApp } from "./settings/SettingsApp";
@@ -43,7 +44,19 @@ async function boot() {
 
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
-      {label === "settings" ? <SettingsApp /> : label === "pet" ? <PetApp /> : <IslandApp />}
+      <ErrorBoundary
+        label="PoinTify"
+        fallback={() => (
+          <div className={`root-error window-${label}`} role="alert">
+            <span>Waduh, ada yang error.</span>
+            <button className="btn" onClick={() => location.reload()}>
+              Muat ulang
+            </button>
+          </div>
+        )}
+      >
+        {label === "settings" ? <SettingsApp /> : label === "pet" ? <PetApp /> : <IslandApp />}
+      </ErrorBoundary>
     </React.StrictMode>,
   );
 }

@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { Icon, type IconName } from "../components/Icon";
 import { Pip, type PipMood } from "../components/Pip";
 import { canvasPipStore } from "../state/pipSpot";
@@ -77,11 +78,13 @@ export function ExpandedView({ mood }: { mood: PipMood }) {
         </div>
       </nav>
       <div className="tab-body">
+        <ErrorBoundary label="Tab ini" resetKey={island.tab}>
         {island.tab === "home" && <WidgetCanvas mood={mood} />}
         {island.tab === "chat" && <ChatTab mood={mood} />}
         {island.tab === "agents" && <AgentsTab mood={mood} />}
         {island.tab === "shelf" && <ShelfTab mood={mood} />}
         {island.tab === "timer" && <TimerTab />}
+        </ErrorBoundary>
       </div>
     </div>
   );

@@ -9,8 +9,8 @@
 use serde::{Deserialize, Serialize};
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering},
         Mutex,
+        atomic::{AtomicBool, Ordering},
     },
     thread,
     time::{Duration, Instant},
@@ -39,6 +39,8 @@ pub struct IslandState {
     pub paused: AtomicBool,
     /// Kotak pulau baru berubah: status click-through perlu dihitung ulang.
     pub resync: AtomicBool,
+    /// Posisi & skala jendela terakhir yang dicatet.
+    pub frame: Mutex<Option<Frame>>,
 }
 
 const POLL: Duration = Duration::from_millis(30);
@@ -47,16 +49,40 @@ const MARGIN: f64 = 6.0;
 /// Jeda minimal antar kiriman posisi kursor ke frontend (buat mata Pip).
 const CURSOR_EVERY: Duration = Duration::from_millis(50);
 
-/// Posisi kursor dalam satuan logis relatif ke pojok kiri atas jendela,
-/// sama kayak `clientX/clientY` di webview.
-fn cursor_in_window(win: &WebviewWindow) -> Option<CursorPos> {
-    let cursor = win.cursor_position().ok()?;
+/// Posisi & skala jendela notch. Nanya ke jendela itu lewat thread utama
+/// (mahal kalau tiap 30 ms), jadi dicatet ulang tiap pengecekan lambat aja.
+#[derive(Clone, Copy, Default, Debug)]
+pub(crate) struct Frame {
+    pub x: f64,
+    pub y: f64,
+    pub scale: f64,
+}
+
+fn frame_of(win: &WebviewWindow) -> Option<Frame> {
     let pos = win.outer_position().ok()?;
     let scale = win.scale_factor().ok()?;
-    Some(CursorPos {
-        x: (cursor.x - pos.x as f64) / scale,
-        y: (cursor.y - pos.y as f64) / scale,
-    })
+    Some(Frame { x: pos.x as f64, y: pos.y as f64, scale })
+}
+
+/// Posisi kursor di layar (px fisik). Di Windows langsung dari sistem (murah,
+/// nggak lewat thread utama aplikasi).
+#[cfg(windows)]
+pub(crate) fn cursor_screen(_app: &AppHandle) -> Option<(f64, f64)> {
+    use windows::Win32::{Foundation::POINT, UI::WindowsAndMessaging::GetCursorPos};
+    let mut p = POINT::default();
+    unsafe { GetCursorPos(&mut p) }.ok()?;
+    Some((p.x as f64, p.y as f64))
+}
+
+#[cfg(not(windows))]
+pub(crate) fn cursor_screen(app: &AppHandle) -> Option<(f64, f64)> {
+    app.cursor_position().ok().map(|c| (c.x, c.y))
+}
+
+/// Posisi kursor dalam satuan logis relatif ke pojok kiri atas jendela,
+/// sama kayak `clientX/clientY` di webview.
+fn cursor_in_window(f: Frame, c: (f64, f64)) -> CursorPos {
+    CursorPos { x: (c.0 - f.x) / f.scale, y: (c.1 - f.y) / f.scale }
 }
 
 fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
@@ -69,11 +95,7 @@ const WINDOW_H: f64 = 460.0;
 
 /// Taruh jendela di atas monitor utama, selebar layarnya.
 fn place(win: &WebviewWindow) {
-    let monitor = win
-        .primary_monitor()
-        .ok()
-        .flatten()
-        .or_else(|| win.current_monitor().ok().flatten());
+    let monitor = win.primary_monitor().ok().flatten().or_else(|| win.current_monitor().ok().flatten());
     let Some(monitor) = monitor else { return };
     let screen = monitor.size();
     let origin = monitor.position();
@@ -88,48 +110,40 @@ fn place(win: &WebviewWindow) {
 
 /// Kotak pulau sekarang dalam piksel fisik layar (dipakai Pip desktop).
 pub fn island_screen_rect(app: &AppHandle, margin: f64) -> Option<(i32, i32, i32, i32)> {
-    let win = main_window(app)?;
-    let rect = *app.state::<IslandState>().hit.lock().unwrap();
-    screen_rect(&win, rect, margin)
+    let state = app.state::<IslandState>();
+    let rect = *state.hit.lock().unwrap();
+    let frame = (*state.frame.lock().unwrap()).or_else(|| main_window(app).and_then(|w| frame_of(&w)))?;
+    screen_rect(frame, rect, margin)
 }
 
 /// Kotak pulau (plus `margin` px logis) dalam piksel fisik layar: (x, y, w, h).
-fn screen_rect(win: &WebviewWindow, rect: Rect, margin: f64) -> Option<(i32, i32, i32, i32)> {
+fn screen_rect(f: Frame, rect: Rect, margin: f64) -> Option<(i32, i32, i32, i32)> {
     if rect.w <= 0.0 || rect.h <= 0.0 {
         return None;
     }
-    let pos = win.outer_position().ok()?;
-    let scale = win.scale_factor().ok()?;
-    let x = pos.x as f64 + (rect.x - margin) * scale;
-    let y = pos.y as f64 + (rect.y - margin).max(0.0) * scale;
-    let w = (rect.w + margin * 2.0) * scale;
-    let h = (rect.h + margin) * scale;
+    let x = f.x + (rect.x - margin) * f.scale;
+    let y = f.y + (rect.y - margin).max(0.0) * f.scale;
+    let w = (rect.w + margin * 2.0) * f.scale;
+    let h = (rect.h + margin) * f.scale;
     Some((x.round() as i32, y.round() as i32, w.round() as i32, h.round() as i32))
 }
 
-fn cursor_in_screen_rect(win: &WebviewWindow, r: (i32, i32, i32, i32)) -> bool {
-    win.cursor_position().is_ok_and(|c| {
-        c.x >= r.0 as f64 && c.x <= (r.0 + r.2) as f64 && c.y >= (r.1 as f64).min(r.1 as f64 - 2.0) && c.y <= (r.1 + r.3) as f64
-    })
+fn cursor_in_screen_rect(c: (f64, f64), r: (i32, i32, i32, i32)) -> bool {
+    c.0 >= r.0 as f64 && c.0 <= (r.0 + r.2) as f64 && c.1 >= r.1 as f64 - 2.0 && c.1 <= (r.1 + r.3) as f64
 }
 
-fn cursor_inside(win: &WebviewWindow, rect: Rect) -> bool {
+fn cursor_inside(f: Frame, c: (f64, f64), rect: Rect) -> bool {
     if rect.w <= 0.0 || rect.h <= 0.0 {
         return false;
     }
-    let (Ok(cursor), Ok(pos), Ok(scale)) =
-        (win.cursor_position(), win.outer_position(), win.scale_factor())
-    else {
-        return false;
-    };
-    let left = pos.x as f64 + (rect.x - MARGIN) * scale;
-    let top = pos.y as f64 + (rect.y - MARGIN).max(0.0) * scale;
-    let right = pos.x as f64 + (rect.x + rect.w + MARGIN) * scale;
-    let bottom = pos.y as f64 + (rect.y + rect.h + MARGIN) * scale;
+    let left = f.x + (rect.x - MARGIN) * f.scale;
+    let top = f.y + (rect.y - MARGIN).max(0.0) * f.scale;
+    let right = f.x + (rect.x + rect.w + MARGIN) * f.scale;
+    let bottom = f.y + (rect.y + rect.h + MARGIN) * f.scale;
     // Ujung paling atas layar selalu dihitung masuk, biar kursor yang
     // "nabrak" atas layar tetap kena walaupun notch-nya tipis.
-    let top = top.min(pos.y as f64);
-    cursor.x >= left && cursor.x <= right && cursor.y >= top && cursor.y <= bottom
+    let top = top.min(f.y);
+    c.0 >= left && c.0 <= right && c.1 >= top && c.1 <= bottom
 }
 
 pub fn init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
@@ -147,7 +161,7 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
     thread::spawn(move || {
         let mut inside = false;
         let mut hidden_for_fullscreen = false;
-        let mut last_slow_check = Instant::now() - Duration::from_secs(10);
+        let mut last_slow_check = crate::ago(Duration::from_secs(10));
         let own_hwnd = window_handle(&win);
         let mut last_cursor = CursorPos { x: f64::NAN, y: f64::NAN };
         // Buat penangkap file: tombol kiri mulai ditekan di luar notch?
@@ -155,6 +169,7 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
         let mut pressed_outside = false;
         let mut pressed_inside = false;
         let mut last_cursor_sent = Instant::now();
+        let mut frame = frame_of(&win);
 
         loop {
             let state = app.state::<IslandState>();
@@ -163,6 +178,8 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
             if last_slow_check.elapsed() > Duration::from_millis(600) {
                 last_slow_check = Instant::now();
                 place(&win);
+                frame = frame_of(&win).or(frame);
+                *state.frame.lock().unwrap() = frame;
 
                 let settings = crate::settings::current(&app);
                 let paused = state.paused.load(Ordering::Relaxed);
@@ -190,8 +207,12 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
                 continue;
             }
 
+            let (Some(f), Some(c)) = (frame, cursor_screen(&app)) else {
+                thread::sleep(POLL);
+                continue;
+            };
             let rect = *state.hit.lock().unwrap();
-            let raw_inside = cursor_inside(&win, rect);
+            let raw_inside = cursor_inside(f, c, rect);
 
             // Tombol kiri: ditekan di dalam atau di luar notch?
             let down = crate::drop_catcher::left_button_down();
@@ -220,19 +241,18 @@ fn start_watcher(app: AppHandle, win: WebviewWindow) {
             // Ada yang diseret dari luar (misalnya file dari Explorer) ke atas notch:
             // pasang penangkap file native di atas pulau. Kalau ditekannya di dalam
             // notch (nyeret file keluar dari rak, nyeret Pip), penangkapnya nggak dipasang.
-            let zone = screen_rect(&win, rect, 24.0);
-            let catch = zone.filter(|z| down && pressed_outside && cursor_in_screen_rect(&win, *z));
+            let zone = screen_rect(f, rect, 24.0);
+            let catch = zone.filter(|z| down && pressed_outside && cursor_in_screen_rect(c, *z));
             crate::drop_catcher::place(catch);
 
             // Buat mata Pip: kirim posisi kursor kalau geraknya kerasa.
             if last_cursor_sent.elapsed() >= CURSOR_EVERY {
-                if let Some(c) = cursor_in_window(&win) {
-                    let moved = (c.x - last_cursor.x).abs() >= 2.0 || (c.y - last_cursor.y).abs() >= 2.0;
-                    if moved || last_cursor.x.is_nan() {
-                        last_cursor = c;
-                        last_cursor_sent = Instant::now();
-                        let _ = app.emit_to("main", "cursor-pos", c);
-                    }
+                let c = cursor_in_window(f, c);
+                let moved = (c.x - last_cursor.x).abs() >= 2.0 || (c.y - last_cursor.y).abs() >= 2.0;
+                if moved || last_cursor.x.is_nan() {
+                    last_cursor = c;
+                    last_cursor_sent = Instant::now();
+                    let _ = app.emit_to("main", "cursor-pos", c);
                 }
             }
             thread::sleep(POLL);
@@ -300,11 +320,9 @@ pub(crate) fn window_handle(_win: &WebviewWindow) -> isize {
 #[cfg(windows)]
 pub(crate) fn foreground_is_fullscreen(own: isize) -> bool {
     use windows::Win32::Foundation::RECT;
-    use windows::Win32::Graphics::Gdi::{
-        GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
-    };
+    use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow};
     use windows::Win32::UI::WindowsAndMessaging::{
-        GetClassNameW, GetForegroundWindow, GetWindowLongW, GetWindowRect, GWL_STYLE, WS_CAPTION,
+        GWL_STYLE, GetClassNameW, GetForegroundWindow, GetWindowLongW, GetWindowRect, WS_CAPTION,
     };
 
     unsafe {
@@ -332,10 +350,7 @@ pub(crate) fn foreground_is_fullscreen(own: isize) -> bool {
             return false;
         }
         let monitor = MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST);
-        let mut info = MONITORINFO {
-            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
-            ..Default::default()
-        };
+        let mut info = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
         if !GetMonitorInfoW(monitor, &mut info).as_bool() {
             return false;
         }

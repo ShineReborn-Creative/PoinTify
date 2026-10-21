@@ -10,9 +10,9 @@
 //! yang ditulis ke file alamat, jadi halaman web atau program lain nggak
 //! bisa sembarangan ngirim kejadian palsu.
 
-use crate::hook_relay::{endpoint_path, Endpoint};
+use crate::hook_relay::{Endpoint, endpoint_path};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::{
     collections::HashMap,
     hash::{BuildHasher, Hasher},
@@ -20,8 +20,9 @@ use std::{
     net::{TcpListener, TcpStream},
     path::Path,
     sync::{
+        Mutex,
         atomic::{AtomicU64, Ordering},
-        mpsc, Mutex,
+        mpsc,
     },
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -240,11 +241,7 @@ fn str_of<'a>(v: &'a Value, key: &str) -> &'a str {
 }
 
 fn project_name(cwd: &str) -> String {
-    Path::new(cwd)
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .filter(|n| !n.is_empty())
-        .unwrap_or_else(|| "Claude Code".into())
+    Path::new(cwd).file_name().map(|n| n.to_string_lossy().to_string()).filter(|n| !n.is_empty()).unwrap_or_else(|| "Claude Code".into())
 }
 
 /// Jalankan satu kejadian hook. Balikin JSON yang harus dicetak relay, atau
@@ -260,11 +257,7 @@ fn on_event(app: &AppHandle, stream: &TcpStream, ev: Value, chat_id: Option<Stri
             let tool = str_of(&ev, "tool_name").to_string();
             let input = ev.get("tool_input").cloned().unwrap_or(Value::Null);
             let (detail, target) = describe(&tool, &input);
-            let suggestions = ev
-                .get("permission_suggestions")
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default();
+            let suggestions = ev.get("permission_suggestions").and_then(Value::as_array).cloned().unwrap_or_default();
             let info = PendingRequest {
                 id: format!("p{}", next_id()),
                 kind: "permission".into(),
@@ -297,18 +290,21 @@ fn on_event(app: &AppHandle, stream: &TcpStream, ev: Value, chat_id: Option<Stri
                 let tool_use_id = ev.get("tool_use_id").and_then(Value::as_str).map(String::from);
                 touch_session(app, &session_id, &cwd, |s| {
                     s.status = "working".into();
-                    push_step(s, Step {
-                        id: next_id(),
-                        at: now_ms(),
-                        kind: "tool".into(),
-                        tool: Some(tool.clone()),
-                        detail,
-                        target,
-                        added: None,
-                        removed: None,
-                        ok: None,
-                        tool_use_id,
-                    });
+                    push_step(
+                        s,
+                        Step {
+                            id: next_id(),
+                            at: now_ms(),
+                            kind: "tool".into(),
+                            tool: Some(tool.clone()),
+                            detail,
+                            target,
+                            added: None,
+                            removed: None,
+                            ok: None,
+                            tool_use_id,
+                        },
+                    );
                 });
                 publish(app);
             }
@@ -362,18 +358,21 @@ fn on_event(app: &AppHandle, stream: &TcpStream, ev: Value, chat_id: Option<Stri
                 if title.is_some() {
                     s.title = title.clone();
                 }
-                push_step(s, Step {
-                    id: next_id(),
-                    at: now_ms(),
-                    kind: "prompt".into(),
-                    tool: None,
-                    detail: clip(&prompt, 240),
-                    target: None,
-                    added: None,
-                    removed: None,
-                    ok: Some(true),
-                    tool_use_id: None,
-                });
+                push_step(
+                    s,
+                    Step {
+                        id: next_id(),
+                        at: now_ms(),
+                        kind: "prompt".into(),
+                        tool: None,
+                        detail: clip(&prompt, 240),
+                        target: None,
+                        added: None,
+                        removed: None,
+                        ok: Some(true),
+                        tool_use_id: None,
+                    },
+                );
             });
             publish(app);
             None
@@ -407,10 +406,7 @@ fn on_event(app: &AppHandle, stream: &TcpStream, ev: Value, chat_id: Option<Stri
                 }
             });
             publish(app);
-            let _ = app.emit(
-                "agent-finished",
-                Finished { session_id, project: project_name(&cwd), message, ok },
-            );
+            let _ = app.emit("agent-finished", Finished { session_id, project: project_name(&cwd), message, ok });
             None
         }
 
@@ -443,18 +439,21 @@ fn touch_session(app: &AppHandle, id: &str, cwd: &str, f: impl FnOnce(&mut Agent
     let idx = match sessions.iter().position(|s| s.id == id) {
         Some(i) => i,
         None => {
-            sessions.insert(0, AgentSession {
-                id: id.to_string(),
-                source: "terminal".into(),
-                cwd: cwd.to_string(),
-                project: project_name(cwd),
-                status: "idle".into(),
-                title: None,
-                last_message: None,
-                started_at: now,
-                updated_at: now,
-                steps: Vec::new(),
-            });
+            sessions.insert(
+                0,
+                AgentSession {
+                    id: id.to_string(),
+                    source: "terminal".into(),
+                    cwd: cwd.to_string(),
+                    project: project_name(cwd),
+                    status: "idle".into(),
+                    title: None,
+                    last_message: None,
+                    started_at: now,
+                    updated_at: now,
+                    steps: Vec::new(),
+                },
+            );
             0
         }
     };
@@ -466,7 +465,7 @@ fn touch_session(app: &AppHandle, id: &str, cwd: &str, f: impl FnOnce(&mut Agent
         s.project = project_name(cwd);
     }
     sessions.retain(|s| !(s.status == "ended" && now.saturating_sub(s.updated_at) > ENDED_TTL_MS));
-    sessions.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    sessions.sort_by_key(|s| std::cmp::Reverse(s.updated_at));
     sessions.truncate(MAX_SESSIONS);
 }
 
@@ -615,10 +614,7 @@ fn describe(tool: &str, input: &Value) -> (String, Option<String>) {
         "Task" | "Agent" => (clip(s("description"), 120), None),
         "Skill" => (clip(s("skill"), 80), None),
         _ => {
-            let first = input
-                .as_object()
-                .and_then(|o| o.values().find_map(|v| v.as_str()))
-                .unwrap_or("");
+            let first = input.as_object().and_then(|o| o.values().find_map(|v| v.as_str())).unwrap_or("");
             (clip(first, 120), None)
         }
     }
@@ -630,10 +626,7 @@ fn line_count(s: &str) -> usize {
 
 fn diff_counts(tool: &str, input: &Value) -> (Option<usize>, Option<usize>) {
     match tool {
-        "Edit" => (
-            Some(line_count(str_of(input, "new_string"))),
-            Some(line_count(str_of(input, "old_string"))),
-        ),
+        "Edit" => (Some(line_count(str_of(input, "new_string"))), Some(line_count(str_of(input, "old_string")))),
         "MultiEdit" => {
             let edits = input.get("edits").and_then(Value::as_array).cloned().unwrap_or_default();
             let add = edits.iter().map(|e| line_count(str_of(e, "new_string"))).sum();
@@ -651,18 +644,7 @@ fn diff_counts(tool: &str, input: &Value) -> (Option<usize>, Option<usize>) {
 
 /// Bikin langkah dari luar modul ini (field `tool_use_id` sengaja privat).
 pub fn task_step(id: u64, at: u64, detail: String, ok: Option<bool>) -> Step {
-    Step {
-        id,
-        at,
-        kind: "task".into(),
-        tool: None,
-        detail,
-        target: None,
-        added: None,
-        removed: None,
-        ok,
-        tool_use_id: None,
-    }
+    Step { id, at, kind: "task".into(), tool: None, detail, target: None, added: None, removed: None, ok, tool_use_id: None }
 }
 
 /// Ganti atau tambahin satu sesi utuh, lalu kabarin frontend.
@@ -672,7 +654,7 @@ pub fn put_session(app: &AppHandle, session: AgentSession) {
         let mut sessions = state.sessions.lock().unwrap();
         sessions.retain(|s| s.id != session.id);
         sessions.push(session);
-        sessions.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        sessions.sort_by_key(|s| std::cmp::Reverse(s.updated_at));
         sessions.truncate(MAX_SESSIONS);
     }
     publish(app);
@@ -689,28 +671,13 @@ pub fn remove_session(app: &AppHandle, id: &str) {
 
 /// Kabar "udah beres" (notif + Pip senang).
 pub fn emit_finished(app: &AppHandle, session_id: &str, project: &str, message: &str, ok: bool) {
-    let _ = app.emit(
-        "agent-finished",
-        Finished {
-            session_id: session_id.into(),
-            project: project.into(),
-            message: message.into(),
-            ok,
-        },
-    );
+    let _ = app.emit("agent-finished", Finished { session_id: session_id.into(), project: project.into(), message: message.into(), ok });
 }
 
 /// Kabar "Claude butuh jawaban lu di chat".
 pub fn emit_attention(app: &AppHandle, session_id: &str, project: &str, message: &str) {
-    let _ = app.emit(
-        "agent-attention",
-        Finished {
-            session_id: session_id.into(),
-            project: project.into(),
-            message: message.into(),
-            ok: true,
-        },
-    );
+    let _ =
+        app.emit("agent-attention", Finished { session_id: session_id.into(), project: project.into(), message: message.into(), ok: true });
 }
 
 // ---------------------------------------------------------------------------

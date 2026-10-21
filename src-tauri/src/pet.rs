@@ -19,8 +19,8 @@ use serde::Serialize;
 use std::{
     hash::{BuildHasher, Hasher},
     sync::{
-        atomic::{AtomicBool, Ordering},
         Mutex,
+        atomic::{AtomicBool, Ordering},
     },
     thread,
     time::{Duration, Instant},
@@ -53,6 +53,10 @@ pub struct PetState {
     moving: AtomicBool,
     watching: AtomicBool,
     thinking: AtomicBool,
+    /// Jendela Pip lagi disembunyiin (app fullscreen / PoinTify dijeda).
+    hidden: AtomicBool,
+    /// Posisi jendela terakhir yang dipasang PoinTify sendiri (px fisik).
+    pos: Mutex<Option<(i32, i32)>>,
     /// Pip lagi santai dan boleh main sama kursor (ditentuin frontend).
     play_ok: AtomicBool,
     /// Main kejar-kejaran sampai jam segini.
@@ -100,6 +104,18 @@ fn window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window(LABEL)
 }
 
+/// Pindahin jendela Pip dan catet posisinya (biar pemantau nggak perlu nanya
+/// posisi ke jendela tiap 30 ms; nanya itu lewat thread utama dan mahal).
+fn move_to(app: &AppHandle, win: &WebviewWindow, x: i32, y: i32) {
+    let _ = win.set_position(PhysicalPosition::new(x, y));
+    *app.state::<PetState>().pos.lock().unwrap() = Some((x, y));
+}
+
+/// Posisi kursor di layar (px fisik).
+fn cursor(app: &AppHandle) -> Option<(f64, f64)> {
+    crate::island::cursor_screen(app)
+}
+
 fn rand_unit() -> f64 {
     let mut h = std::collections::hash_map::RandomState::new().build_hasher();
     h.write_u128(Instant::now().elapsed().as_nanos());
@@ -107,7 +123,11 @@ fn rand_unit() -> f64 {
 }
 
 fn emit_motion(app: &AppHandle, kind: &'static str, dir: f64, power: f64) {
-    let _ = app.emit_to(LABEL, "pet-motion", Motion { kind, dir: if dir == 0.0 { 0 } else { dir.signum() as i32 }, power: (power * 100.0).round() / 100.0 });
+    let _ = app.emit_to(
+        LABEL,
+        "pet-motion",
+        Motion { kind, dir: if dir == 0.0 { 0 } else { dir.signum() as i32 }, power: (power * 100.0).round() / 100.0 },
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -150,6 +170,7 @@ fn ensure_window(app: &AppHandle, at: Option<(i32, i32)>) -> tauri::Result<Webvi
         .build()?;
     if let Some((x, y)) = at.or_else(|| initial_position(app)) {
         win.set_position(PhysicalPosition::new(x, y))?;
+        *app.state::<PetState>().pos.lock().unwrap() = Some((x, y));
     }
     win.show()?;
     let _ = win.set_ignore_cursor_events(true);
@@ -242,12 +263,7 @@ fn in_notch_zone(app: &AppHandle, cx: f64, cy: f64) -> bool {
     if let Some((x, y, w, h)) = crate::island::island_screen_rect(app, 40.0) {
         return cx >= x as f64 && cx <= (x + w) as f64 && cy >= y as f64 - 4.0 && cy <= (y + h) as f64;
     }
-    let Some(monitor) = app
-        .primary_monitor()
-        .ok()
-        .flatten()
-        .or_else(|| app.monitor_from_point(cx, cy).ok().flatten())
-    else {
+    let Some(monitor) = app.primary_monitor().ok().flatten().or_else(|| app.monitor_from_point(cx, cy).ok().flatten()) else {
         return false;
     };
     let scale = monitor.scale_factor();
@@ -284,27 +300,59 @@ fn body_metrics(app: &AppHandle, scale: f64) -> Body {
     }
 }
 
-/// Area kerja (tanpa taskbar) layar tempat titik ini berada, px fisik: (kiri, atas, kanan, bawah).
-fn area_at(app: &AppHandle, x: f64, y: f64) -> Option<(f64, f64, f64, f64)> {
-    let inside = app.available_monitors().unwrap_or_default().into_iter().find(|m| {
-        let (p, s) = (m.position(), m.size());
-        x >= p.x as f64 && x < p.x as f64 + s.width as f64 && y >= p.y as f64 && y < p.y as f64 + s.height as f64
-    });
-    let m = inside
-        .or_else(|| app.monitor_from_point(x, y).ok().flatten())
-        .or_else(|| app.primary_monitor().ok().flatten())?;
-    let a = m.work_area();
-    let (l, t) = (a.position.x as f64, a.position.y as f64);
-    Some((l, t, l + a.size.width as f64, t + a.size.height as f64))
+/// Kotak (kiri, atas, kanan, bawah) dalam px fisik.
+type Edges = (f64, f64, f64, f64);
+
+/// Daftar layar (diambil ulang tiap 2 detik, bukan tiap frame).
+struct Screens {
+    /// (seluruh layar, area kerja).
+    list: Vec<(Edges, Edges)>,
+    at: Instant,
 }
 
-/// Ada layar beneran di titik ini? (Dicek sendiri dari daftar monitor, karena
-/// `monitor_from_point` di beberapa sistem tetap balikin layar terdekat.)
-fn has_screen_at(app: &AppHandle, x: f64, y: f64) -> bool {
-    app.available_monitors().unwrap_or_default().iter().any(|m| {
-        let (p, s) = (m.position(), m.size());
-        x >= p.x as f64 && x < p.x as f64 + s.width as f64 && y >= p.y as f64 && y < p.y as f64 + s.height as f64
-    })
+impl Screens {
+    fn new() -> Self {
+        Self { list: Vec::new(), at: crate::ago(Duration::from_secs(10)) }
+    }
+
+    fn refresh(&mut self, app: &AppHandle) {
+        if self.at.elapsed() < Duration::from_secs(2) && !self.list.is_empty() {
+            return;
+        }
+        self.at = Instant::now();
+        let mons = app.available_monitors().unwrap_or_default();
+        if mons.is_empty() {
+            return;
+        }
+        self.list = mons
+            .iter()
+            .map(|m| {
+                let (p, s) = (m.position(), m.size());
+                let w = m.work_area();
+                let full = (p.x as f64, p.y as f64, p.x as f64 + s.width as f64, p.y as f64 + s.height as f64);
+                let (wl, wt) = (w.position.x as f64, w.position.y as f64);
+                (full, (wl, wt, wl + w.size.width as f64, wt + w.size.height as f64))
+            })
+            .collect();
+    }
+
+    fn has(&self, x: f64, y: f64) -> bool {
+        self.list.iter().any(|(f, _)| x >= f.0 && x < f.2 && y >= f.1 && y < f.3)
+    }
+
+    /// Area kerja layar yang berisi titik ini (atau yang paling deket).
+    fn area(&self, x: f64, y: f64) -> Option<(f64, f64, f64, f64)> {
+        if let Some((_, w)) = self.list.iter().find(|(f, _)| x >= f.0 && x < f.2 && y >= f.1 && y < f.3) {
+            return Some(*w);
+        }
+        self.list
+            .iter()
+            .min_by(|a, b| {
+                let d = |f: &(f64, f64, f64, f64)| (x - x.clamp(f.0, f.2)).abs() + (y - y.clamp(f.1, f.3)).abs();
+                d(&a.0).total_cmp(&d(&b.0))
+            })
+            .map(|(_, w)| *w)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -327,15 +375,15 @@ mod wins {
     use super::WinBox;
     use std::ffi::c_void;
     use windows::{
-        core::BOOL,
         Win32::{
             Foundation::{HWND, LPARAM, RECT},
-            Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS},
+            Graphics::Dwm::{DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute},
             UI::WindowsAndMessaging::{
-                EnumWindows, GetClassNameW, GetWindowLongPtrW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, IsZoomed,
-                GWL_EXSTYLE, GWL_STYLE, WS_CHILD, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT,
+                EnumWindows, GWL_EXSTYLE, GWL_STYLE, GetClassNameW, GetWindowLongPtrW, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
+                IsZoomed, WS_CHILD, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT,
             },
         },
+        core::BOOL,
     };
 
     const SKIP_CLASSES: [&str; 6] =
@@ -446,7 +494,7 @@ fn fly(app: &AppHandle, win: &WebviewWindow, to: (i32, i32), ms: u64) {
         let e = if t < 0.5 { 4.0 * t * t * t } else { 1.0 - (-2.0 * t + 2.0).powi(3) / 2.0 };
         let x = from.x as f64 + (to.0 - from.x) as f64 * e;
         let y = from.y as f64 + (to.1 - from.y) as f64 * e;
-        let _ = win.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
+        move_to(app, win, x.round() as i32, y.round() as i32);
         if t >= 1.0 {
             break;
         }
@@ -479,7 +527,7 @@ fn carry(app: &AppHandle, win: &WebviewWindow, grab: Option<(f64, f64)>) -> Carr
     let _ = win.set_ignore_cursor_events(false);
     let _ = app.emit_to(LABEL, "pet-carry", true);
 
-    let start_cursor = app.cursor_position().ok();
+    let start_cursor = cursor(app).map(|(x, y)| PhysicalPosition::new(x, y));
     let (gx, gy) = match (grab, start_cursor, win.outer_position()) {
         (Some(g), _, _) => g,
         (None, Some(c), Ok(p)) => (c.x - p.x as f64, c.y - p.y as f64),
@@ -490,18 +538,17 @@ fn carry(app: &AppHandle, win: &WebviewWindow, grab: Option<(f64, f64)>) -> Carr
     let mut last = start_cursor;
     // Jejak kursor 120 ms terakhir buat ngitung kecepatan lemparan.
     let mut trail: Vec<(Instant, f64, f64)> = Vec::new();
-    loop {
-        let Ok(c) = app.cursor_position() else { break };
-        if let Some(s) = start_cursor {
-            if (c.x - s.x).abs() + (c.y - s.y).abs() > 6.0 {
-                moved = true;
-            }
+    while let Some(c) = cursor(app).map(|(x, y)| PhysicalPosition::new(x, y)) {
+        if let Some(s) = start_cursor
+            && (c.x - s.x).abs() + (c.y - s.y).abs() > 6.0
+        {
+            moved = true;
         }
         let now = Instant::now();
         trail.push((now, c.x, c.y));
         trail.retain(|(t, _, _)| now.duration_since(*t) < Duration::from_millis(120));
         if last.map(|l| l.x != c.x || l.y != c.y).unwrap_or(true) {
-            let _ = win.set_position(PhysicalPosition::new((c.x - gx).round() as i32, (c.y - gy).round() as i32));
+            move_to(app, win, (c.x - gx).round() as i32, (c.y - gy).round() as i32);
             last = Some(c);
         }
         let released = !left_button_down() || state.drop_now.load(Ordering::Relaxed);
@@ -556,13 +603,33 @@ enum Gait {
 enum Mode {
     /// Lagi dipegang, terbang ke notch, atau mampir notch: fisika istirahat.
     Paused,
-    Air { vx: f64, vy: f64 },
-    Ground { on: Surface },
-    Walk { on: Surface, dir: f64, left: f64, gait: Gait },
-    Climb { side: f64, until_y: f64 },
-    Cling { side: f64, until: Instant },
+    Air {
+        vx: f64,
+        vy: f64,
+    },
+    Ground {
+        on: Surface,
+    },
+    Walk {
+        on: Surface,
+        dir: f64,
+        left: f64,
+        gait: Gait,
+    },
+    Climb {
+        side: f64,
+        until_y: f64,
+    },
+    Cling {
+        side: f64,
+        until: Instant,
+    },
     /// Ngeringkuk siap nerkam kursor.
-    Crouch { until: Instant, tx: f64, ty: f64 },
+    Crouch {
+        until: Instant,
+        tx: f64,
+        ty: f64,
+    },
 }
 
 struct Brain {
@@ -580,6 +647,10 @@ struct Brain {
     settled_at: Option<Instant>,
     saved: (i32, i32),
     play: Play,
+    screens: Screens,
+    scale: f64,
+    scale_at: Instant,
+    pos_at: Instant,
 }
 
 /// Ingatan soal kursor buat main-mainan.
@@ -600,7 +671,7 @@ struct Play {
 
 impl Play {
     fn new() -> Self {
-        let past = Instant::now() - Duration::from_secs(30);
+        let past = crate::ago(Duration::from_secs(30));
         Self {
             hist: Default::default(),
             still_at: (f64::NAN, f64::NAN),
@@ -678,8 +749,8 @@ fn ballistic(x0: f64, y0: f64, x1: f64, y1: f64, scale: f64) -> (f64, f64) {
 }
 
 impl Brain {
-    fn place(&mut self, win: &WebviewWindow) {
-        let _ = win.set_position(PhysicalPosition::new(self.x.round() as i32, self.y.round() as i32));
+    fn place(&mut self, app: &AppHandle, win: &WebviewWindow) {
+        move_to(app, win, self.x.round() as i32, self.y.round() as i32);
     }
 }
 
@@ -696,12 +767,16 @@ fn start_brain(app: AppHandle) {
             hop_dir: 0.0,
             next_hop: None,
             wins: Vec::new(),
-            wins_at: Instant::now() - Duration::from_secs(5),
+            wins_at: crate::ago(Duration::from_secs(5)),
             perch: true,
-            cfg_at: Instant::now() - Duration::from_secs(5),
+            cfg_at: crate::ago(Duration::from_secs(5)),
             settled_at: None,
             saved: (i32::MIN, i32::MIN),
             play: Play::new(),
+            screens: Screens::new(),
+            scale: 1.0,
+            scale_at: crate::ago(Duration::from_secs(10)),
+            pos_at: crate::ago(Duration::from_secs(10)),
         };
         let mut last = Instant::now();
         loop {
@@ -719,19 +794,35 @@ fn start_brain(app: AppHandle) {
             let busy = state.carrying.load(Ordering::Relaxed)
                 || state.moving.load(Ordering::Relaxed)
                 || state.away_from.lock().unwrap().is_some()
-                || !win.is_visible().unwrap_or(false);
+                || state.hidden.load(Ordering::Relaxed);
             if busy {
                 b.mode = Mode::Paused;
                 b.hops_left = 0;
                 thread::sleep(Duration::from_millis(40));
                 continue;
             }
-            let Ok(pos) = win.outer_position() else {
-                thread::sleep(POLL);
-                continue;
-            };
-            let scale = win.scale_factor().unwrap_or(1.0);
+            // Nanya ke jendela itu mahal (lewat thread utama), jadi skala dan
+            // posisi jendela cuma dicek sesekali; sisanya pakai catatan sendiri.
+            if b.scale_at.elapsed() > Duration::from_secs(1) {
+                b.scale_at = now;
+                b.scale = win.scale_factor().unwrap_or(b.scale);
+            }
+            let scale = b.scale;
+            b.screens.refresh(&app);
             let body = body_metrics(&app, scale);
+            let check_pos = matches!(b.mode, Mode::Paused) || b.pos_at.elapsed() > Duration::from_millis(400);
+            let pos = if check_pos {
+                b.pos_at = now;
+                match win.outer_position() {
+                    Ok(p) => p,
+                    Err(_) => {
+                        thread::sleep(POLL);
+                        continue;
+                    }
+                }
+            } else {
+                PhysicalPosition::new(b.x.round() as i32, b.y.round() as i32)
+            };
 
             // Baru lepas dari pegangan / balik dari notch: jatuh dari sini.
             if let Mode::Paused = b.mode {
@@ -753,7 +844,7 @@ fn start_brain(app: AppHandle) {
 
             let cx = b.x + body.cx;
             let feet = b.y + body.feet;
-            let Some((al, at, ar, ab)) = area_at(&app, cx, feet - 2.0) else {
+            let Some((al, at, ar, ab)) = b.screens.area(cx, feet - 2.0) else {
                 thread::sleep(POLL);
                 continue;
             };
@@ -762,9 +853,9 @@ fn start_brain(app: AppHandle) {
             let order = state.order.lock().unwrap().take();
 
             // Main sama kursor: nyamperin, nerkam, menghindar, kejar-kejaran.
-            if let Ok(c) = app.cursor_position() {
-                b.play.sample(now, (c.x, c.y), scale);
-                cursor_play(&app, &mut b, &state, now, (c.x, c.y), body, scale, (al, at, ar, ab));
+            if let Some(c) = cursor(&app) {
+                b.play.sample(now, c, scale);
+                cursor_play(&app, &mut b, &state, now, c, body, scale, (al, at, ar, ab));
             }
 
             let mut fast = false;
@@ -784,23 +875,23 @@ fn start_brain(app: AppHandle) {
                     let nfeet = ny + body.feet;
                     b.x = nx;
                     b.y = ny;
-                    if b.play.pounce == Some(false) {
-                        if let Ok(c) = app.cursor_position() {
-                            let bcy = ny + (body.top + body.feet) / 2.0;
-                            if (c.x - ncx).hypot(c.y - bcy) < 58.0 * scale {
-                                b.play.pounce = Some(true);
-                            }
+                    if b.play.pounce == Some(false)
+                        && let Some((cx_, cy_)) = cursor(&app)
+                    {
+                        let bcy = ny + (body.top + body.feet) / 2.0;
+                        if (cx_ - ncx).hypot(cy_ - bcy) < 58.0 * scale {
+                            b.play.pounce = Some(true);
                         }
                     }
 
                     // Pinggir kiri/kanan layar: mantul, kecuali ada layar lain di sebelahnya.
-                    if ncx - body.half < al && vx < 0.0 && !has_screen_at(&app, al - 4.0, feet - 4.0) {
+                    if ncx - body.half < al && vx < 0.0 && !b.screens.has(al - 4.0, feet - 4.0) {
                         b.x = al + body.half - body.cx;
                         if vx.abs() > 300.0 * scale {
                             emit_motion(&app, "bonk", -1.0, vx.abs() / scale / 1000.0);
                         }
                         vx = -vx * 0.5;
-                    } else if ncx + body.half > ar && vx > 0.0 && !has_screen_at(&app, ar + 4.0, feet - 4.0) {
+                    } else if ncx + body.half > ar && vx > 0.0 && !b.screens.has(ar + 4.0, feet - 4.0) {
                         b.x = ar - body.half - body.cx;
                         if vx.abs() > 300.0 * scale {
                             emit_motion(&app, "bonk", 1.0, vx.abs() / scale / 1000.0);
@@ -808,17 +899,18 @@ fn start_brain(app: AppHandle) {
                         vx = -vx * 0.5;
                     }
                     // Langit-langit.
-                    if b.y + body.top < at && vy < 0.0 && !has_screen_at(&app, cx, at - 4.0) {
+                    if b.y + body.top < at && vy < 0.0 && !b.screens.has(cx, at - 4.0) {
                         b.y = at - body.top;
                         vy = -vy * 0.3;
                     }
 
                     // Nangkring di jendela yang kelewatan kaki pas jatuh.
                     let mut landed: Option<(Surface, f64)> = None;
-                    if vy > 0.0 && b.perch {
-                        if let Some(w) = perch_target(&b.wins, ncx, feet, nfeet, 18.0 * scale, at) {
-                            landed = Some((Surface::Win(w.hwnd, ncx - w.l), w.t));
-                        }
+                    if vy > 0.0
+                        && b.perch
+                        && let Some(w) = perch_target(&b.wins, ncx, feet, nfeet, 18.0 * scale, at)
+                    {
+                        landed = Some((Surface::Win(w.hwnd, ncx - w.l), w.t));
                     }
                     if landed.is_none() && vy > 0.0 && nfeet >= ab {
                         landed = Some((Surface::Floor, ab));
@@ -847,7 +939,7 @@ fn start_brain(app: AppHandle) {
                     } else {
                         b.mode = Mode::Air { vx, vy };
                     }
-                    b.place(&win);
+                    b.place(&app, &win);
                 }
                 Mode::Ground { on } => {
                     // Masih ada pijakannya?
@@ -858,7 +950,7 @@ fn start_brain(app: AppHandle) {
                                     b.mode = Mode::Air { vx: 0.0, vy: 0.0 };
                                 } else {
                                     b.y = ab - body.feet;
-                                    b.place(&win);
+                                    b.place(&app, &win);
                                 }
                             }
                         }
@@ -869,7 +961,7 @@ fn start_brain(app: AppHandle) {
                                 if (tx - b.x).abs() > 0.5 || (ty - b.y).abs() > 0.5 {
                                     b.x = tx;
                                     b.y = ty;
-                                    b.place(&win);
+                                    b.place(&app, &win);
                                     b.settled_at = Some(now);
                                 }
                                 fast = true;
@@ -892,15 +984,16 @@ fn start_brain(app: AppHandle) {
                         }
                     }
                     // Simpen posisi kalau udah diem sebentar.
-                    if let Some(t) = b.settled_at {
-                        if now.duration_since(t) > Duration::from_millis(1200) && matches!(b.mode, Mode::Ground { on: Surface::Floor }) {
-                            let p = (b.x.round() as i32, b.y.round() as i32);
-                            if p != b.saved {
-                                b.saved = p;
-                                save_position(&app, &win);
-                            }
-                            b.settled_at = None;
+                    if let Some(t) = b.settled_at
+                        && now.duration_since(t) > Duration::from_millis(1200)
+                        && matches!(b.mode, Mode::Ground { on: Surface::Floor })
+                    {
+                        let p = (b.x.round() as i32, b.y.round() as i32);
+                        if p != b.saved {
+                            b.saved = p;
+                            save_position(&app, &win);
                         }
+                        b.settled_at = None;
                     }
                 }
                 Mode::Walk { on, dir, mut left, gait } => {
@@ -929,7 +1022,7 @@ fn start_brain(app: AppHandle) {
                                 emit_motion(&app, "jump", dir, 0.8);
                                 b.mode = Mode::Air { vx: dir * 260.0 * scale, vy: -420.0 * scale };
                             }
-                            Surface::Floor if gait == Gait::Run && !has_screen_at(&app, ncx + dir * 30.0 * scale, feet - 4.0) => {
+                            Surface::Floor if gait == Gait::Run && !b.screens.has(ncx + dir * 30.0 * scale, feet - 4.0) => {
                                 // Lari mentok pinggir layar: manjat.
                                 let up = (ab - at) * (0.35 + rand_unit() * 0.35);
                                 b.x = if dir < 0.0 { al + body.half - body.cx } else { ar - body.half - body.cx };
@@ -957,7 +1050,7 @@ fn start_brain(app: AppHandle) {
                             b.mode = Mode::Walk { on, dir, left, gait };
                         }
                     }
-                    b.place(&win);
+                    b.place(&app, &win);
                 }
                 Mode::Climb { side, until_y } => {
                     fast = true;
@@ -966,17 +1059,17 @@ fn start_brain(app: AppHandle) {
                         emit_motion(&app, "cling", side, 0.0);
                         b.mode = Mode::Cling { side, until: now + Duration::from_millis(3500 + (rand_unit() * 5000.0) as u64) };
                     }
-                    b.place(&win);
+                    b.place(&app, &win);
                 }
                 Mode::Crouch { until, tx, ty } => {
                     if now >= until {
                         // Nerkam ke posisi kursor sekarang (kalau masih deket), atau ke tempat tadi.
                         let (mut gx, mut gy) = (tx, ty);
-                        if let Ok(c) = app.cursor_position() {
-                            if (c.x - cx).hypot(c.y - feet) < 420.0 * scale {
-                                gx = c.x;
-                                gy = c.y;
-                            }
+                        if let Some((cx_, cy_)) = cursor(&app)
+                            && (cx_ - cx).hypot(cy_ - feet) < 420.0 * scale
+                        {
+                            gx = cx_;
+                            gy = cy_;
                         }
                         let bcy = b.y + (body.top + body.feet) / 2.0;
                         let (vx, vy) = ballistic(cx, bcy, gx, gy, scale);
@@ -1034,7 +1127,12 @@ fn cursor_play(
             b.play.chase_dir = 0.0;
         }
         // Kesentuh: kursor masuk badan Pip.
-        if c.0 > cx - body.half && c.0 < cx + body.half && c.1 > top && c.1 < feet && now.duration_since(b.play.last_touch) > Duration::from_millis(900) {
+        if c.0 > cx - body.half
+            && c.0 < cx + body.half
+            && c.1 > top
+            && c.1 < feet
+            && now.duration_since(b.play.last_touch) > Duration::from_millis(900)
+        {
             b.play.last_touch = now;
             emit_motion(app, "touch", dx, 1.0);
         }
@@ -1079,7 +1177,11 @@ fn cursor_play(
     let (vx, vy) = b.play.velocity(now);
     let speed = vx.hypot(vy);
     let toward = if dist > 0.0 { (vx * -dx + vy * -dy) / dist } else { 0.0 };
-    if dist < 240.0 * scale && speed > 1900.0 * scale && toward > 0.7 * speed && now.duration_since(b.play.last_dodge) > Duration::from_secs(3) {
+    if dist < 240.0 * scale
+        && speed > 1900.0 * scale
+        && toward > 0.7 * speed
+        && now.duration_since(b.play.last_dodge) > Duration::from_secs(3)
+    {
         b.play.last_dodge = now;
         let away = if dx > 0.0 { -1.0 } else { 1.0 };
         emit_motion(app, "dodge", away, 1.0);
@@ -1209,7 +1311,7 @@ impl TypingGuess {
 fn press_on_files(x: f64, y: f64) -> bool {
     use windows::Win32::{
         Foundation::POINT,
-        UI::WindowsAndMessaging::{GetAncestor, GetClassNameW, WindowFromPoint, GA_ROOT},
+        UI::WindowsAndMessaging::{GA_ROOT, GetAncestor, GetClassNameW, WindowFromPoint},
     };
     unsafe {
         let h = WindowFromPoint(POINT { x: x as i32, y: y as i32 });
@@ -1278,9 +1380,11 @@ fn start_watcher(app: AppHandle) {
         let mut was_down = false;
         let mut pressed_outside = false;
         let mut press_at: Option<(f64, f64)> = None;
+        let mut scale = 1.0_f64;
+        let mut scale_at = crate::ago(Duration::from_secs(5));
         let mut file_near = false;
         let mut hidden = false;
-        let mut last_slow = Instant::now() - Duration::from_secs(10);
+        let mut last_slow = crate::ago(Duration::from_secs(10));
         let mut last_cursor = (f64::NAN, f64::NAN);
         let mut last_sent = Instant::now();
         loop {
@@ -1291,10 +1395,10 @@ fn start_watcher(app: AppHandle) {
                 last_slow = Instant::now();
                 let settings = crate::settings::current(&app);
                 let own = crate::island::window_handle(&win);
-                let hide = crate::island::is_paused(&app)
-                    || (settings.hide_in_fullscreen && crate::island::foreground_is_fullscreen(own));
+                let hide = crate::island::is_paused(&app) || (settings.hide_in_fullscreen && crate::island::foreground_is_fullscreen(own));
                 if hide != hidden {
                     hidden = hide;
+                    state.hidden.store(hide, Ordering::Relaxed);
                     let _ = if hide { win.hide() } else { win.show() };
                 }
             }
@@ -1304,11 +1408,22 @@ fn start_watcher(app: AppHandle) {
                 continue;
             }
 
-            let (Ok(cursor), Ok(pos), Ok(scale)) = (app.cursor_position(), win.outer_position(), win.scale_factor())
-            else {
+            // Posisi jendela dari catatan sendiri (Pip cuma dipindahin PoinTify),
+            // skala dicek sesekali: nanya ke jendela tiap 30 ms itu mahal.
+            if scale_at.elapsed() > Duration::from_millis(800) {
+                scale_at = Instant::now();
+                scale = win.scale_factor().unwrap_or(scale);
+                if let Ok(p) = win.outer_position() {
+                    *state.pos.lock().unwrap() = Some((p.x, p.y));
+                }
+            }
+            let pos = *state.pos.lock().unwrap();
+            let (Some(c), Some(pos)) = (cursor(&app), pos) else {
                 thread::sleep(POLL);
                 continue;
             };
+            let cursor = PhysicalPosition::new(c.0, c.1);
+            let pos = PhysicalPosition::new(pos.0, pos.1);
             let rel = ((cursor.x - pos.x as f64) / scale, (cursor.y - pos.y as f64) / scale);
 
             if let Some(now_typing) = typing.update() {
@@ -1354,8 +1469,8 @@ fn start_watcher(app: AppHandle) {
                 file_near = dragging_files;
                 let _ = app.emit_to(LABEL, "pet-file-near", file_near);
             }
-            let catch = (down && pressed_outside && !state.carrying.load(Ordering::Relaxed) && inside(&body, rel.0, rel.1, 18.0))
-                .then(|| {
+            let catch =
+                (down && pressed_outside && !state.carrying.load(Ordering::Relaxed) && inside(&body, rel.0, rel.1, 18.0)).then(|| {
                     let pad = 18.0;
                     (
                         (pos.x as f64 + (body.x - pad) * scale) as i32,
@@ -1387,22 +1502,15 @@ pub async fn pet_show(app: AppHandle) -> Result<(), String> {
 /// lalu langsung ikut kursor sampai mouse dilepas.
 #[tauri::command]
 pub async fn pet_spawn_carry(app: AppHandle) -> Result<CarryResult, String> {
-    let cursor = app.cursor_position().map_err(|e| e.to_string())?;
-    let scale = app
-        .monitor_from_point(cursor.x, cursor.y)
-        .ok()
-        .flatten()
-        .map(|m| m.scale_factor())
-        .unwrap_or(1.0);
+    let cursor = cursor(&app).map(|(x, y)| PhysicalPosition::new(x, y)).ok_or("Posisi kursor nggak kebaca")?;
+    let scale = app.monitor_from_point(cursor.x, cursor.y).ok().flatten().map(|m| m.scale_factor()).unwrap_or(1.0);
     let body = body_metrics(&app, scale);
     let grab = (body.cx, body.top + (body.feet - body.top) * 0.45);
     let at = ((cursor.x - grab.0) as i32, (cursor.y - grab.1) as i32);
     let win = ensure_window(&app, Some(at)).map_err(|e| e.to_string())?;
     set_mode(&app, true);
     let app2 = app.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || carry(&app2, &win, Some(grab)))
-        .await
-        .map_err(|e| e.to_string())?;
+    let result = tauri::async_runtime::spawn_blocking(move || carry(&app2, &win, Some(grab))).await.map_err(|e| e.to_string())?;
     if result.home {
         let app3 = app.clone();
         let _ = tauri::async_runtime::spawn_blocking(move || go_home(&app3)).await;
@@ -1419,9 +1527,7 @@ pub async fn pet_carry(app: AppHandle, grab_x: Option<f64>, grab_y: Option<f64>)
     let scale = win.scale_factor().unwrap_or(1.0);
     let grab = grab_x.zip(grab_y).map(|(x, y)| (x * scale, y * scale));
     let app2 = app.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || carry(&app2, &win, grab))
-        .await
-        .map_err(|e| e.to_string())?;
+    let result = tauri::async_runtime::spawn_blocking(move || carry(&app2, &win, grab)).await.map_err(|e| e.to_string())?;
     if result.home {
         let app3 = app.clone();
         let _ = tauri::async_runtime::spawn_blocking(move || go_home(&app3)).await;
@@ -1464,10 +1570,10 @@ pub async fn pet_visit(app: AppHandle, offset: i32) -> Result<(), String> {
             return;
         }
         let mut away = state.away_from.lock().unwrap();
-        if away.is_none() {
-            if let Ok(p) = win.outer_position() {
-                *away = Some((p.x, p.y));
-            }
+        if away.is_none()
+            && let Ok(p) = win.outer_position()
+        {
+            *away = Some((p.x, p.y));
         }
         drop(away);
         if let Some(spot) = notch_spot(&app, offset) {
@@ -1485,10 +1591,10 @@ pub async fn pet_return(app: AppHandle) -> Result<(), String> {
         let state = app.state::<PetState>();
         let Some(win) = window(&app) else { return };
         let from = *state.away_from.lock().unwrap();
-        if let Some(p) = from {
-            if !state.carrying.load(Ordering::Relaxed) {
-                fly(&app, &win, p, 700);
-            }
+        if let Some(p) = from
+            && !state.carrying.load(Ordering::Relaxed)
+        {
+            fly(&app, &win, p, 700);
         }
         *state.away_from.lock().unwrap() = None;
     })

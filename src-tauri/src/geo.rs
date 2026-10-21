@@ -19,33 +19,29 @@ mod imp {
     use windows::{
         Devices::Geolocation::{GeolocationAccessStatus, Geolocator, PositionAccuracy},
         Foundation::TimeSpan,
-        Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED},
+        Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize},
     };
 
-    const OFF: &str = "Lokasi Windows mati. Nyalain di Settings › Privacy & security › Location, termasuk \"Let desktop apps access your location\".";
+    const OFF: &str =
+        "Lokasi Windows mati. Nyalain di Settings › Privacy & security › Location, termasuk \"Let desktop apps access your location\".";
 
     fn locate_inner() -> Result<GeoFix, String> {
         // Buat app desktop ini nggak munculin dialog, cuma ngecek izinnya.
-        if let Ok(op) = Geolocator::RequestAccessAsync() {
-            if let Ok(status) = op.join() {
-                if status != GeolocationAccessStatus::Allowed {
-                    return Err(OFF.into());
-                }
-            }
+        if let Ok(op) = Geolocator::RequestAccessAsync()
+            && let Ok(status) = op.join()
+            && status != GeolocationAccessStatus::Allowed
+        {
+            return Err(OFF.into());
         }
         let g = Geolocator::new().map_err(|e| e.to_string())?;
         let _ = g.SetDesiredAccuracy(PositionAccuracy::Default);
         // Boleh pakai posisi yang umurnya sampai 10 menit; tunggu paling lama 15 detik.
-        let pos = g
-            .GetGeopositionAsyncWithAgeAndTimeout(TimeSpan { Duration: 10 * 60 * 10_000_000 }, TimeSpan { Duration: 15 * 10_000_000 })
-            .and_then(|op| op.join())
-            .map_err(|e| {
-                if e.code().0 as u32 == 0x8007_0005 {
-                    OFF.to_string()
-                } else {
-                    format!("Lokasi nggak kebaca: {}", e.message())
-                }
-            })?;
+        let pos =
+            g.GetGeopositionAsyncWithAgeAndTimeout(TimeSpan { Duration: 10 * 60 * 10_000_000 }, TimeSpan { Duration: 15 * 10_000_000 })
+                .and_then(|op| op.join())
+                .map_err(|e| {
+                    if e.code().0 as u32 == 0x8007_0005 { OFF.to_string() } else { format!("Lokasi nggak kebaca: {}", e.message()) }
+                })?;
         let c = pos.Coordinate().map_err(|e| e.to_string())?;
         let p = c.Point().and_then(|p| p.Position()).map_err(|e| e.to_string())?;
         Ok(GeoFix { lat: p.Latitude, lon: p.Longitude, accuracy: c.Accuracy().unwrap_or(0.0) })

@@ -202,6 +202,8 @@ export const api = {
 
   settingsGet: () => invoke<Settings>("settings_get"),
   settingsSet: (settings: Settings) => invoke<Settings>("settings_set", { settings }),
+  /** Simpen cuma bagian yang berubah (aman dari tabrakan antar-jendela). */
+  settingsPatch: (patch: Partial<Settings>) => invoke<Settings>("settings_patch", { patch }),
   settingsOpen: () => invoke("settings_open"),
 
   claudeStatus: () => invoke<ClaudeStatus>("claude_status"),
@@ -239,6 +241,9 @@ export const api = {
   clipboardList: () => invoke<ClipItem[]>("clipboard_list"),
   clipboardCopy: (text: string) => invoke("clipboard_copy", { text }),
   clipboardClear: () => invoke("clipboard_clear"),
+  /** Pantau clipboard cuma selama widget Clipboard dipasang. */
+  clipboardWatch: (on: boolean) => invoke("clipboard_watch", { on }),
+  clipboardRead: () => invoke<string | null>("clipboard_read"),
   httpGetJson: <T = unknown>(url: string) => invoke<T>("http_get_json", { url }),
   launchOpen: (target: string) => invoke("launch_open", { target }),
   /** Ikon asli app/file/folder/situs (data URL), null kalau nggak ada. */

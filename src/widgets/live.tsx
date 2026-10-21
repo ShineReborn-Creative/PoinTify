@@ -16,7 +16,10 @@ export function LiveProbes() {
     <>
       {layout.items.map((item) => {
         const L = widgetDef(item.type)?.Live;
-        return L ? <L key={item.id} item={item} size={item.size} /> : null;
+        // Live dimatiin = nggak usah dipantau di belakang (hemat internet & baterai).
+        // Usage Claude pengecualian: notif "udah reset"-nya tetap jalan.
+        if (!L || !(item.live || item.type === "usage")) return null;
+        return <L key={item.id} item={item} size={item.size} />;
       })}
       <PipConditions />
     </>

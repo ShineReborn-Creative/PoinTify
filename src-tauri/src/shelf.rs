@@ -31,10 +31,7 @@ const MAX_ITEMS: usize = 40;
 const DRAG_ICON: &[u8] = include_bytes!("../icons/128x128.png");
 
 fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
 }
 
 fn store_path(app: &AppHandle) -> Option<PathBuf> {
@@ -43,11 +40,8 @@ fn store_path(app: &AppHandle) -> Option<PathBuf> {
 
 fn persist(app: &AppHandle, items: &[ShelfItem]) {
     let Some(path) = store_path(app) else { return };
-    if let Some(dir) = path.parent() {
-        let _ = fs::create_dir_all(dir);
-    }
     if let Ok(json) = serde_json::to_string_pretty(items) {
-        let _ = fs::write(path, json);
+        let _ = crate::settings::write_atomic(&path, &json);
     }
 }
 
@@ -57,10 +51,8 @@ fn changed(app: &AppHandle, items: &[ShelfItem]) {
 }
 
 pub fn init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let items: Vec<ShelfItem> = store_path(app)
-        .and_then(|p| fs::read_to_string(p).ok())
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default();
+    let items: Vec<ShelfItem> =
+        store_path(app).and_then(|p| fs::read_to_string(p).ok()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
     // Buang item yang file-nya udah nggak ada.
     let items: Vec<ShelfItem> = items.into_iter().filter(|i| Path::new(&i.path).exists()).collect();
     *app.state::<ShelfState>().0.lock().unwrap() = items;
@@ -70,10 +62,7 @@ pub fn init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 fn item_for(path: &Path) -> Option<ShelfItem> {
     let meta = fs::metadata(path).ok()?;
     let name = path.file_name()?.to_string_lossy().to_string();
-    let ext = path
-        .extension()
-        .map(|e| e.to_string_lossy().to_lowercase())
-        .unwrap_or_default();
+    let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
     Some(ShelfItem {
         id: format!("{}-{}", now_ms(), name),
         path: path.to_string_lossy().to_string(),
@@ -86,14 +75,7 @@ fn item_for(path: &Path) -> Option<ShelfItem> {
 }
 
 fn find(state: &State<ShelfState>, id: &str) -> Result<ShelfItem, String> {
-    state
-        .0
-        .lock()
-        .unwrap()
-        .iter()
-        .find(|i| i.id == id)
-        .cloned()
-        .ok_or_else(|| "File-nya udah nggak ada di rak".to_string())
+    state.0.lock().unwrap().iter().find(|i| i.id == id).cloned().ok_or_else(|| "File-nya udah nggak ada di rak".to_string())
 }
 
 #[derive(Serialize)]
@@ -107,7 +89,7 @@ pub struct ShelfDiagnose {
 #[cfg(windows)]
 fn is_elevated() -> bool {
     use windows::Win32::Foundation::{CloseHandle, HANDLE};
-    use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
+    use windows::Win32::Security::{GetTokenInformation, TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation};
     use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
     unsafe {
         let mut token = HANDLE::default();
@@ -180,17 +162,13 @@ pub fn shelf_clear(app: AppHandle, state: State<ShelfState>) -> Vec<ShelfItem> {
 #[tauri::command]
 pub fn shelf_open(app: AppHandle, state: State<ShelfState>, id: String) -> Result<(), String> {
     let item = find(&state, &id)?;
-    app.opener()
-        .open_path(&item.path, None::<&str>)
-        .map_err(|e| e.to_string())
+    app.opener().open_path(&item.path, None::<&str>).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn shelf_reveal(app: AppHandle, state: State<ShelfState>, id: String) -> Result<(), String> {
     let item = find(&state, &id)?;
-    app.opener()
-        .reveal_item_in_dir(&item.path)
-        .map_err(|e| e.to_string())
+    app.opener().reveal_item_in_dir(&item.path).map_err(|e| e.to_string())
 }
 
 /// Tulis ikon pratinjau drag ke folder cache dan kasih alamatnya.

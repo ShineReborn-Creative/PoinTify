@@ -57,9 +57,7 @@ fn parse_lrc(lrc: &str) -> Vec<LyricLine> {
 }
 
 fn first_synced(tracks: Vec<LrcLibTrack>) -> Option<String> {
-    tracks
-        .into_iter()
-        .find_map(|t| t.synced_lyrics.filter(|s| !s.trim().is_empty()))
+    tracks.into_iter().find_map(|t| t.synced_lyrics.filter(|s| !s.trim().is_empty()))
 }
 
 /// Judul video YouTube sering kayak "Artis - Judul (Official Video)".
@@ -78,13 +76,7 @@ fn clean_title(title: &str) -> String {
     out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-async fn fetch_synced(
-    client: &reqwest::Client,
-    title: &str,
-    artist: &str,
-    album: &str,
-    duration_secs: Option<u64>,
-) -> Option<String> {
+async fn fetch_synced(client: &reqwest::Client, title: &str, artist: &str, album: &str, duration_secs: Option<u64>) -> Option<String> {
     // 1. Pencocokan persis (judul + artis + album + durasi)
     let mut exact = vec![("track_name", title.to_string()), ("artist_name", artist.to_string())];
     if !album.is_empty() {
@@ -93,24 +85,21 @@ async fn fetch_synced(
     if let Some(d) = duration_secs {
         exact.push(("duration", d.to_string()));
     }
-    if let Ok(res) = client.get(format!("{API}/get")).query(&exact).send().await {
-        if res.status().is_success() {
-            if let Ok(track) = res.json::<LrcLibTrack>().await {
-                if let Some(s) = first_synced(vec![track]) {
-                    return Some(s);
-                }
-            }
-        }
+    if let Ok(res) = client.get(format!("{API}/get")).query(&exact).send().await
+        && res.status().is_success()
+        && let Ok(track) = res.json::<LrcLibTrack>().await
+        && let Some(s) = first_synced(vec![track])
+    {
+        return Some(s);
     }
 
     // 2. Pencarian judul + artis
     let by_fields = [("track_name", title), ("artist_name", artist)];
-    if let Ok(res) = client.get(format!("{API}/search")).query(&by_fields).send().await {
-        if let Ok(list) = res.json::<Vec<LrcLibTrack>>().await {
-            if let Some(s) = first_synced(list) {
-                return Some(s);
-            }
-        }
+    if let Ok(res) = client.get(format!("{API}/search")).query(&by_fields).send().await
+        && let Ok(list) = res.json::<Vec<LrcLibTrack>>().await
+        && let Some(s) = first_synced(list)
+    {
+        return Some(s);
     }
 
     // 3. Pencarian bebas pakai judul yang udah dibersihin
@@ -132,16 +121,10 @@ pub async fn lyrics_fetch(
         return Ok(hit.clone());
     }
 
-    let client = reqwest::Client::builder()
-        .user_agent(USER_AGENT)
-        .timeout(std::time::Duration::from_secs(12))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client =
+        reqwest::Client::builder().user_agent(USER_AGENT).timeout(std::time::Duration::from_secs(12)).build().map_err(|e| e.to_string())?;
     let duration_secs = (duration_ms > 0).then(|| (duration_ms + 500) / 1000);
-    let lines = fetch_synced(&client, &title, &artist, &album, duration_secs)
-        .await
-        .map(|lrc| parse_lrc(&lrc))
-        .filter(|l| !l.is_empty());
+    let lines = fetch_synced(&client, &title, &artist, &album, duration_secs).await.map(|lrc| parse_lrc(&lrc)).filter(|l| !l.is_empty());
 
     // Cuma simpan yang ketemu: kalau gagal karena koneksi, lain kali dicoba lagi.
     if lines.is_some() {

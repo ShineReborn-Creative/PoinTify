@@ -13,6 +13,7 @@ use serde::Serialize;
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(not(windows), allow(dead_code))]
 pub struct NativeDrag {
     /// "enter" | "leave" | "drop"
     pub kind: String,
@@ -25,22 +26,21 @@ mod imp {
     use std::{
         ptr,
         sync::{
-            atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering},
             Mutex, OnceLock,
+            atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering},
         },
         thread,
     };
     use tauri::{AppHandle, Emitter};
     use windows::{
-        core::{implement, w, Ref, Result},
         Win32::{
             Foundation::{COLORREF, HWND, LPARAM, LRESULT, POINTL, WPARAM},
             System::{
-                Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
+                Com::{DVASPECT_CONTENT, FORMATETC, IDataObject, TYMED_HGLOBAL},
                 LibraryLoader::GetModuleHandleW,
                 Ole::{
-                    IDropTarget, IDropTarget_Impl, OleInitialize, RegisterDragDrop, ReleaseStgMedium, CF_HDROP,
-                    DROPEFFECT, DROPEFFECT_COPY, DROPEFFECT_NONE,
+                    CF_HDROP, DROPEFFECT, DROPEFFECT_COPY, DROPEFFECT_NONE, IDropTarget, IDropTarget_Impl, OleInitialize, RegisterDragDrop,
+                    ReleaseStgMedium,
                 },
                 SystemServices::MODIFIERKEYS_FLAGS,
             },
@@ -48,13 +48,14 @@ mod imp {
                 Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON},
                 Shell::{DragQueryFileW, HDROP},
                 WindowsAndMessaging::{
-                    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, RegisterClassW,
-                    SetLayeredWindowAttributes, SetWindowPos, TranslateMessage, HWND_TOPMOST, LWA_ALPHA, MSG,
-                    SWP_HIDEWINDOW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, WINDOW_EX_STYLE,
-                    WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+                    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, HWND_TOPMOST, LWA_ALPHA, MSG, RegisterClassW,
+                    SWP_HIDEWINDOW, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SetLayeredWindowAttributes, SetWindowPos,
+                    TranslateMessage, WINDOW_EX_STYLE, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+                    WS_POPUP,
                 },
             },
         },
+        core::{Ref, Result, implement, w},
     };
 
     static APP: OnceLock<AppHandle> = OnceLock::new();
@@ -63,7 +64,8 @@ mod imp {
     /// Penangkapnya lagi dipakai siapa: 0 = notch, 1 = Pip desktop.
     static OWNER: AtomicUsize = AtomicUsize::new(0);
     /// Kotak yang diminta masing-masing (notch, Pip).
-    static SLOTS: Mutex<[Option<(i32, i32, i32, i32)>; 2]> = Mutex::new([None, None]);
+    type Slot = Option<(i32, i32, i32, i32)>;
+    static SLOTS: Mutex<[Slot; 2]> = Mutex::new([None, None]);
 
     fn emit(kind: &str, paths: Vec<String>) {
         if let Some(app) = APP.get() {
@@ -107,13 +109,7 @@ mod imp {
 
     #[allow(non_snake_case)]
     impl IDropTarget_Impl for Catcher_Impl {
-        fn DragEnter(
-            &self,
-            data: Ref<'_, IDataObject>,
-            _keys: MODIFIERKEYS_FLAGS,
-            _pt: &POINTL,
-            effect: *mut DROPEFFECT,
-        ) -> Result<()> {
+        fn DragEnter(&self, data: Ref<'_, IDataObject>, _keys: MODIFIERKEYS_FLAGS, _pt: &POINTL, effect: *mut DROPEFFECT) -> Result<()> {
             let paths = unsafe { file_paths(data) };
             let valid = paths.as_ref().is_some_and(|p| !p.is_empty());
             self.valid.set(valid);
@@ -161,16 +157,10 @@ mod imp {
             }
             let Ok(module) = GetModuleHandleW(None) else { return };
             let class = w!("PoinTifyDropCatcher");
-            let wc = WNDCLASSW {
-                lpfnWndProc: Some(wndproc),
-                hInstance: module.into(),
-                lpszClassName: class,
-                ..Default::default()
-            };
+            let wc = WNDCLASSW { lpfnWndProc: Some(wndproc), hInstance: module.into(), lpszClassName: class, ..Default::default() };
             RegisterClassW(&wc);
             let ex = WINDOW_EX_STYLE(WS_EX_LAYERED.0 | WS_EX_TOOLWINDOW.0 | WS_EX_TOPMOST.0 | WS_EX_NOACTIVATE.0);
-            let Ok(hwnd) = CreateWindowExW(ex, class, w!("PoinTify"), WS_POPUP, 0, 0, 10, 10, None, None, Some(module.into()), None)
-            else {
+            let Ok(hwnd) = CreateWindowExW(ex, class, w!("PoinTify"), WS_POPUP, 0, 0, 10, 10, None, None, Some(module.into()), None) else {
                 eprintln!("[pointify] penangkap file: jendela gagal dibikin");
                 return;
             };
@@ -211,17 +201,13 @@ mod imp {
             let mut slots = SLOTS.lock().unwrap();
             slots[owner] = rect;
             // Pip didahulukan (kotaknya kecil dan cuma muncul pas file diseret ke atasnya).
-            if let Some(r) = slots[1] {
-                Some((1, r))
-            } else {
-                slots[0].map(|r| (0, r))
-            }
+            if let Some(r) = slots[1] { Some((1, r)) } else { slots[0].map(|r| (0, r)) }
         };
         // Pemilik cuma ganti pas penangkap lagi nggak dipakai nyeret, biar file nggak salah alamat.
-        if let Some((o, _)) = chosen {
-            if !SHOWN.load(Ordering::Relaxed) || o == 1 {
-                OWNER.store(o, Ordering::Relaxed);
-            }
+        if let Some((o, _)) = chosen
+            && (!SHOWN.load(Ordering::Relaxed) || o == 1)
+        {
+            OWNER.store(o, Ordering::Relaxed);
         }
         show(chosen.map(|(_, r)| r));
     }

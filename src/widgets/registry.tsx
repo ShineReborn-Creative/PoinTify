@@ -4,6 +4,7 @@ import type { PipMood } from "../components/Pip";
 import { CustomLive, CustomWidget } from "./custom";
 import { DEFAULT_PROMPTS, PromptsWidget, SessionsWidget, UsageLive, UsageWidget } from "./claude";
 import type { WidgetProps } from "./common";
+import { defaultCity } from "./data";
 import { CURRENCIES, CurrencyWidget, GithubWidget, PrayerLive, PrayerWidget, WeatherWidget } from "./info";
 import { LauncherConfig, LauncherWidget } from "./launcher";
 import type { WidgetItem, WidgetSize } from "./layout";
@@ -56,7 +57,7 @@ const LOC: Field = {
   ],
   hint: "Otomatis pakai layanan lokasi Windows. Kalau lokasinya mati, pakai kota di bawah.",
 };
-const CITY: Field = { key: "city", label: "Kota", kind: "text", placeholder: "Nabire" };
+const CITY: Field = { key: "city", label: "Kota", kind: "text", placeholder: defaultCity(), hint: "Kosongin buat pakai kota dari zona waktu PC." };
 
 export const WIDGETS: WidgetDef[] = [
   // Waktu
@@ -283,7 +284,6 @@ export const WIDGETS: WidgetDef[] = [
     group: "Info",
     sizes: ["s", "w", "l"],
     defaultSize: "s",
-    defaultCfg: { city: "Nabire" },
     fields: [LOC, CITY],
     Component: WeatherWidget,
   },
@@ -295,7 +295,6 @@ export const WIDGETS: WidgetDef[] = [
     group: "Info",
     sizes: ["s", "w"],
     defaultSize: "w",
-    defaultCfg: { city: "Nabire" },
     fields: [LOC, CITY],
     Component: PrayerWidget,
     Live: PrayerLive,

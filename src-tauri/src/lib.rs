@@ -1,7 +1,7 @@
 mod agents;
 mod claude;
-mod clipboard;
 mod claude_hooks;
+mod clipboard;
 mod drop_catcher;
 mod feed;
 mod geo;
@@ -15,6 +15,14 @@ mod shelf;
 mod sys;
 mod tray;
 mod widgets;
+
+/// Waktu `d` yang lalu. `Instant::now() - d` bisa bikin crash kalau PC baru
+/// nyala kurang dari `d` (misalnya PoinTify jalan otomatis pas login), jadi
+/// mentok di "sekarang" aja.
+pub(crate) fn ago(d: std::time::Duration) -> std::time::Instant {
+    let now = std::time::Instant::now();
+    now.checked_sub(d).unwrap_or(now)
+}
 
 /// Mode relay hooks Claude Code (`pointify.exe --hook`). Dipanggil dari
 /// `main` sebelum aplikasi dibikin, jadi nggak ada jendela yang muncul.
@@ -32,10 +40,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_drag::init())
-        .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            None,
-        ))
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(settings::SettingsState::default())
         .manage(island::IslandState::default())
@@ -91,6 +96,7 @@ pub fn run() {
             shelf::shelf_diagnose,
             settings::settings_get,
             settings::settings_set,
+            settings::settings_patch,
             settings::settings_open,
             claude::claude_status,
             claude::claude_send,
@@ -120,6 +126,8 @@ pub fn run() {
             clipboard::clipboard_list,
             clipboard::clipboard_copy,
             clipboard::clipboard_clear,
+            clipboard::clipboard_watch,
+            clipboard::clipboard_read,
             widgets::http_get_json,
             widgets::launch_open,
             widgets::launch_icon,

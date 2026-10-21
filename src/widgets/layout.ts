@@ -49,11 +49,11 @@ export function defaultLayout(): WidgetLayout {
     items: [
       item("music", "xl"),
       item("clock", "s"),
-      item("weather", "s", { city: "Nabire" }),
+      item("weather", "s"),
       item("timer", "s"),
       item("water", "s"),
       item("system", "w", {}, true),
-      item("prayer", "w", { city: "Nabire" }, true),
+      item("prayer", "w", {}, true),
     ],
   };
 }

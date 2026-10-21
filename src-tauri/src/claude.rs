@@ -96,13 +96,7 @@ fn candidates() -> Vec<PathBuf> {
         list.push(PathBuf::from(appdata).join("npm").join("claude.cmd"));
     }
     if let Some(local) = std::env::var_os("LOCALAPPDATA") {
-        list.push(
-            PathBuf::from(local)
-                .join("Microsoft")
-                .join("WinGet")
-                .join("Links")
-                .join("claude.exe"),
-        );
+        list.push(PathBuf::from(local).join("Microsoft").join("WinGet").join("Links").join("claude.exe"));
     }
     list
 }
@@ -157,11 +151,7 @@ fn worth_forwarding(v: &Value) -> bool {
     match event.and_then(|e| e.get("type")).and_then(Value::as_str) {
         Some("content_block_start") => true,
         Some("content_block_delta") => {
-            event
-                .and_then(|e| e.get("delta"))
-                .and_then(|d| d.get("type"))
-                .and_then(Value::as_str)
-                == Some("text_delta")
+            event.and_then(|e| e.get("delta")).and_then(|d| d.get("type")).and_then(Value::as_str) == Some("text_delta")
         }
         _ => false,
     }
@@ -195,23 +185,13 @@ fn status_blocking(app: &AppHandle) -> ClaudeStatus {
         .filter(|o| o.status.success())
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
 
-    let auth = base_command(&path)
-        .args(["auth", "status"])
-        .stdin(Stdio::null())
-        .output()
-        .ok();
+    let auth = base_command(&path).args(["auth", "status"]).stdin(Stdio::null()).output().ok();
     let (logged_in, auth_method, account) = match auth {
         Some(out) => {
             let json: Option<Value> = serde_json::from_slice(&out.stdout).ok();
-            let method = json
-                .as_ref()
-                .and_then(|j| j.get("authMethod"))
-                .and_then(Value::as_str)
-                .map(String::from);
+            let method = json.as_ref().and_then(|j| j.get("authMethod")).and_then(Value::as_str).map(String::from);
             let account = json.as_ref().and_then(|j| {
-                ["email", "emailAddress", "account"]
-                    .iter()
-                    .find_map(|k| j.get(*k).and_then(Value::as_str).map(String::from))
+                ["email", "emailAddress", "account"].iter().find_map(|k| j.get(*k).and_then(Value::as_str).map(String::from))
             });
             let ok = out.status.success() && method.as_deref() != Some("none");
             (ok, method, account)
@@ -219,21 +199,12 @@ fn status_blocking(app: &AppHandle) -> ClaudeStatus {
         None => (false, None, None),
     };
 
-    ClaudeStatus {
-        installed: true,
-        path: Some(path.to_string_lossy().to_string()),
-        version,
-        logged_in,
-        auth_method,
-        account,
-    }
+    ClaudeStatus { installed: true, path: Some(path.to_string_lossy().to_string()), version, logged_in, auth_method, account }
 }
 
 #[tauri::command]
 pub async fn claude_status(app: AppHandle) -> ClaudeStatus {
-    tauri::async_runtime::spawn_blocking(move || status_blocking(&app))
-        .await
-        .unwrap_or_default()
+    tauri::async_runtime::spawn_blocking(move || status_blocking(&app)).await.unwrap_or_default()
 }
 
 #[tauri::command]
@@ -245,13 +216,7 @@ pub fn claude_send(app: AppHandle, state: State<ClaudeState>, req: SendRequest) 
     let persona = persona_file(&app)?;
 
     let mut cmd = base_command(&path);
-    cmd.args([
-        "-p",
-        "--output-format",
-        "stream-json",
-        "--verbose",
-        "--include-partial-messages",
-    ]);
+    cmd.args(["-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages"]);
     cmd.args(["--model", req.model.as_str()]);
     if req.model != "haiku" && !req.effort.is_empty() {
         cmd.args(["--effort", req.effort.as_str()]);
@@ -268,10 +233,10 @@ pub fn claude_send(app: AppHandle, state: State<ClaudeState>, req: SendRequest) 
     for a in &req.attachments {
         let p = PathBuf::from(a);
         let dir = if p.is_dir() { Some(p) } else { p.parent().map(Path::to_path_buf) };
-        if let Some(d) = dir.filter(|d| d.is_dir()) {
-            if !dirs.contains(&d) {
-                dirs.push(d);
-            }
+        if let Some(d) = dir.filter(|d| d.is_dir())
+            && !dirs.contains(&d)
+        {
+            dirs.push(d);
         }
     }
     for d in &dirs {
@@ -287,14 +252,9 @@ pub fn claude_send(app: AppHandle, state: State<ClaudeState>, req: SendRequest) 
         .unwrap_or_else(|| PathBuf::from("."));
     // Ditandai biar hooks PoinTify tahu ini chat dari notch, bukan sesi terminal.
     cmd.env("POINTIFY_CHAT", &req.chat_id);
-    cmd.current_dir(&cwd)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+    cmd.current_dir(&cwd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
 
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| format!("Gagal menjalankan Claude Code: {e}"))?;
+    let mut child = cmd.spawn().map_err(|e| format!("Gagal menjalankan Claude Code: {e}"))?;
 
     // Prompt dikirim lewat stdin, biar aman dari urusan tanda kutip.
     let mut prompt = req.prompt.clone();
@@ -327,22 +287,16 @@ pub fn claude_send(app: AppHandle, state: State<ClaudeState>, req: SendRequest) 
             if line.is_empty() {
                 continue;
             }
-            if let Ok(event) = serde_json::from_str::<Value>(line) {
-                if worth_forwarding(&event) {
-                    let _ = app.emit(
-                        "claude-event",
-                        ClaudeEvent { chat_id: chat_id.clone(), event },
-                    );
-                }
+            if let Ok(event) = serde_json::from_str::<Value>(line)
+                && worth_forwarding(&event)
+            {
+                let _ = app.emit("claude-event", ClaudeEvent { chat_id: chat_id.clone(), event });
             }
         }
         let code = child.wait().ok().and_then(|s| s.code());
         let stderr = err_reader.join().unwrap_or_default();
         app.state::<ClaudeState>().runs.lock().unwrap().remove(&chat_id);
-        let _ = app.emit(
-            "claude-done",
-            ClaudeDone { chat_id, code, stderr: tail(&stderr, 2000) },
-        );
+        let _ = app.emit("claude-done", ClaudeDone { chat_id, code, stderr: tail(&stderr, 2000) });
     });
 
     Ok(())
@@ -359,10 +313,7 @@ pub fn claude_stop(state: State<ClaudeState>, chat_id: String) {
 #[cfg(windows)]
 fn kill_tree(pid: u32) {
     use std::os::windows::process::CommandExt;
-    let _ = Command::new("taskkill")
-        .args(["/PID", &pid.to_string(), "/T", "/F"])
-        .creation_flags(CREATE_NO_WINDOW)
-        .status();
+    let _ = Command::new("taskkill").args(["/PID", &pid.to_string(), "/T", "/F"]).creation_flags(CREATE_NO_WINDOW).status();
 }
 
 #[cfg(not(windows))]
@@ -385,38 +336,24 @@ pub fn claude_login(app: AppHandle) -> Result<(), String> {
     }
     #[cfg(not(windows))]
     {
-        base_command(&path)
-            .args(["auth", "login"])
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        base_command(&path).args(["auth", "login"]).spawn().map_err(|e| e.to_string())?;
     }
     Ok(())
 }
 
 /// Lanjutin sesi yang sama di aplikasi Claude Desktop.
 #[tauri::command]
-pub fn claude_open_desktop(
-    app: AppHandle,
-    session_id: Option<String>,
-    cwd: Option<String>,
-) -> Result<(), String> {
+pub fn claude_open_desktop(app: AppHandle, session_id: Option<String>, cwd: Option<String>) -> Result<(), String> {
     let path = resolve(&app).ok_or("Claude Code belum terpasang di PC ini")?;
     let mut cmd = base_command(&path);
     cmd.arg("--desktop");
     if let Some(s) = session_id.as_deref().filter(|s| !s.is_empty()) {
         cmd.args(["--resume", s]);
     }
-    let cwd = cwd
-        .map(PathBuf::from)
-        .filter(|p| p.is_dir())
-        .or_else(|| app.path().home_dir().ok());
+    let cwd = cwd.map(PathBuf::from).filter(|p| p.is_dir()).or_else(|| app.path().home_dir().ok());
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
     }
-    cmd.stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| e.to_string())?;
+    cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e| e.to_string())?;
     Ok(())
 }

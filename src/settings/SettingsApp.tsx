@@ -249,13 +249,13 @@ function PipSection({ s }: { s: Settings }) {
       </div>
       <div className={`group${off ? " dim" : ""}`}>
         <Row label="Gerak sendiri" hint="Jalan, lari, loncat, sama manjat pinggir layar kalau lagi santai.">
-          <Toggle label="Gerak sendiri" checked={s.petWander} onChange={(v) => updateSettings({ petWander: v })} />
+          <Toggle label="Gerak sendiri" checked={s.petWander !== false} onChange={(v) => updateSettings({ petWander: v })} />
         </Row>
         <Row label="Seberapa aktif" hint="Kalem jarang gerak, Hiperaktif nggak bisa diem.">
           <select
             className="select"
             value={s.petActivity ?? "normal"}
-            disabled={!s.petWander}
+            disabled={s.petWander === false}
             onChange={(e) => updateSettings({ petActivity: e.target.value as Settings["petActivity"] })}
           >
             <option value="calm">Kalem</option>

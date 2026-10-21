@@ -111,7 +111,7 @@ export function PromptsWidget({ item, size }: WidgetProps) {
   const run = async (text: string) => {
     let filled = text;
     if (text.includes("{clipboard}")) {
-      const clip = clipStore.get()[0]?.text ?? (await api.clipboardList().catch(() => []))[0]?.text;
+      const clip = (await api.clipboardRead().catch(() => null)) ?? clipStore.get()[0]?.text;
       if (!clip) {
         setNote("Copy teksnya dulu");
         window.setTimeout(() => setNote(null), 1800);

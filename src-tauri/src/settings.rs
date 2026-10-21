@@ -127,21 +127,38 @@ pub fn current(app: &AppHandle) -> Settings {
 }
 
 pub fn init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let loaded = file_path(app)
-        .and_then(|p| fs::read_to_string(p).ok())
-        .and_then(|s| serde_json::from_str::<Settings>(&s).ok())
-        .unwrap_or_default();
+    let loaded = match file_path(app).and_then(|p| fs::read_to_string(&p).ok().map(|s| (p, s))) {
+        Some((path, text)) => match serde_json::from_str::<Settings>(&text) {
+            Ok(s) => s,
+            Err(e) => {
+                // File rusak (misalnya PC mati pas lagi nyimpen): simpen salinannya,
+                // jangan ditimpa diem-diem biar susunan widget lu masih bisa diselamatin.
+                eprintln!("[pointify] settings.json rusak ({e}), pakai bawaan");
+                let _ = fs::copy(&path, path.with_extension("json.rusak"));
+                Settings::default()
+            }
+        },
+        None => Settings::default(),
+    };
     *app.state::<SettingsState>().0.lock().unwrap() = loaded;
     Ok(())
 }
 
+/// Tulis file lewat file sementara lalu ganti nama, biar nggak pernah ada
+/// file setengah jadi kalau PoinTify ketutup paksa pas lagi nyimpen.
+pub fn write_atomic(path: &std::path::Path, contents: &str) -> std::io::Result<()> {
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    let tmp = path.with_extension("tmp");
+    fs::write(&tmp, contents)?;
+    fs::rename(&tmp, path)
+}
+
 fn save(app: &AppHandle, s: &Settings) -> Result<(), String> {
     let path = file_path(app).ok_or("Folder config nggak ketemu")?;
-    if let Some(dir) = path.parent() {
-        fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-    }
     let json = serde_json::to_string_pretty(s).map_err(|e| e.to_string())?;
-    fs::write(path, json).map_err(|e| e.to_string())
+    write_atomic(&path, &json).map_err(|e| e.to_string())
 }
 
 /// Ubah pengaturan dari Rust (misalnya posisi Pip), simpan, dan kabarin semua jendela.
@@ -189,6 +206,28 @@ fn apply_autostart(app: &AppHandle, enabled: bool) {
 #[tauri::command]
 pub fn settings_get(state: State<SettingsState>) -> Settings {
     state.0.lock().unwrap().clone()
+}
+
+/// Ubah sebagian pengaturan. Frontend cuma ngirim yang dia ubah, jadi
+/// perubahan dari jendela lain atau dari Rust (posisi Pip, misalnya) yang
+/// kejadian barengan nggak ketimpa salinan lama.
+#[tauri::command]
+pub fn settings_patch(app: AppHandle, patch: serde_json::Value) -> Result<Settings, String> {
+    let serde_json::Value::Object(patch) = patch else {
+        return Err("Format pengaturan salah".into());
+    };
+    let merged = {
+        let state = app.state::<SettingsState>();
+        let s = state.0.lock().unwrap();
+        let mut value = serde_json::to_value(&*s).map_err(|e| e.to_string())?;
+        if let serde_json::Value::Object(map) = &mut value {
+            for (k, v) in patch {
+                map.insert(k, v);
+            }
+        }
+        serde_json::from_value::<Settings>(value).map_err(|e| format!("Pengaturan nggak valid: {e}"))?
+    };
+    settings_set(app, merged)
 }
 
 #[tauri::command]

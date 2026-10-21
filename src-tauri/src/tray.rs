@@ -1,9 +1,9 @@
 //! Ikon di system tray: buka notch, chat, pengaturan, sembunyikan, keluar.
 
 use tauri::{
+    AppHandle,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle,
 };
 
 pub fn init(app: &AppHandle) -> tauri::Result<()> {
@@ -30,22 +30,13 @@ pub fn init(app: &AppHandle) -> tauri::Result<()> {
             "pause" => {
                 let paused = !crate::island::is_paused(app);
                 crate::island::set_paused(app, paused);
-                let _ = pause_item.set_text(if paused {
-                    "Tampilkan notch"
-                } else {
-                    "Sembunyikan notch"
-                });
+                let _ = pause_item.set_text(if paused { "Tampilkan notch" } else { "Sembunyikan notch" });
             }
             "quit" => app.exit(0),
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click {
-                button: MouseButton::Left,
-                button_state: MouseButtonState::Up,
-                ..
-            } = event
-            {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
                 crate::island::reveal(tray.app_handle());
             }
         });

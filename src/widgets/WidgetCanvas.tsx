@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { Icon } from "../components/Icon";
 import type { PipMood } from "../components/Pip";
 import { useStore } from "../lib/store";
@@ -114,6 +115,11 @@ function Tile({ item, place, mood }: { item: WidgetItem; place: { col: number; r
     const move = (ev: PointerEvent) => {
       const s = press.current;
       if (!s) return;
+      // Tombolnya udah dilepas di luar jendela (event pointerup nggak nyampe): beresin.
+      if (ev.buttons === 0) {
+        up();
+        return;
+      }
       const far = Math.hypot(ev.clientX - s.x, ev.clientY - s.y) > 6;
       if (!editStore.get().editing) {
         if (far) window.clearTimeout(s.timer);
@@ -142,10 +148,12 @@ function Tile({ item, place, mood }: { item: WidgetItem; place: { col: number; r
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
+      window.removeEventListener("blur", up);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
+    window.addEventListener("blur", up);
   };
 
   if (!def) {
@@ -180,7 +188,9 @@ function Tile({ item, place, mood }: { item: WidgetItem; place: { col: number; r
       }}
     >
       <div className="w-tile-body" inert={edit.editing || undefined}>
-        <C item={item} size={item.size} mood={mood} />
+        <ErrorBoundary label={def.name} resetKey={`${item.size}|${JSON.stringify(item.cfg)}`}>
+          <C item={item} size={item.size} mood={mood} />
+        </ErrorBoundary>
       </div>
       {edit.editing && (
         <>

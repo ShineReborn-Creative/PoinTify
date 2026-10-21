@@ -5,7 +5,7 @@
 //! dijaga. Sebelum nulis, file lama di-backup di sebelahnya.
 
 use serde::Serialize;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -58,22 +58,14 @@ fn exe_path() -> Result<PathBuf, String> {
 fn is_ours(handler: &Value) -> bool {
     let cmd = handler.get("command").and_then(Value::as_str).unwrap_or("");
     let file = cmd.rsplit(['/', '\\']).next().unwrap_or("").to_lowercase();
-    let has_flag = handler
-        .get("args")
-        .and_then(Value::as_array)
-        .is_some_and(|a| a.iter().any(|x| x.as_str() == Some("--hook")));
+    let has_flag = handler.get("args").and_then(Value::as_array).is_some_and(|a| a.iter().any(|x| x.as_str() == Some("--hook")));
     has_flag && (file == "pointify.exe" || file == "pointify")
 }
 
 /// `onFailure` baru dikenal Claude Code v2.1.295. Versi lama dikasih entri tanpa itu.
 fn supports_on_failure(version: Option<&str>) -> bool {
     let Some(v) = version else { return true };
-    let nums: Vec<u32> = v
-        .split(|c: char| !c.is_ascii_digit())
-        .filter(|p| !p.is_empty())
-        .take(3)
-        .filter_map(|p| p.parse().ok())
-        .collect();
+    let nums: Vec<u32> = v.split(|c: char| !c.is_ascii_digit()).filter(|p| !p.is_empty()).take(3).filter_map(|p| p.parse().ok()).collect();
     match nums.as_slice() {
         [a, b, c, ..] => (*a, *b, *c) >= (2, 1, 295),
         _ => true,
@@ -103,10 +95,7 @@ fn group_for(event: &str, matcher: Option<&str>, handler: Value) -> (String, Val
 }
 
 fn wanted(exe: &Path, on_failure: bool) -> Vec<(String, Value)> {
-    EVENTS
-        .iter()
-        .map(|(ev, m, t)| group_for(ev, *m, handler_for(exe, *t, on_failure)))
-        .collect()
+    EVENTS.iter().map(|(ev, m, t)| group_for(ev, *m, handler_for(exe, *t, on_failure))).collect()
 }
 
 fn read_settings(path: &Path) -> Result<Value, String> {
@@ -154,9 +143,8 @@ fn state_of(settings: &Value, exe: &Path) -> String {
             if !EVENTS.iter().any(|(e, _, _)| e == event) {
                 continue;
             }
-            let found = groups.as_array().into_iter().flatten().flat_map(|g| {
-                g.get("hooks").and_then(Value::as_array).cloned().unwrap_or_default()
-            });
+            let found =
+                groups.as_array().into_iter().flatten().flat_map(|g| g.get("hooks").and_then(Value::as_array).cloned().unwrap_or_default());
             for h in found.filter(is_ours) {
                 let cmd = h.get("command").and_then(Value::as_str).unwrap_or("").to_lowercase();
                 if cmd == exe { ours_current += 1 } else { ours_other += 1 }
@@ -260,10 +248,7 @@ fn install_inner(version: Option<&str>) -> Result<InstallResult, String> {
         }
     }
     write_settings(&path, &settings)?;
-    Ok(InstallResult {
-        status: status_inner(version),
-        backup_path: backup_path.map(|p| p.to_string_lossy().into()),
-    })
+    Ok(InstallResult { status: status_inner(version), backup_path: backup_path.map(|p| p.to_string_lossy().into()) })
 }
 
 fn uninstall_inner(version: Option<&str>) -> Result<InstallResult, String> {
@@ -274,10 +259,7 @@ fn uninstall_inner(version: Option<&str>) -> Result<InstallResult, String> {
     }
     let backup_path = backup(&path)?;
     write_settings(&path, &settings)?;
-    Ok(InstallResult {
-        status: status_inner(version),
-        backup_path: backup_path.map(|p| p.to_string_lossy().into()),
-    })
+    Ok(InstallResult { status: status_inner(version), backup_path: backup_path.map(|p| p.to_string_lossy().into()) })
 }
 
 #[tauri::command]

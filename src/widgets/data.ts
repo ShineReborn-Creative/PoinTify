@@ -189,11 +189,25 @@ export function locateHere(): Promise<Place> {
 }
 
 /**
+ * Kota cadangan kalau lokasi Windows mati dan belum ngetik kota: ditebak dari
+ * zona waktu PC (Asia/Jakarta → Jakarta, Asia/Makassar → Makassar, dst).
+ */
+export function defaultCity(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    const last = tz.split("/").pop() ?? "";
+    return last.replace(/_/g, " ") || "Jakarta";
+  } catch {
+    return "Jakarta";
+  }
+}
+
+/**
  * Tempat buat widget: lokasi PC kalau `loc` otomatis (bawaan), atau kota yang
  * diketik. Kalau lokasi Windows mati, pakai kota sebagai cadangan plus catatan.
  */
 export async function resolvePlace(cfg: Record<string, unknown>): Promise<Place> {
-  const city = typeof cfg.city === "string" && cfg.city.trim() ? cfg.city : "Nabire";
+  const city = typeof cfg.city === "string" && cfg.city.trim() ? cfg.city : defaultCity();
   if (cfg.loc === "city") return geocode(city);
   try {
     return await locateHere();
@@ -204,7 +218,8 @@ export async function resolvePlace(cfg: Record<string, unknown>): Promise<Place>
 }
 
 export function placeKey(cfg: Record<string, unknown>) {
-  return cfg.loc === "city" ? `city:${String(cfg.city ?? "Nabire").toLowerCase()}` : `here:${String(cfg.city ?? "Nabire").toLowerCase()}`;
+  const city = (typeof cfg.city === "string" && cfg.city.trim() ? cfg.city : defaultCity()).toLowerCase();
+  return cfg.loc === "city" ? `city:${city}` : `here:${city}`;
 }
 
 /** Ambil nilai dari JSON pakai jalur titik, misal `data.items.0.price`. */
@@ -221,11 +236,25 @@ export function pick(obj: unknown, path: string): unknown {
 // ---------------------------------------------------------------------------
 
 export const clipStore = createStore<ClipItem[]>([]);
+let widgetStoreRef: { get: () => { items: { type: string }[] } } | null = null;
 let clipStarted = false;
 
 export function initClipboard() {
   if (clipStarted) return;
   clipStarted = true;
+  // Riwayat clipboard cuma dipantau kalau widget Clipboard ada di Beranda.
+  let watching: boolean | null = null;
+  const sync = () => {
+    const on = widgetStoreRef?.get().items.some((i) => i.type === "clipboard") ?? false;
+    if (on === watching) return;
+    watching = on;
+    void api.clipboardWatch(on).catch(() => {});
+  };
+  void import("./layout").then(({ widgetStore }) => {
+    widgetStoreRef = widgetStore;
+    sync();
+    widgetStore.subscribe(sync);
+  });
   void api.clipboardList().then((items) => Array.isArray(items) && clipStore.set(items)).catch(() => {});
   void listen<ClipItem[]>("clipboard-changed", (e) => clipStore.set(e.payload));
 }

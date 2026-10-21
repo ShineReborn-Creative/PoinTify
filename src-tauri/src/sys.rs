@@ -29,6 +29,7 @@ pub struct SysStats {
 }
 
 #[derive(Default)]
+#[cfg_attr(not(windows), allow(dead_code))]
 struct Prev {
     cpu: Option<(u64, u64)>,
     net: Option<(u64, u64, Instant)>,
@@ -42,7 +43,6 @@ mod imp {
     use super::{Battery, Prev, SysStats};
     use std::time::Instant;
     use windows::{
-        core::w,
         Win32::{
             Foundation::FILETIME,
             NetworkManagement::{
@@ -56,6 +56,7 @@ mod imp {
                 Threading::GetSystemTimes,
             },
         },
+        core::w,
     };
 
     fn ft(f: FILETIME) -> u64 {
@@ -128,7 +129,7 @@ mod imp {
 
     fn press(vk: u16) {
         use windows::Win32::UI::Input::KeyboardAndMouse::{
-            SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VIRTUAL_KEY,
+            INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, SendInput, VIRTUAL_KEY,
         };
         let key = |flags| INPUT {
             r#type: INPUT_KEYBOARD,
@@ -152,7 +153,7 @@ mod imp {
 
     /// Mic default Windows: baca atau ganti status bisu. Balikin status sekarang.
     pub fn mic(toggle: bool) -> Result<bool, String> {
-        use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
+        use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize};
         // COM dinyalain di thread sendiri biar thread bawaan Tokio nggak
         // kebawa mode MTA (ambil ikon peluncur butuh STA).
         let run = std::thread::spawn(move || unsafe {
@@ -168,15 +169,13 @@ mod imp {
 
     unsafe fn mic_inner(toggle: bool) -> Result<bool, String> {
         use windows::Win32::{
-            Media::Audio::{eCapture, eConsole, Endpoints::IAudioEndpointVolume, IMMDeviceEnumerator, MMDeviceEnumerator},
-            System::Com::{CoCreateInstance, CLSCTX_ALL},
+            Media::Audio::{Endpoints::IAudioEndpointVolume, IMMDeviceEnumerator, MMDeviceEnumerator, eCapture, eConsole},
+            System::Com::{CLSCTX_ALL, CoCreateInstance},
         };
         unsafe {
             let enumerator: IMMDeviceEnumerator =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).map_err(|e| format!("Audio Windows nggak kebuka: {e}"))?;
-            let device = enumerator
-                .GetDefaultAudioEndpoint(eCapture, eConsole)
-                .map_err(|_| "Nggak ada mic yang kepasang".to_string())?;
+            let device = enumerator.GetDefaultAudioEndpoint(eCapture, eConsole).map_err(|_| "Nggak ada mic yang kepasang".to_string())?;
             let volume: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None).map_err(|e| e.to_string())?;
             let mut muted = volume.GetMute().map_err(|e| e.to_string())?.as_bool();
             if toggle {

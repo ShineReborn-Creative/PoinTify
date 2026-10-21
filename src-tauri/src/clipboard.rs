@@ -1,13 +1,22 @@
 //! Riwayat clipboard buat widget Clipboard.
 //!
-//! Cuma teks, cuma disimpan di memori (hilang pas PoinTify ditutup), dan isi
-//! yang ditandai "jangan dipantau" (biasanya dari password manager) dilewatin.
+//! Cuma teks, cuma disimpan di memori (hilang pas PoinTify ditutup), isi
+//! yang ditandai "jangan dipantau" (biasanya dari password manager)
+//! dilewatin, dan cuma dipantau selama widget Clipboard ada di Beranda.
 
 use serde::Serialize;
-use std::sync::Mutex;
+use std::sync::{
+    Mutex,
+    atomic::{AtomicBool, Ordering},
+};
+
+/// Lagi mantau clipboard atau nggak (nyala cuma kalau widget-nya dipasang).
+static WATCH: AtomicBool = AtomicBool::new(false);
 use tauri::{AppHandle, Emitter, Manager, State};
 
+#[cfg_attr(not(windows), allow(dead_code))]
 const MAX_ITEMS: usize = 12;
+#[cfg_attr(not(windows), allow(dead_code))]
 const MAX_CHARS: usize = 4000;
 
 #[derive(Serialize, Clone)]
@@ -20,10 +29,12 @@ pub struct ClipItem {
 #[derive(Default)]
 pub struct ClipState(Mutex<Vec<ClipItem>>);
 
+#[cfg_attr(not(windows), allow(dead_code))]
 fn now_ms() -> u64 {
     crate::agents::now_ms()
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 fn remember(app: &AppHandle, text: String) {
     let text: String = text.chars().take(MAX_CHARS).collect();
     if text.trim().is_empty() {
@@ -45,18 +56,18 @@ mod imp {
     use std::{thread, time::Duration};
     use tauri::AppHandle;
     use windows::{
-        core::w,
         Win32::{
             Foundation::{HANDLE, HGLOBAL},
             System::{
                 DataExchange::{
-                    CloseClipboard, EmptyClipboard, GetClipboardData, GetClipboardSequenceNumber,
-                    IsClipboardFormatAvailable, OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
+                    CloseClipboard, EmptyClipboard, GetClipboardData, GetClipboardSequenceNumber, IsClipboardFormatAvailable,
+                    OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
                 },
-                Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE},
+                Memory::{GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalUnlock},
                 Ole::CF_UNICODETEXT,
             },
         },
+        core::w,
     };
 
     /// Buka clipboard, coba beberapa kali kalau lagi dipakai app lain.
@@ -68,6 +79,10 @@ mod imp {
             thread::sleep(Duration::from_millis(30));
         }
         false
+    }
+
+    pub fn read_now() -> Option<String> {
+        unsafe { read_text() }
     }
 
     unsafe fn read_text() -> Option<String> {
@@ -125,6 +140,11 @@ mod imp {
         thread::spawn(move || {
             let mut last = 0u32;
             loop {
+                if !super::WATCH.load(std::sync::atomic::Ordering::Relaxed) {
+                    last = 0;
+                    thread::sleep(Duration::from_millis(700));
+                    continue;
+                }
                 let seq = unsafe { GetClipboardSequenceNumber() };
                 if seq != last {
                     last = seq;
@@ -140,6 +160,9 @@ mod imp {
 
 #[cfg(not(windows))]
 mod imp {
+    pub fn read_now() -> Option<String> {
+        None
+    }
     pub fn write_text(_text: &str) -> Result<(), String> {
         Err("Cuma ada di Windows".into())
     }
@@ -164,4 +187,20 @@ pub fn clipboard_copy(text: String) -> Result<(), String> {
 pub fn clipboard_clear(app: AppHandle, state: State<ClipState>) {
     state.0.lock().unwrap().clear();
     let _ = app.emit_to("main", "clipboard-changed", Vec::<ClipItem>::new());
+}
+
+/// Nyalain/matiin pemantauan. Dimatiin = riwayatnya langsung dibuang.
+#[tauri::command]
+pub fn clipboard_watch(app: AppHandle, state: State<ClipState>, on: bool) {
+    let was = WATCH.swap(on, Ordering::Relaxed);
+    if was && !on {
+        state.0.lock().unwrap().clear();
+        let _ = app.emit_to("main", "clipboard-changed", Vec::<ClipItem>::new());
+    }
+}
+
+/// Isi clipboard sekarang (buat prompt cepat), tanpa nyimpen riwayat.
+#[tauri::command]
+pub fn clipboard_read() -> Option<String> {
+    imp::read_now()
 }

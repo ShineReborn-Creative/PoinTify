@@ -21,12 +21,7 @@ pub async fn http_get_json(url: String) -> Result<Value, String> {
         .user_agent(concat!("PoinTify/", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| e.to_string())?;
-    let res = client
-        .get(&url)
-        .header("Accept", "application/json")
-        .send()
-        .await
-        .map_err(|e| format!("Nggak bisa nyambung: {e}"))?;
+    let res = client.get(&url).header("Accept", "application/json").send().await.map_err(|e| format!("Nggak bisa nyambung: {e}"))?;
     let status = res.status();
     let bytes = res.bytes().await.map_err(|e| e.to_string())?;
     if !status.is_success() {
@@ -60,7 +55,6 @@ use base64::Engine as _;
 use std::{collections::HashMap, sync::Mutex};
 
 static ICONS: Mutex<Option<HashMap<String, Option<String>>>> = Mutex::new(None);
-
 
 fn data_url(mime: &str, bytes: &[u8]) -> String {
     format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))
@@ -136,17 +130,20 @@ pub async fn launch_icon(target: String) -> Result<Option<String>, String> {
 mod shell {
     use std::{ffi::c_void, mem::size_of};
     use windows::{
-        core::PCWSTR,
         Win32::{
-            Graphics::Gdi::{DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HGDIOBJ},
+            Graphics::Gdi::{
+                BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC, GetDIBits, GetObjectW, HGDIOBJ,
+                ReleaseDC,
+            },
             Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES,
-            System::Com::{CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED},
+            System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx, CoUninitialize},
             UI::{
                 Controls::{IImageList, ILD_TRANSPARENT},
-                Shell::{SHGetFileInfoW, SHGetImageList, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON, SHGFI_SYSICONINDEX, SHIL_EXTRALARGE},
-                WindowsAndMessaging::{DestroyIcon, GetIconInfo, PrivateExtractIconsW, HICON, ICONINFO},
+                Shell::{SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON, SHGFI_SYSICONINDEX, SHGetFileInfoW, SHGetImageList, SHIL_EXTRALARGE},
+                WindowsAndMessaging::{DestroyIcon, GetIconInfo, HICON, ICONINFO, PrivateExtractIconsW},
             },
         },
+        core::PCWSTR,
     };
 
     /// Ambil piksel bitmap jadi BGRA 32-bit (atas ke bawah).
@@ -269,7 +266,13 @@ mod shell {
     unsafe fn from_image_list(wide: &[u16]) -> Option<Vec<u8>> {
         let mut info = SHFILEINFOW::default();
         let ok = unsafe {
-            SHGetFileInfoW(PCWSTR(wide.as_ptr()), FILE_FLAGS_AND_ATTRIBUTES(0), Some(&mut info), size_of::<SHFILEINFOW>() as u32, SHGFI_SYSICONINDEX)
+            SHGetFileInfoW(
+                PCWSTR(wide.as_ptr()),
+                FILE_FLAGS_AND_ATTRIBUTES(0),
+                Some(&mut info),
+                size_of::<SHFILEINFOW>() as u32,
+                SHGFI_SYSICONINDEX,
+            )
         };
         if ok == 0 {
             return None;
@@ -302,10 +305,8 @@ mod shell {
         let lower = path.to_ascii_lowercase();
         let resource = [".exe", ".dll", ".ico"].iter().any(|e| lower.ends_with(e));
         unsafe {
-            if resource {
-                if let Some(png) = from_resource(&wide) {
-                    return Some(png);
-                }
+            if resource && let Some(png) = from_resource(&wide) {
+                return Some(png);
             }
             if let Some(png) = from_image_list(&wide) {
                 return Some(png);

@@ -67,6 +67,24 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
 | **Pengingat minum** | Pip nyembul dari notch tiap sekian menit, ngitung gelas harian, cuma di jam aktif yang lu atur. |
 | **Lain-lain** | Sembunyi otomatis pas ada app fullscreen, ikon di system tray, shortcut global `Ctrl+Alt+P` buat buka chat, jalan otomatis pas Windows nyala, suara orisinal yang dibikin pakai Web Audio. |
 
+## Privasi
+
+PoinTify jalan di PC lu dan nggak punya server sendiri. Yang keluar dari PC cuma ini, dan cuma kalau fiturnya dipakai:
+
+| Fitur | Yang dikirim | Ke mana |
+|---|---|---|
+| Lirik | Judul & artis lagu | [LRCLIB](https://lrclib.net) |
+| Cuaca & jadwal sholat | Koordinat (dibuletin ±100 m) atau nama kota | [Open-Meteo](https://open-meteo.com), [Aladhan](https://aladhan.com), [BigDataCloud](https://www.bigdatacloud.com) (nama daerah) |
+| Kurs, GitHub, widget kustom | Permintaan biasa ke alamat API-nya | Frankfurter, GitHub, alamat yang lu isi sendiri |
+| Ikon link di Peluncur | Nama domain | Situs itu sendiri, cadangannya DuckDuckGo |
+| Chat Claude | Pesan lu | Anthropic, lewat Claude Code di PC lu |
+
+Yang nggak pernah keluar dari PC:
+
+- **Riwayat clipboard:** cuma dipantau selama widget Clipboard dipasang, disimpen di memori, hilang pas PoinTify ditutup.
+- **Deteksi ngetik buat Pip:** cuma ngitung jumlah pencetan; tombol mana yang dipencet langsung dibuang, nggak pernah disimpen atau dikirim.
+- **Pengaturan, susunan widget, dan Rak:** tersimpan sebagai file JSON di folder aplikasi.
+
 ## Arsitektur
 
 ```
