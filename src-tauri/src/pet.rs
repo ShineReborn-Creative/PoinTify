@@ -1502,7 +1502,9 @@ pub async fn pet_show(app: AppHandle) -> Result<(), String> {
 /// lalu langsung ikut kursor sampai mouse dilepas.
 #[tauri::command]
 pub async fn pet_spawn_carry(app: AppHandle) -> Result<CarryResult, String> {
-    let cursor = cursor(&app).map(|(x, y)| PhysicalPosition::new(x, y)).ok_or("Posisi kursor nggak kebaca")?;
+    let cursor = cursor(&app)
+        .map(|(x, y)| PhysicalPosition::new(x, y))
+        .ok_or(crate::i18n::tr("Posisi kursor nggak kebaca", "Couldn't read the cursor position"))?;
     let scale = app.monitor_from_point(cursor.x, cursor.y).ok().flatten().map(|m| m.scale_factor()).unwrap_or(1.0);
     let body = body_metrics(&app, scale);
     let grab = (body.cx, body.top + (body.feet - body.top) * 0.45);
@@ -1523,7 +1525,7 @@ pub async fn pet_spawn_carry(app: AppHandle) -> Result<CarryResult, String> {
 /// pointerdown, biar Pip nggak "loncat" walau command-nya telat nyampe.
 #[tauri::command]
 pub async fn pet_carry(app: AppHandle, grab_x: Option<f64>, grab_y: Option<f64>) -> Result<CarryResult, String> {
-    let win = window(&app).ok_or("Pip lagi nggak di desktop")?;
+    let win = window(&app).ok_or(crate::i18n::tr("Pip lagi nggak di desktop", "Pip isn't on the desktop"))?;
     let scale = win.scale_factor().unwrap_or(1.0);
     let grab = grab_x.zip(grab_y).map(|(x, y)| (x * scale, y * scale));
     let app2 = app.clone();

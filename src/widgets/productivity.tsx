@@ -11,6 +11,7 @@ import { drink, undoDrink, waterStore } from "../state/water";
 import { str, WLabel, WState, type WidgetProps } from "./common";
 import { clipStore, initClipboard } from "./data";
 import { setCfg } from "./layout";
+import { tr } from "../i18n";
 
 // ---------------------------------------------------------------------------
 // To-do
@@ -37,7 +38,7 @@ export function TodoWidget({ item, size }: WidgetProps) {
   const shown = [...list].sort((a, b) => Number(a.done) - Number(b.done)).slice(0, size === "l" ? 6 : 2);
   return (
     <div className="w-todo">
-      <WLabel icon="checklist" right={list.length ? `${left} sisa` : undefined}>
+      <WLabel icon="checklist" right={list.length ? tr(`${left} sisa`, `${left} left`) : undefined}>
         {str(item.cfg.title) || "To-do"}
       </WLabel>
       <div className="w-todo-list">
@@ -53,7 +54,7 @@ export function TodoWidget({ item, size }: WidgetProps) {
               {t.done && <Icon name="check" size={11} />}
             </button>
             <span className="ellipsis">{t.text}</span>
-            <button className="w-row-x" aria-label="Hapus" onClick={() => save(list.filter((x) => x.id !== t.id))}>
+            <button className="w-row-x" aria-label={tr("Hapus", "Remove")} onClick={() => save(list.filter((x) => x.id !== t.id))}>
               <Icon name="close" size={11} />
             </button>
           </div>
@@ -62,7 +63,7 @@ export function TodoWidget({ item, size }: WidgetProps) {
       <input
         className="w-input"
         value={text}
-        placeholder="Tambah tugas, Enter"
+        placeholder={tr("Tambah tugas, Enter", "Add a task, Enter")}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") add();
@@ -78,12 +79,12 @@ export function TodoWidget({ item, size }: WidgetProps) {
 // ---------------------------------------------------------------------------
 
 export const NOTE_COLORS: [string, string][] = [
-  ["yellow", "Kuning"],
+  ["yellow", tr("Kuning", "Yellow")],
   ["pink", "Pink"],
-  ["blue", "Biru"],
-  ["green", "Hijau"],
-  ["violet", "Ungu"],
-  ["dark", "Gelap"],
+  ["blue", tr("Biru", "Blue")],
+  ["green", tr("Hijau", "Green")],
+  ["violet", tr("Ungu", "Purple")],
+  ["dark", tr("Gelap", "Dark")],
 ];
 
 export function NoteWidget({ item }: WidgetProps) {
@@ -95,7 +96,7 @@ export function NoteWidget({ item }: WidgetProps) {
     <div className={`w-note note-${color}`}>
       <textarea
         value={text}
-        placeholder="Tulis apa aja…"
+        placeholder={tr("Tulis apa aja…", "Write anything…")}
         spellCheck={false}
         onFocus={() => void api.focusIsland()}
         onChange={(e) => {
@@ -125,7 +126,7 @@ export function ClipboardWidget({ size }: WidgetProps) {
         right={
           items.length ? (
             <button className="w-link" onClick={() => void api.clipboardClear()}>
-              Bersihin
+              {tr("Bersihin", "Clear")}
             </button>
           ) : undefined
         }
@@ -133,7 +134,7 @@ export function ClipboardWidget({ size }: WidgetProps) {
         Clipboard
       </WLabel>
       {shown.length === 0 ? (
-        <WState>Teks yang lu copy muncul di sini. Disimpen sementara aja, hilang pas PoinTify ditutup.</WState>
+        <WState>{tr("Teks yang lu copy muncul di sini. Disimpen sementara aja, hilang pas PoinTify ditutup.", "Text you copy shows up here. It's only kept temporarily and disappears when PoinTify closes.")}</WState>
       ) : (
         <div className="w-clip-list">
           {shown.map((c) => (
@@ -162,11 +163,15 @@ export function ClipboardWidget({ size }: WidgetProps) {
 // Timer fokus & minum (dari Beranda lama)
 // ---------------------------------------------------------------------------
 
-const PHASE_SHORT: Record<string, string> = { focus: "Fokus", short: "Istirahat", long: "Istirahat panjang" };
+const PHASE_SHORT: Record<string, string> = {
+  focus: tr("Fokus", "Focus"),
+  short: tr("Istirahat", "Break"),
+  long: tr("Istirahat panjang", "Long break"),
+};
 
 function focusTime(ms: number) {
   const m = Math.round(ms / 60_000);
-  return m >= 60 ? `${Math.floor(m / 60)}j ${m % 60}m` : `${m}m`;
+  return m >= 60 ? `${Math.floor(m / 60)}${tr("j", "h")} ${m % 60}m` : `${m}m`;
 }
 
 /**
@@ -196,21 +201,21 @@ export function TimerWidget({ size }: WidgetProps) {
       style={{ ["--p" as string]: progress }}
       onClick={() => setTab("timer")}
       role="button"
-      aria-label="Buka timer fokus"
+      aria-label={tr("Buka timer fokus", "Open focus timer")}
     >
       <span className="w-timer-fill" aria-hidden="true" />
       <div className="w-timer-top">
         <span className="w-timer-chip">
           <i />
-          {state === "paused" ? "Dijeda" : PHASE_SHORT[timer.phase]}
+          {state === "paused" ? tr("Dijeda", "Paused") : PHASE_SHORT[timer.phase]}
         </span>
         <div className="w-timer-btns">
           {size !== "s" && (
             <>
               <button
                 className="w-timer-btn ghost"
-                aria-label="Ulang dari awal"
-                title="Ulang dari awal"
+                aria-label={tr("Ulang dari awal", "Restart")}
+                title={tr("Ulang dari awal", "Restart")}
                 disabled={fresh}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -221,8 +226,8 @@ export function TimerWidget({ size }: WidgetProps) {
               </button>
               <button
                 className="w-timer-btn ghost"
-                aria-label="Lewati ke fase berikutnya"
-                title="Lewati"
+                aria-label={tr("Lewati ke fase berikutnya", "Skip to the next phase")}
+                title={tr("Lewati", "Skip")}
                 onClick={(e) => {
                   e.stopPropagation();
                   skipPhase();
@@ -232,14 +237,14 @@ export function TimerWidget({ size }: WidgetProps) {
               </button>
             </>
           )}
-          <button className="w-timer-btn main" aria-label={timer.running ? "Jeda timer" : "Mulai timer"} onClick={toggle}>
+          <button className="w-timer-btn main" aria-label={timer.running ? tr("Jeda timer", "Pause timer") : tr("Mulai timer", "Start timer")} onClick={toggle}>
             <Icon name={timer.running ? "pause" : "play"} size={13} />
           </button>
         </div>
       </div>
       <strong className="w-timer-time tabular">{mmss(left)}</strong>
       <div className="w-timer-foot">
-        <span className="w-timer-pips" aria-label={`Sesi ${Math.min(timer.cycleCount + 1, every)} dari ${every}`}>
+        <span className="w-timer-pips" aria-label={tr(`Sesi ${Math.min(timer.cycleCount + 1, every)} dari ${every}`, `Session ${Math.min(timer.cycleCount + 1, every)} of ${every}`)}>
           {Array.from({ length: every }, (_, i) => {
             const done = i < timer.cycleCount || (!focus && i === timer.cycleCount - 1);
             const current = focus && i === timer.cycleCount;
@@ -252,7 +257,7 @@ export function TimerWidget({ size }: WidgetProps) {
         </span>
         {size !== "s" && (
           <span className="muted w-timer-today">
-            Hari ini {timer.todaySessions} sesi · {focusTime(timer.todayFocusMs)}
+            {tr(`Hari ini ${timer.todaySessions} sesi`, `Today ${timer.todaySessions} ${timer.todaySessions === 1 ? "session" : "sessions"}`)} · {focusTime(timer.todayFocusMs)}
           </span>
         )}
       </div>
@@ -268,7 +273,7 @@ export function WaterWidget({ size }: WidgetProps) {
   const minutesLeft = Math.max(0, Math.round((water.nextAt - now) / 60_000));
   return (
     <div className={`w-mini water size-${size}`}>
-      <div className="water-glasses" aria-label={`${water.count} dari ${goal} gelas`}>
+      <div className="water-glasses" aria-label={tr(`${water.count} dari ${goal} gelas`, `${water.count} of ${goal} glasses`)}>
         {Array.from({ length: Math.min(goal, 12) }, (_, i) => (
           <span key={i} className={i < water.count ? "glass full" : "glass"} />
         ))}
@@ -276,17 +281,17 @@ export function WaterWidget({ size }: WidgetProps) {
       <div className="mini-text">
         <strong>
           {water.count}/{goal}
-          {size !== "s" && " gelas"}
+          {size !== "s" && tr(" gelas", " glasses")}
         </strong>
         <span className="muted">
-          {!settings?.waterEnabled ? "Pengingat mati" : water.count >= goal ? "Target tercapai" : `${minutesLeft} mnt lagi`}
+          {!settings?.waterEnabled ? tr("Pengingat mati", "Reminder off") : water.count >= goal ? tr("Target tercapai", "Goal reached") : tr(`${minutesLeft} mnt lagi`, `in ${minutesLeft} min`)}
         </span>
       </div>
       <div className="water-buttons">
-        <button className="icon-btn" aria-label="Kurangi satu gelas" onClick={undoDrink} disabled={water.count === 0}>
+        <button className="icon-btn" aria-label={tr("Kurangi satu gelas", "Remove one glass")} onClick={undoDrink} disabled={water.count === 0}>
           <Icon name="minus" size={14} />
         </button>
-        <button className="icon-btn solid water-add" aria-label="Tambah satu gelas" onClick={drink}>
+        <button className="icon-btn solid water-add" aria-label={tr("Tambah satu gelas", "Add one glass")} onClick={drink}>
           <Icon name="drop" size={15} />
         </button>
       </div>

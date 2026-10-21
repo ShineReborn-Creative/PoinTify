@@ -1,6 +1,9 @@
 //! Musik: baca lagu yang lagi diputer dari kontrol media bawaan Windows
 //! (SMTC), dipakai Spotify, browser, dan app musik lain.
 
+// Penebak lagu/video cuma dipanggil di Windows (di luar itu cuma dites).
+#![cfg_attr(not(windows), allow(dead_code))]
+
 use serde::Serialize;
 use std::sync::Mutex;
 use tauri::State;

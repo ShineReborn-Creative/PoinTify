@@ -117,14 +117,14 @@ mod imp {
         let wide: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
         unsafe {
             if !open() {
-                return Err("Clipboard lagi dipakai app lain".into());
+                return Err(crate::i18n::tr("Clipboard lagi dipakai app lain", "The clipboard is in use by another app").into());
             }
             let result = (|| -> Result<(), String> {
                 EmptyClipboard().map_err(|e| e.to_string())?;
                 let mem = GlobalAlloc(GMEM_MOVEABLE, wide.len() * 2).map_err(|e| e.to_string())?;
                 let ptr = GlobalLock(mem) as *mut u16;
                 if ptr.is_null() {
-                    return Err("Memori clipboard nggak kebuka".into());
+                    return Err(crate::i18n::tr("Memori clipboard nggak kebuka", "Couldn't open clipboard memory").into());
                 }
                 std::ptr::copy_nonoverlapping(wide.as_ptr(), ptr, wide.len());
                 let _ = GlobalUnlock(mem);

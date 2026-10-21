@@ -16,13 +16,14 @@ import { ChatTab } from "./tabs/ChatTab";
 import { EditToggle, WidgetCanvas } from "../widgets/WidgetCanvas";
 import { ShelfTab } from "./tabs/ShelfTab";
 import { TimerTab } from "./tabs/TimerTab";
+import { tr } from "../i18n";
 
-const TABS: { id: Tab; label: string; icon: IconName }[] = [
-  { id: "home", label: "Beranda", icon: "home" },
-  { id: "chat", label: "Chat", icon: "chat" },
-  { id: "agents", label: "Sesi", icon: "terminal" },
-  { id: "shelf", label: "Rak", icon: "shelf" },
-  { id: "timer", label: "Fokus", icon: "timer" },
+const TABS: { id: Tab; label: () => string; icon: IconName }[] = [
+  { id: "home", label: () => tr("Beranda", "Home"), icon: "home" },
+  { id: "chat", label: () => "Chat", icon: "chat" },
+  { id: "agents", label: () => tr("Sesi", "Sessions"), icon: "terminal" },
+  { id: "shelf", label: () => tr("Rak", "Shelf"), icon: "shelf" },
+  { id: "timer", label: () => tr("Fokus", "Focus"), icon: "timer" },
 ];
 
 export function ExpandedView({ mood }: { mood: PipMood }) {
@@ -55,9 +56,9 @@ export function ExpandedView({ mood }: { mood: PipMood }) {
               onClick={() => setTab(t.id)}
             >
               <Icon name={t.icon} size={16} />
-              <span className="tab-label">{t.label}</span>
+              <span className="tab-label">{t.label()}</span>
               {badge(t.id) && <span className="tab-badge">{badge(t.id)}</span>}
-              {busy(t.id) && <span className="tab-dot" aria-label="lagi jalan" />}
+              {busy(t.id) && <span className="tab-dot" aria-label={tr("lagi jalan", "running")} />}
             </button>
           ))}
         </div>
@@ -66,19 +67,19 @@ export function ExpandedView({ mood }: { mood: PipMood }) {
           {island.tab === "home" && <EditToggle />}
           <button
             className="icon-btn"
-            aria-label={settings?.sounds ? "Matikan suara" : "Nyalakan suara"}
-            title={settings?.sounds ? "Suara nyala" : "Suara mati"}
+            aria-label={settings?.sounds ? tr("Matikan suara", "Mute sounds") : tr("Nyalakan suara", "Unmute sounds")}
+            title={settings?.sounds ? tr("Suara nyala", "Sounds on") : tr("Suara mati", "Sounds off")}
             onClick={() => updateSettings({ sounds: !settings?.sounds })}
           >
             <Icon name={settings?.sounds ? "volume" : "volumeOff"} size={16} />
           </button>
-          <button className="icon-btn" aria-label="Pengaturan" title="Pengaturan" onClick={() => void api.settingsOpen()}>
+          <button className="icon-btn" aria-label={tr("Pengaturan", "Settings")} title={tr("Pengaturan", "Settings")} onClick={() => void api.settingsOpen()}>
             <Icon name="gear" size={16} />
           </button>
         </div>
       </nav>
       <div className="tab-body">
-        <ErrorBoundary label="Tab ini" resetKey={island.tab}>
+        <ErrorBoundary label={tr("Tab ini", "This tab")} resetKey={island.tab}>
         {island.tab === "home" && <WidgetCanvas mood={mood} />}
         {island.tab === "chat" && <ChatTab mood={mood} />}
         {island.tab === "agents" && <AgentsTab mood={mood} />}
@@ -101,14 +102,14 @@ function HeaderPip({ mood }: { mood: PipMood }) {
   const onCanvas = useStore(canvasPipStore);
   if (settings?.petMode) {
     return (
-      <button className="header-pip-away" title="Pip lagi di desktop. Klik buat manggil balik." aria-label="Panggil Pip balik" onClick={() => void api.petHome()}>
+      <button className="header-pip-away" title={tr("Pip lagi di desktop. Klik buat manggil balik.", "Pip is on the desktop. Click to call him back.")} aria-label={tr("Panggil Pip balik", "Call Pip back")} onClick={() => void api.petHome()}>
         <i />
       </button>
     );
   }
   if (island.tab === "home" && onCanvas > 0) return null;
   return (
-    <span className="header-pip" title="Klik buat nyolek, tarik ke bawah buat bawa ke desktop">
+    <span className="header-pip" title={tr("Klik buat nyolek, tarik ke bawah buat bawa ke desktop", "Click to poke, drag down to take Pip to the desktop")}>
       <Pip mood={mood} size={24} interactive onDragOut={dragPipOut} />
     </span>
   );

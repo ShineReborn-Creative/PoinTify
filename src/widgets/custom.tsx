@@ -1,9 +1,10 @@
+import { locale, tr } from "../i18n";
 import { useEffect } from "react";
 import { num, str, WLabel, WState, type WidgetProps } from "./common";
 import { pick, setLive, useJson } from "./data";
 
 function format(v: unknown): string {
-  if (typeof v === "number") return v.toLocaleString("id-ID", { maximumFractionDigits: 2 });
+  if (typeof v === "number") return v.toLocaleString(locale(), { maximumFractionDigits: 2 });
   if (typeof v === "string") return v;
   if (typeof v === "boolean") return v ? "Ya" : "Nggak";
   if (v == null) return "–";
@@ -22,18 +23,18 @@ function useCustom(item: WidgetProps["item"]) {
 /** Widget kustom: ambil satu angka/teks dari API JSON mana aja. */
 export function CustomWidget({ item, size }: WidgetProps) {
   const { url, res, text } = useCustom(item);
-  const label = str(item.cfg.label) || "Widget kustom";
+  const label = str(item.cfg.label) || tr("Widget kustom", "Custom widget");
   return (
     <div className={`w-custom size-${size}`}>
       <WLabel icon="plug">{label}</WLabel>
       {!url ? (
-        <span className="muted w-hint">Isi alamat API JSON dan jalur nilainya lewat gerigi di mode Atur.</span>
+        <span className="muted w-hint">{tr("Isi alamat API JSON dan jalur nilainya lewat gerigi di mode Atur.", "Set the JSON API URL and value path with the gear in Arrange mode.")}</span>
       ) : res.data !== undefined ? (
         <strong className="w-big ellipsis" title={text}>
           {text}
         </strong>
       ) : (
-        <WState error={!!res.error}>{res.error ?? "Ngambil data…"}</WState>
+        <WState error={!!res.error}>{res.error ?? tr("Ngambil data…", "Fetching data…")}</WState>
       )}
       {size !== "s" && url && <span className="muted ellipsis w-custom-src">{url.replace(/^https?:\/\//, "")}</span>}
     </div>

@@ -6,6 +6,7 @@ import { uid } from "../lib/format";
 import { guardBlur, pin } from "../state/island";
 import { WState, type WidgetProps } from "./common";
 import { setCfg, type WidgetItem } from "./layout";
+import { tr } from "../i18n";
 
 export type Shortcut = { id: string; label: string; target: string };
 
@@ -58,7 +59,7 @@ function ShortcutIcon({ target, size }: { target: string; size: number }) {
 export function LauncherWidget({ item, size }: WidgetProps) {
   const list = shortcuts(item).slice(0, size === "s" ? 4 : size === "w" ? 4 : 8);
   const [err, setErr] = useState<string | null>(null);
-  if (!list.length) return <WState>Tambahin app, folder, atau link lewat gerigi di mode Atur.</WState>;
+  if (!list.length) return <WState>{tr("Tambahin app, folder, atau link lewat gerigi di mode Atur.", "Add apps, folders, or links with the gear in Arrange mode.")}</WState>;
   return (
     <div className={`w-launch size-${size}`}>
       {list.map((s) => (
@@ -87,7 +88,7 @@ export function LauncherConfig({ item }: { item: WidgetItem }) {
     guardBlur(120_000);
     pin(true);
     try {
-      const picked = await openDialog({ multiple: true, directory, title: directory ? "Pilih folder" : "Pilih app atau file" });
+      const picked = await openDialog({ multiple: true, directory, title: directory ? tr("Pilih folder", "Choose folders") : tr("Pilih app atau file", "Choose apps or files") });
       const paths = Array.isArray(picked) ? picked : picked ? [picked] : [];
       if (paths.length) save([...list, ...paths.map((p) => ({ id: uid(), label: nameOf(p), target: p }))]);
     } finally {
@@ -107,14 +108,14 @@ export function LauncherConfig({ item }: { item: WidgetItem }) {
           <span className="muted ellipsis wc-target" title={s.target}>
             {s.target}
           </span>
-          <button className="icon-btn" aria-label={`Hapus ${s.label}`} onClick={() => save(list.filter((x) => x.id !== s.id))}>
+          <button className="icon-btn" aria-label={`${tr("Hapus", "Remove")} ${s.label}`} onClick={() => save(list.filter((x) => x.id !== s.id))}>
             <Icon name="trash" size={13} />
           </button>
         </div>
       ))}
       <div className="wc-launch-add">
         <button className="btn" onClick={() => void pick(false)}>
-          <Icon name="rocket" size={13} /> App / file
+          <Icon name="rocket" size={13} /> {tr("App / file", "App / file")}
         </button>
         <button className="btn" onClick={() => void pick(true)}>
           <Icon name="folder" size={13} /> Folder
@@ -122,7 +123,7 @@ export function LauncherConfig({ item }: { item: WidgetItem }) {
         <input
           className="w-input"
           value={url}
-          placeholder="https://… lalu Enter"
+          placeholder={tr("https://… lalu Enter", "https://… then Enter")}
           onChange={(e) => setUrl(e.target.value)}
           onKeyDown={(e) => {
             const u = url.trim();

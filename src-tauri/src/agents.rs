@@ -551,7 +551,7 @@ fn question_reply(answer: &Answer, input: &Value) -> Option<Value> {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": "allow",
-            "permissionDecisionReason": "Dijawab lewat PoinTify",
+            "permissionDecisionReason": crate::i18n::tr("Dijawab lewat PoinTify", "Answered via PoinTify"),
             "updatedInput": updated,
         }
     }))
@@ -573,7 +573,7 @@ fn always_label(suggestions: &[Value]) -> Option<String> {
             Some(labels.join(", ")).filter(|s| !s.is_empty())
         }
         "setMode" => Some(format!("mode {}", str_of(first, "mode"))),
-        "addDirectories" => Some("akses folder ini".into()),
+        "addDirectories" => Some(crate::i18n::tr("akses folder ini", "access to this folder").into()),
         _ => None,
     }
 }
@@ -692,8 +692,10 @@ pub fn agents_snapshot(app: AppHandle) -> Snapshot {
 #[tauri::command]
 pub fn agents_respond(state: State<AgentsState>, id: String, answer: Answer) -> Result<(), String> {
     let pending = state.pending.lock().unwrap();
-    let w = pending.iter().find(|w| w.info.id == id).ok_or("Permintaan ini udah nggak berlaku")?;
-    w.tx.send(answer).map_err(|_| "Claude udah nggak nunggu jawaban ini".to_string())
+    let w =
+        pending.iter().find(|w| w.info.id == id).ok_or(crate::i18n::tr("Permintaan ini udah nggak berlaku", "This request has expired"))?;
+    w.tx.send(answer)
+        .map_err(|_| crate::i18n::tr("Claude udah nggak nunggu jawaban ini", "Claude is no longer waiting for this answer").to_string())
 }
 
 #[tauri::command]

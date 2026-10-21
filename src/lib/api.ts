@@ -75,6 +75,12 @@ export type Settings = {
   petCursor: boolean;
   /** Kanvas widget Beranda (bentuknya diatur src/widgets/layout.ts). */
   widgets: unknown;
+  /** "auto" ikut bahasa Windows. */
+  language: "auto" | "id" | "en";
+  /** Tour perkenalan udah ditonton. */
+  tourDone: boolean;
+  /** Cek versi baru pas PoinTify nyala. */
+  autoUpdate: boolean;
 };
 
 export type SysStats = {

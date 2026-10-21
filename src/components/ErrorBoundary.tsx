@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { tr } from "../i18n";
 
 type Props = {
   children: ReactNode;
@@ -38,9 +39,9 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.props.fallback) return this.props.fallback(error, this.retry);
     return (
       <div className="boundary-error" role="alert">
-        <span>{this.props.label ?? "Bagian ini"} lagi error.</span>
+        <span>{tr(`${this.props.label ?? "Bagian ini"} lagi error.`, `${this.props.label ?? "This part"} hit an error.`)}</span>
         <button className="btn small" onClick={this.retry}>
-          Coba lagi
+          {tr("Coba lagi", "Try again")}
         </button>
       </div>
     );

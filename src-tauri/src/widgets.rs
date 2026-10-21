@@ -14,23 +14,30 @@ const MAX_BYTES: usize = 2 * 1024 * 1024;
 #[tauri::command]
 pub async fn http_get_json(url: String) -> Result<Value, String> {
     if !(url.starts_with("https://") || url.starts_with("http://")) {
-        return Err("Alamatnya harus diawali http:// atau https://".into());
+        return Err(
+            crate::i18n::tr("Alamatnya harus diawali http:// atau https://", "The address must start with http:// or https://").into()
+        );
     }
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(12))
         .user_agent(concat!("PoinTify/", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| e.to_string())?;
-    let res = client.get(&url).header("Accept", "application/json").send().await.map_err(|e| format!("Nggak bisa nyambung: {e}"))?;
+    let res = client
+        .get(&url)
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("{}: {e}", crate::i18n::tr("Nggak bisa nyambung", "Couldn't connect")))?;
     let status = res.status();
     let bytes = res.bytes().await.map_err(|e| e.to_string())?;
     if !status.is_success() {
-        return Err(format!("Server bales {}", status.as_u16()));
+        return Err(format!("{} {}", crate::i18n::tr("Server bales", "Server replied"), status.as_u16()));
     }
     if bytes.len() > MAX_BYTES {
-        return Err("Datanya kegedean".into());
+        return Err(crate::i18n::tr("Datanya kegedean", "The response is too large").into());
     }
-    serde_json::from_slice(&bytes).map_err(|_| "Balasannya bukan JSON".into())
+    serde_json::from_slice(&bytes).map_err(|_| crate::i18n::tr("Balasannya bukan JSON", "The response isn't JSON").into())
 }
 
 /// Buka app, file, folder, atau link dari widget Peluncur.
@@ -38,7 +45,7 @@ pub async fn http_get_json(url: String) -> Result<Value, String> {
 pub fn launch_open(app: AppHandle, target: String) -> Result<(), String> {
     let t = target.trim();
     if t.is_empty() {
-        return Err("Shortcut-nya kosong".into());
+        return Err(crate::i18n::tr("Shortcut-nya kosong", "The shortcut is empty").into());
     }
     if t.starts_with("http://") || t.starts_with("https://") {
         app.opener().open_url(t, None::<&str>).map_err(|e| e.to_string())

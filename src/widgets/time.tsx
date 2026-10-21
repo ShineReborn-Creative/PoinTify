@@ -1,3 +1,4 @@
+import { isEn, locale, tr } from "../i18n";
 import { useEffect } from "react";
 import { useNow } from "../lib/hooks";
 import { setCfg } from "./layout";
@@ -5,14 +6,14 @@ import { duration, hhmm, str, WLabel, type WidgetProps } from "./common";
 import { setLive } from "./data";
 
 export const TIMEZONES: [string, string][] = [
-  ["", "Nggak usah"],
+  ["", tr("Nggak usah", "None")],
   ["Asia/Jakarta", "WIB · Jakarta"],
   ["Asia/Makassar", "WITA · Makassar"],
   ["Asia/Jayapura", "WIT · Jayapura"],
-  ["Asia/Singapore", "Singapura"],
+  ["Asia/Singapore", tr("Singapura", "Singapore")],
   ["Asia/Tokyo", "Tokyo"],
   ["Asia/Seoul", "Seoul"],
-  ["Asia/Riyadh", "Mekkah"],
+  ["Asia/Riyadh", tr("Mekkah", "Mecca")],
   ["Asia/Dubai", "Dubai"],
   ["Europe/London", "London"],
   ["Europe/Paris", "Paris"],
@@ -29,7 +30,7 @@ export function ClockWidget({ item, size }: WidgetProps) {
   const tz2 = str(item.cfg.tz2);
   const seconds = item.cfg.seconds === true;
   const time = hhmm(d);
-  const date = d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" });
+  const date = d.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" });
   return (
     <div className={`w-clock size-${size}`}>
       <div className="w-clock-main">
@@ -37,7 +38,7 @@ export function ClockWidget({ item, size }: WidgetProps) {
           {time}
           {seconds && <small>{String(d.getSeconds()).padStart(2, "0")}</small>}
         </strong>
-        <span className="muted ellipsis">{size === "s" ? d.toLocaleDateString("id-ID", { weekday: "short", day: "numeric", month: "short" }) : date}</span>
+        <span className="muted ellipsis">{size === "s" ? d.toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" }) : date}</span>
       </div>
       {tz2 && (
         <div className="w-clock-second">
@@ -49,7 +50,7 @@ export function ClockWidget({ item, size }: WidgetProps) {
   );
 }
 
-const DAYS = ["S", "S", "R", "K", "J", "S", "M"];
+const DAYS = isEn() ? ["M", "T", "W", "T", "F", "S", "S"] : ["S", "S", "R", "K", "J", "S", "M"];
 
 export function CalendarWidget({ size }: WidgetProps) {
   const now = useNow(60_000);
@@ -57,9 +58,9 @@ export function CalendarWidget({ size }: WidgetProps) {
   if (size === "s") {
     return (
       <div className="w-cal-s">
-        <span className="w-cal-day">{d.toLocaleDateString("id-ID", { weekday: "long" })}</span>
+        <span className="w-cal-day">{d.toLocaleDateString(locale(), { weekday: "long" })}</span>
         <strong className="tabular">{d.getDate()}</strong>
-        <span className="muted">{d.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}</span>
+        <span className="muted">{d.toLocaleDateString(locale(), { month: "long", year: "numeric" })}</span>
       </div>
     );
   }
@@ -69,7 +70,7 @@ export function CalendarWidget({ size }: WidgetProps) {
   const cells = Array.from({ length: offset + days }, (_, i) => (i < offset ? 0 : i - offset + 1));
   return (
     <div className="w-cal">
-      <WLabel icon="calendar">{d.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}</WLabel>
+      <WLabel icon="calendar">{d.toLocaleDateString(locale(), { month: "long", year: "numeric" })}</WLabel>
       <div className="w-cal-grid">
         {DAYS.map((x, i) => (
           <span key={`h${i}`} className={`w-cal-head${i === 6 ? " sun" : ""}`}>
@@ -99,7 +100,7 @@ export function CountdownWidget({ item, size }: WidgetProps) {
     return (
       <div className="w-count">
         <WLabel icon="hourglass">{title}</WLabel>
-        <span className="muted w-hint">Atur tanggalnya lewat tombol gerigi di mode Atur.</span>
+        <span className="muted w-hint">{tr("Atur tanggalnya lewat tombol gerigi di mode Atur.", "Set the date with the gear button in Arrange mode.")}</span>
       </div>
     );
   }
@@ -107,9 +108,9 @@ export function CountdownWidget({ item, size }: WidgetProps) {
   return (
     <div className={`w-count size-${size}`}>
       <WLabel icon="hourglass">{title}</WLabel>
-      <strong className="w-big tabular">{left > 0 ? duration(left) : "Udah mulai!"}</strong>
+      <strong className="w-big tabular">{left > 0 ? duration(left) : tr("Udah mulai!", "It's started!")}</strong>
       <span className="muted ellipsis">
-        {new Date(t).toLocaleString("id-ID", { weekday: size === "s" ? undefined : "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+        {new Date(t).toLocaleString(locale(), { weekday: size === "s" ? undefined : "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
       </span>
     </div>
   );

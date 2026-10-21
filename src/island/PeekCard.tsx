@@ -3,6 +3,7 @@ import { Pip, type PipMood } from "../components/Pip";
 import { useStore } from "../lib/store";
 import { settingsStore } from "../state/settings";
 import { dismissPeek, expand, type Peek } from "../state/island";
+import { tr } from "../i18n";
 
 /** Kartu notifikasi kecil yang nyembul dari notch. */
 export function PeekCard({ peek, mood }: { peek: Peek; mood: PipMood }) {
@@ -40,7 +41,7 @@ export function PeekCard({ peek, mood }: { peek: Peek; mood: PipMood }) {
       ) : (
         <button
           className="icon-btn peek-close"
-          aria-label="Tutup"
+          aria-label={tr("Tutup", "Close")}
           onClick={(e) => {
             e.stopPropagation();
             dismissPeek();

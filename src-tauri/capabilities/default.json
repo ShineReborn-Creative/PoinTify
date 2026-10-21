@@ -2,7 +2,11 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Izin untuk jendela notch, pengaturan, dan Pip di desktop",
-  "windows": ["main", "settings", "pet"],
+  "windows": [
+    "main",
+    "settings",
+    "pet"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
@@ -11,6 +15,8 @@
     "core:window:allow-set-focus",
     "dialog:default",
     "drag:default",
-    "opener:default"
+    "opener:default",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

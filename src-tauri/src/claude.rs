@@ -209,9 +209,9 @@ pub async fn claude_status(app: AppHandle) -> ClaudeStatus {
 
 #[tauri::command]
 pub fn claude_send(app: AppHandle, state: State<ClaudeState>, req: SendRequest) -> Result<(), String> {
-    let path = resolve(&app).ok_or("Claude Code belum terpasang di PC ini")?;
+    let path = resolve(&app).ok_or(crate::i18n::tr("Claude Code belum terpasang di PC ini", "Claude Code isn't installed on this PC"))?;
     if state.runs.lock().unwrap().contains_key(&req.chat_id) {
-        return Err("Claude masih ngerjain pesan sebelumnya".into());
+        return Err(crate::i18n::tr("Claude masih ngerjain pesan sebelumnya", "Claude is still working on the previous message").into());
     }
     let persona = persona_file(&app)?;
 
@@ -254,7 +254,8 @@ pub fn claude_send(app: AppHandle, state: State<ClaudeState>, req: SendRequest) 
     cmd.env("POINTIFY_CHAT", &req.chat_id);
     cmd.current_dir(&cwd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().map_err(|e| format!("Gagal menjalankan Claude Code: {e}"))?;
+    let mut child =
+        cmd.spawn().map_err(|e| format!("{}: {e}", crate::i18n::tr("Gagal menjalankan Claude Code", "Couldn't start Claude Code")))?;
 
     // Prompt dikirim lewat stdin, biar aman dari urusan tanda kutip.
     let mut prompt = req.prompt.clone();
@@ -271,7 +272,7 @@ pub fn claude_send(app: AppHandle, state: State<ClaudeState>, req: SendRequest) 
     let chat_id = req.chat_id.clone();
     state.runs.lock().unwrap().insert(chat_id.clone(), child.id());
 
-    let stdout = child.stdout.take().ok_or("stdout Claude nggak kebaca")?;
+    let stdout = child.stdout.take().ok_or(crate::i18n::tr("stdout Claude nggak kebaca", "Couldn't read Claude's output"))?;
     let stderr = child.stderr.take();
     let err_reader = thread::spawn(move || {
         let mut s = String::new();
@@ -324,7 +325,7 @@ fn kill_tree(pid: u32) {
 /// Buka jendela terminal buat login Claude (alurnya lewat browser).
 #[tauri::command]
 pub fn claude_login(app: AppHandle) -> Result<(), String> {
-    let path = resolve(&app).ok_or("Claude Code belum terpasang di PC ini")?;
+    let path = resolve(&app).ok_or(crate::i18n::tr("Claude Code belum terpasang di PC ini", "Claude Code isn't installed on this PC"))?;
     #[cfg(windows)]
     {
         Command::new("cmd")
@@ -344,7 +345,7 @@ pub fn claude_login(app: AppHandle) -> Result<(), String> {
 /// Lanjutin sesi yang sama di aplikasi Claude Desktop.
 #[tauri::command]
 pub fn claude_open_desktop(app: AppHandle, session_id: Option<String>, cwd: Option<String>) -> Result<(), String> {
-    let path = resolve(&app).ok_or("Claude Code belum terpasang di PC ini")?;
+    let path = resolve(&app).ok_or(crate::i18n::tr("Claude Code belum terpasang di PC ini", "Claude Code isn't installed on this PC"))?;
     let mut cmd = base_command(&path);
     cmd.arg("--desktop");
     if let Some(s) = session_id.as_deref().filter(|s| !s.is_empty()) {

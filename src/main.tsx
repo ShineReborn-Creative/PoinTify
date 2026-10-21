@@ -9,7 +9,8 @@ import { SettingsApp } from "./settings/SettingsApp";
 import { initAgents } from "./state/agents";
 import { initChat } from "./state/chat";
 import { initMedia } from "./state/media";
-import { initSettings } from "./state/settings";
+import { initSettings, settingsStore } from "./state/settings";
+import { setLanguage, tr } from "./i18n";
 import { initShelf } from "./state/shelf";
 import { setPointer } from "./pip/engine";
 import { initClipboard } from "./widgets/data";
@@ -21,6 +22,8 @@ async function boot() {
   const label = getCurrentWindow().label;
   document.documentElement.dataset.window = label;
   await initSettings();
+  setLanguage(settingsStore.get()?.language);
+  settingsStore.subscribe(() => setLanguage(settingsStore.get()?.language));
 
   // Mata Pip ngikutin kursor: dari DOM kalau kursornya di dalam jendela,
   // dan (khusus notch) dari Rust kalau kursornya di mana pun di layar.
@@ -48,9 +51,9 @@ async function boot() {
         label="PoinTify"
         fallback={() => (
           <div className={`root-error window-${label}`} role="alert">
-            <span>Waduh, ada yang error.</span>
+            <span>{tr("Waduh, ada yang error.", "Oops, something went wrong.")}</span>
             <button className="btn" onClick={() => location.reload()}>
-              Muat ulang
+              {tr("Muat ulang", "Reload")}
             </button>
           </div>
         )}

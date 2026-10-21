@@ -1,6 +1,6 @@
 [package]
 name = "pointify"
-version = "0.3.0"
+version = "0.4.0"
 description = "PoinTify — asisten kecil di atas layar Windows lu"
 authors = ["Ojan"]
 edition = "2024"
@@ -28,6 +28,9 @@ base64 = "0.22"
 # Ikon app di widget Peluncur dikirim ke frontend sebagai PNG
 png = "0.17"
 reqwest = { version = "0.13", default-features = false, features = ["native-tls", "json", "query", "charset", "http2"] }
+# Update otomatis dari GitHub Releases, terus restart abis dipasang
+tauri-plugin-updater = { version = "2", default-features = false, features = ["native-tls"] }
+tauri-plugin-process = "2"
 
 [target.'cfg(windows)'.dependencies]
 # Dipakai macro `#[implement]` buat target drop OLE (penangkap file di notch).
@@ -71,6 +74,8 @@ windows = { version = "0.62", features = [
   "Win32_UI_Controls",
   # Pip desktop: baca posisi jendela lain biar bisa nangkring di atasnya
   "Win32_Graphics_Dwm",
+  # Bahasa: ikut bahasa tampilan Windows kalau pengaturannya "otomatis"
+  "Win32_Globalization",
 ] }
 
 [profile.release]

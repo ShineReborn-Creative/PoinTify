@@ -11,6 +11,7 @@ import { setTab, showPeek } from "../state/island";
 import { duration, hhmm, num, str, WLabel, WState, type WidgetProps } from "./common";
 import { clipStore, initClipboard, setLive } from "./data";
 import { setCfg } from "./layout";
+import { isEn, tr } from "../i18n";
 
 // ---------------------------------------------------------------------------
 // Hitung mundur reset usage Claude
@@ -33,24 +34,24 @@ export function UsageWidget({ item, size }: WidgetProps) {
   const cycle = num(item.cfg.cycleHours, 5);
   return (
     <div className={`w-usage size-${size}`}>
-      <WLabel icon="sparkle">Usage Claude</WLabel>
+      <WLabel icon="sparkle">{tr("Usage Claude", "Claude usage")}</WLabel>
       {next === null ? (
-        <span className="muted w-hint">Masukin jam reset berikutnya lewat gerigi di mode Atur.</span>
+        <span className="muted w-hint">{tr("Masukin jam reset berikutnya lewat gerigi di mode Atur.", "Enter the next reset time with the gear in Arrange mode.")}</span>
       ) : (
         <>
           <strong className="w-big tabular">{duration(next - now)}</strong>
           <span className="muted">
-            Reset jam {hhmm(new Date(next))}
+            {tr("Reset jam", "Resets at")} {hhmm(new Date(next))}
           </span>
         </>
       )}
       {size !== "s" && (
         <button
           className="w-link w-usage-now"
-          title="Pakai ini pas lu baru mulai chat lagi setelah reset"
+          title={tr("Pakai ini pas lu baru mulai chat lagi setelah reset", "Use this when you start chatting again right after a reset")}
           onClick={() => setCfg(item.id, { resetAt: new Date(now + cycle * 3_600_000).toISOString() })}
         >
-          Mulai siklus baru sekarang
+          {tr("Mulai siklus baru sekarang", "Start a new cycle now")}
         </button>
       )}
     </div>
@@ -78,7 +79,13 @@ export function UsageLive({ item }: WidgetProps) {
       return;
     }
     play("done");
-    showPeek({ kind: "info", title: "Usage Claude udah reset", body: "Gas lanjut ngerjain project.", mood: "happy", timeoutMs: 10000 });
+    showPeek({
+      kind: "info",
+      title: tr("Usage Claude udah reset", "Claude usage has reset"),
+      body: tr("Gas lanjut ngerjain project.", "Back to work on your project."),
+      mood: "happy",
+      timeoutMs: 10000,
+    });
   }, [next, Math.floor(now / 10_000)]);
   useEffect(() => () => setLive(item.id, null), [item.id]);
   return null;
@@ -88,12 +95,21 @@ export function UsageLive({ item }: WidgetProps) {
 // Prompt cepat
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_PROMPTS = [
-  "Rangkum | Rangkum teks ini jadi poin-poin singkat:\n\n{clipboard}",
-  "Jelasin error | Jelasin error ini dan cara benerinnya:\n\n{clipboard}",
-  "Terjemahin | Terjemahin ke bahasa Inggris yang natural:\n\n{clipboard}",
-  "Rapihin tulisan | Rapihin tulisan ini biar enak dibaca, jangan ubah maksudnya:\n\n{clipboard}",
-].join("\n");
+export const DEFAULT_PROMPTS = (
+  isEn()
+    ? [
+        "Summarize | Summarize this text into short bullet points:\\n\\n{clipboard}",
+        "Explain error | Explain this error and how to fix it:\\n\\n{clipboard}",
+        "Translate | Translate this into natural Indonesian (or into English if it's already Indonesian):\\n\\n{clipboard}",
+        "Polish | Polish this writing so it reads well, without changing its meaning:\\n\\n{clipboard}",
+      ]
+    : [
+        "Rangkum | Rangkum teks ini jadi poin-poin singkat:\\n\\n{clipboard}",
+        "Jelasin error | Jelasin error ini dan cara benerinnya:\\n\\n{clipboard}",
+        "Terjemahin | Terjemahin ke bahasa Inggris yang natural:\\n\\n{clipboard}",
+        "Rapihin tulisan | Rapihin tulisan ini biar enak dibaca, jangan ubah maksudnya:\\n\\n{clipboard}",
+      ]
+).join("\n");
 
 function prompts(item: WidgetProps["item"]) {
   return str(item.cfg.prompts, DEFAULT_PROMPTS)
@@ -113,7 +129,7 @@ export function PromptsWidget({ item, size }: WidgetProps) {
     if (text.includes("{clipboard}")) {
       const clip = (await api.clipboardRead().catch(() => null)) ?? clipStore.get()[0]?.text;
       if (!clip) {
-        setNote("Copy teksnya dulu");
+        setNote(tr("Copy teksnya dulu", "Copy the text first"));
         window.setTimeout(() => setNote(null), 1800);
         return;
       }
@@ -124,8 +140,8 @@ export function PromptsWidget({ item, size }: WidgetProps) {
   };
   return (
     <div className="w-prompts">
-      <WLabel icon="sparkle" right={note ?? (chat.running ? "Claude lagi jawab…" : undefined)}>
-        Prompt cepat
+      <WLabel icon="sparkle" right={note ?? (chat.running ? tr("Claude lagi jawab…", "Claude is replying…") : undefined)}>
+        {tr("Prompt cepat", "Quick prompts")}
       </WLabel>
       <div className={`w-prompt-grid size-${size}`}>
         {list.map((p) => (
@@ -150,8 +166,8 @@ export function SessionsWidget() {
   const step = top?.steps.filter((s) => s.kind === "tool" || s.kind === "task").pop();
   return (
     <div className="w-sessions" role="button" onClick={() => setTab("agents")}>
-      <WLabel icon="terminal" right={pending.length ? `${pending.length} nunggu lu` : working ? `${working} kerja` : undefined}>
-        Sesi Claude
+      <WLabel icon="terminal" right={pending.length ? tr(`${pending.length} nunggu lu`, `${pending.length} waiting`) : working ? tr(`${working} kerja`, `${working} working`) : undefined}>
+        {tr("Sesi Claude", "Claude sessions")}
       </WLabel>
       {top ? (
         <div className="w-session-row">
@@ -159,13 +175,13 @@ export function SessionsWidget() {
           <div className="w-session-text">
             <b className="ellipsis">{top.title || top.project}</b>
             <span className="muted ellipsis">
-              {step ? `${step.kind === "tool" ? toolLabel(step.tool ?? "") + " " : ""}${step.detail}` : "Belum ada langkah"}
+              {step ? `${step.kind === "tool" ? toolLabel(step.tool ?? "") + " " : ""}${step.detail}` : tr("Belum ada langkah", "No steps yet")}
             </span>
           </div>
           <Icon name="chevronDown" size={14} className="w-chev" />
         </div>
       ) : (
-        <WState>Belum ada sesi. Chat atau terminal Claude yang lagi kerja muncul di sini.</WState>
+        <WState>{tr("Belum ada sesi. Chat atau terminal Claude yang lagi kerja muncul di sini.", "No sessions yet. Claude chats or terminals that are working show up here.")}</WState>
       )}
     </div>
   );

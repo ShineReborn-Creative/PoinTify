@@ -32,9 +32,13 @@ import { useIslandDrag } from "./useIslandDrag";
 import { CompactBar, type Activity } from "./CompactBar";
 import { ExpandedView } from "./ExpandedView";
 import { PeekCard } from "./PeekCard";
+import { TourCard } from "./TourCard";
+import { startTour } from "./tour";
+import { checkUpdate, installUpdate } from "../state/update";
 import { usePetBridge } from "./usePetBridge";
 import { currentPack, editStore, homePanelWidth, setEditing, widgetStore } from "../widgets/layout";
 import { LiveProbes, useTopLive } from "../widgets/live";
+import { tr } from "../i18n";
 
 export function IslandApp() {
   const island = useStore(islandStore);
@@ -63,16 +67,35 @@ export function IslandApp() {
   // Sapaan pas baru dibuka.
   useEffect(() => {
     flashTimer.current = window.setTimeout(() => setFlash(null), 2400);
-    if (!localStorage.getItem("pointify.welcomed")) {
-      localStorage.setItem("pointify.welcomed", "1");
+    // Pertama kali buka: Pip ngajak tour.
+    const tourTimer = settingsStore.get()?.tourDone ? undefined : window.setTimeout(() => startTour(), 1600);
+    return () => window.clearTimeout(tourTimer);
+  }, []);
+
+  // Tour diulang dari Pengaturan.
+  useEffect(() => {
+    const un = listen("tour-start", () => startTour());
+    return () => void un.then((f) => f());
+  }, []);
+
+  // Cek versi baru diem-diem sebentar setelah nyala.
+  useEffect(() => {
+    if (settingsStore.get()?.autoUpdate === false) return;
+    const id = window.setTimeout(async () => {
+      const u = await checkUpdate();
+      if (u.status !== "available") return;
       showPeek({
         kind: "info",
-        title: "Halo, gue Pip!",
-        body: "Arahin kursor ke sini buat buka PoinTify.",
-        mood: "wave",
-        timeoutMs: 6000,
+        title: tr(`PoinTify ${u.version} udah ada`, `PoinTify ${u.version} is out`),
+        body: tr("Pasang sekarang? PoinTify bakal restart sebentar.", "Install now? PoinTify will restart briefly."),
+        mood: "notify",
+        actions: [
+          { label: tr("Nanti", "Later"), run: () => dismissPeek() },
+          { label: tr("Pasang", "Install"), primary: true, run: () => { dismissPeek(); void installUpdate(); } },
+        ],
       });
-    }
+    }, 20_000);
+    return () => window.clearTimeout(id);
   }, []);
 
   // ---- Hover dari Rust, buka/tutup dengan jeda kecil ----
@@ -197,12 +220,12 @@ export function IslandApp() {
           const goal = settingsStore.get()?.waterGoal ?? 8;
           showPeek({
             kind: "water",
-            title: "Waktunya minum",
-            body: `Udah ${w.count} dari ${goal} gelas hari ini.`,
+            title: tr("Waktunya minum", "Time to drink"),
+            body: tr(`Udah ${w.count} dari ${goal} gelas hari ini.`, `${w.count} of ${goal} glasses today.`),
             mood: "notify",
             actions: [
-              { label: "Nanti", run: () => { snoozeWater(10); dismissPeek(); } },
-              { label: "Udah minum", primary: true, run: () => { drink(); dismissPeek(); flashMood("happy"); } },
+              { label: tr("Nanti", "Later"), run: () => { snoozeWater(10); dismissPeek(); } },
+              { label: tr("Udah minum", "Done"), primary: true, run: () => { drink(); dismissPeek(); flashMood("happy"); } },
             ],
           });
         }
@@ -222,13 +245,13 @@ export function IslandApp() {
         const auto = timerStore.get().running;
         showPeek({
           kind: "timer",
-          title: finished === "focus" ? "Sesi fokus beres!" : "Istirahat selesai",
+          title: finished === "focus" ? tr("Sesi fokus beres!", "Focus session done!") : tr("Istirahat selesai", "Break's over"),
           body:
             finished === "focus"
               ? auto
-                ? `${PHASE_LABEL[next]} dimulai. Regangin badan dulu.`
-                : `Lanjut ${PHASE_LABEL[next].toLowerCase()}?`
-              : "Siap fokus lagi?",
+                ? tr(`${PHASE_LABEL[next]} dimulai. Regangin badan dulu.`, `${PHASE_LABEL[next]} started. Stretch a little.`)
+                : tr(`Lanjut ${PHASE_LABEL[next].toLowerCase()}?`, `Start ${PHASE_LABEL[next].toLowerCase()}?`)
+              : tr("Siap fokus lagi?", "Ready to focus again?"),
           mood: "happy",
           openTab: "timer",
           timeoutMs: 9000,
@@ -247,7 +270,7 @@ export function IslandApp() {
         if (s.mode === "expanded" && s.tab === "chat") return;
         showPeek({
           kind: "claude",
-          title: ok ? "Claude udah jawab" : "Claude ketemu masalah",
+          title: ok ? tr("Claude udah jawab", "Claude replied") : tr("Claude ketemu masalah", "Claude hit a problem"),
           body: summary.replace(/\s+/g, " ").slice(0, 90) || undefined,
           mood: ok ? "happy" : "error",
           openTab: "chat",
@@ -268,7 +291,7 @@ export function IslandApp() {
         if (s.mode === "expanded" && s.tab === "agents") return;
         showPeek({
           kind: "claude",
-          title: f.ok ? `Claude beres di ${f.project}` : `Claude ketemu masalah di ${f.project}`,
+          title: f.ok ? tr(`Claude beres di ${f.project}`, `Claude finished in ${f.project}`) : tr(`Claude ketemu masalah di ${f.project}`, `Claude hit a problem in ${f.project}`),
           body: f.message.replace(/\s+/g, " ").slice(0, 90) || undefined,
           mood: f.ok ? "happy" : "error",
           openTab: "agents",
@@ -286,8 +309,8 @@ export function IslandApp() {
         setLastActive(Date.now());
         showPeek({
           kind: "claude",
-          title: "Claude nanya sesuatu",
-          body: f.message.replace(/\s+/g, " ").slice(0, 90) || "Balik ke chat buat jawab.",
+          title: tr("Claude nanya sesuatu", "Claude has a question"),
+          body: f.message.replace(/\s+/g, " ").slice(0, 90) || tr("Balik ke chat buat jawab.", "Go back to the chat to answer."),
           mood: "notify",
           openTab: "agents",
           timeoutMs: 20000,
@@ -354,10 +377,10 @@ export function IslandApp() {
     if (island.mode === "expanded") {
       return island.tab === "home" ? { ...SIZES.expanded.home, w: homeW } : SIZES.expanded[island.tab];
     }
-    if (island.mode === "peek") return SIZES.peek;
+    if (island.mode === "peek") return island.peek?.kind === "tour" ? SIZES.tour : SIZES.peek;
     if (lyricBar) return SIZES.compactLyrics;
     return activity ? SIZES.compactWide : SIZES.compactBase;
-  }, [island.mode, island.tab, activity, request, homeW, lyricBar]);
+  }, [island.mode, island.tab, island.peek?.kind, activity, request, homeW, lyricBar]);
 
   // Kebuka penuh selalu di tengah; selain itu di tempat terakhir notch digeser.
   const offset = island.mode === "expanded" && !request ? 0 : clampOffset(island.offset, size.w);
@@ -433,7 +456,7 @@ export function IslandApp() {
           ) : (
             <>
               {island.mode === "compact" && <CompactBar mood={mood} activity={activity} live={live} lyrics={lyricBar} />}
-              {island.mode === "peek" && island.peek && <PeekCard peek={island.peek} mood={mood} />}
+              {island.mode === "peek" && island.peek && (island.peek.kind === "tour" ? <TourCard mood={mood} /> : <PeekCard peek={island.peek} mood={mood} />)}
               {island.mode === "expanded" && <ExpandedView mood={mood} />}
             </>
           )}

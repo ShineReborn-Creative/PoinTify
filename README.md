@@ -19,6 +19,8 @@ Notch ala Dynamic Island dengan musik dan lirik sinkron, timer fokus, pengingat 
 
 <sub>Musik dan lirik, chat sama Claude, izinin perintah Claude Code dari notch, dan notif pas kerjaannya beres. Demo pakai data contoh.</sub>
 
+<sub>🇬🇧 [English version below](#english)</sub>
+
 </div>
 
 ---
@@ -28,6 +30,12 @@ Notch ala Dynamic Island dengan musik dan lirik sinkron, timer fokus, pengingat 
 Ambil installer terbaru di [halaman Releases](https://github.com/ShineReborn-Creative/PoinTify/releases/latest): file `PoinTify_<versi>_x64-setup.exe`. Installer-nya dipasang buat akun lu aja, jadi nggak minta izin Administrator.
 
 Installer-nya belum ditandatangani, jadi Windows mungkin nampilin "Windows protected your PC". Klik **More info**, lalu **Run anyway**.
+
+Udah kepasang? PoinTify ngecek versi baru di GitHub tiap nyala dan nawarin update sendiri (bisa dimatiin di Pengaturan › Umum). Pas pertama buka, Pip ngajak tour singkat ngenalin fitur-fiturnya. Bahasanya otomatis ngikutin Windows: Indonesia atau Inggris.
+
+### Nggak langganan Claude?
+
+Tenang, hampir semuanya jalan tanpa Claude. Yang butuh [Claude Code](https://code.claude.com/docs/en/setup) plus langganan Claude cuma **chat**, **tab Sesi** (pantau dan izinin Claude Code di terminal), dan widget **Prompt cepat** & **Sesi Claude**. Sisanya gratis tanpa akun apa pun: notch, musik + lirik, semua widget lain, Live, Rak file, timer fokus, pengingat minum, dan Pip di desktop.
 
 ## Kenalan sama Pip
 
@@ -44,7 +52,7 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
   - **Gerak sendiri:** jalan, lari, loncat-loncat, manjat pinggir layar terus nempel di sana.
   - **Interaksi:** gosok kursor bolak-balik buat ngelus, klik dua kali buat buka notch, klik kanan buat menu (kasih minum, main bola, kejar-kejaran, tidur). Seret file dari Explorer atau desktop: Pip mangap nunggu, dan kalau dilepas di atasnya dia ngunyah sambil komentar sesuai jenis filenya. Filenya dicatet diem-diem ke Rak (notch nggak ikut kebuka, file aslinya tetap di tempat).
   - **Main sama kursor:** kursor diem di deket Pip, dia nyamperin dan ngeliatin; digoyang-goyang, dia ngeringkuk terus nerkam; dilempar cepet ke arahnya, dia loncat ngehindar.
-  - **Hidup bareng lu:** balon omongan pendek, ikat kepala pas timer fokus, laptop mini pas Claude kerja, joget pas musik, tidur siang kalau dicuekin.
+  - **Hidup bareng lu:** balon omongan pendek, ikat kepala pas timer fokus, laptop mini pas Claude kerja atau lu ngetik, joget pas musik, kacamata 3D sambil ngemil popcorn pas lu nonton film atau video, tidur siang kalau dicuekin.
   - **Papan Live:** nenteng info widget Live; kalau penting, lari ke notch sambil ngacungin papannya.
   - Semua bisa diatur di Pengaturan › Pip desktop. Lepas di area notch buat masukin lagi.
 - **Hidup sendiri.** Ngedip di waktu acak, lirik kanan-kiri, ngulet, mainin titiknya sendiri, dan nguap kalau lama didiemin.
@@ -65,6 +73,9 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
 | **Rak file** | Drag file ke notch buat disimpan sementara, drag keluar lagi ke app lain, atau lampirin ke chat Claude. |
 | **Timer fokus** | Pomodoro lengkap: fokus, istirahat pendek, istirahat panjang, statistik harian. Hitung mundurnya keliatan di notch kecil. |
 | **Pengingat minum** | Pip nyembul dari notch tiap sekian menit, ngitung gelas harian, cuma di jam aktif yang lu atur. |
+| **Tour perkenalan** | Pas pertama buka, Pip ngenalin fitur yang nggak keliatan (geser notch, Rak, Pip desktop, cara main). Bisa diulang dari Pengaturan › Umum. |
+| **Bahasa Indonesia & Inggris** | Otomatis ngikutin bahasa Windows, atau pilih sendiri di Pengaturan. Semua teks ikut ganti, termasuk omongan Pip dan menu tray. |
+| **Update otomatis** | Cek versi baru di GitHub Releases tiap nyala, terus nawarin pasang + restart. File update-nya ditandatangani, jadi yang kepasang pasti dari rilis resmi. |
 | **Lain-lain** | Sembunyi otomatis pas ada app fullscreen, ikon di system tray, shortcut global `Ctrl+Alt+P` buat buka chat, jalan otomatis pas Windows nyala, suara orisinal yang dibikin pakai Web Audio. |
 
 ## Privasi
@@ -78,6 +89,7 @@ PoinTify jalan di PC lu dan nggak punya server sendiri. Yang keluar dari PC cuma
 | Kurs, GitHub, widget kustom | Permintaan biasa ke alamat API-nya | Frankfurter, GitHub, alamat yang lu isi sendiri |
 | Ikon link di Peluncur | Nama domain | Situs itu sendiri, cadangannya DuckDuckGo |
 | Chat Claude | Pesan lu | Anthropic, lewat Claude Code di PC lu |
+| Update otomatis | Permintaan biasa buat ngecek versi terbaru | GitHub Releases |
 
 Yang nggak pernah keluar dari PC:
 
@@ -96,8 +108,9 @@ src/                      React + TypeScript (tampilan)
 ├── pip/                  Mesin animasi Pip (pegas, ekspresi, partikel)
 ├── pet/                  Tampilan Pip di desktop
 ├── components/           Pembungkus React buat Pip, ikon, ring progres
-├── state/                Store kecil per fitur (tanpa library state)
-└── lib/                  Pembungkus command Tauri, suara, markdown
+├── state/                Store kecil per fitur (tanpa library state), termasuk update otomatis
+├── lib/                  Pembungkus command Tauri, suara, markdown
+└── i18n.ts               Bahasa: teks ditulis berpasangan, tr("Simpan", "Save")
 
 src-tauri/src/            Rust (backend)
 ├── island.rs             Posisi notch, click-through, deteksi hover & app fullscreen
@@ -115,6 +128,7 @@ src-tauri/src/            Rust (backend)
 ├── clipboard.rs          Riwayat clipboard di memori (nggak pernah ditulis ke disk)
 ├── widgets.rs            Ambil JSON dari internet & buka app/folder/link buat widget
 ├── settings.rs           Pengaturan, autostart, shortcut global
+├── i18n.rs               Bahasa buat teks dari Rust (menu tray, pesan error)
 └── tray.rs               Menu system tray
 ```
 
@@ -125,6 +139,8 @@ Beberapa keputusan teknis yang menarik:
 - **Chat lewat Claude Code, bukan API key.** `claude -p --output-format stream-json` dijalankan di folder project. Prompt dikirim lewat stdin biar aman dari urusan tanda kutip, dan proses dihentikan pakai `taskkill /T` supaya anak prosesnya ikut berhenti.
 
 - **Widget yang hemat.** Data yang dipakai banyak widget (misalnya statistik sistem) diambil sekali dan dibagi bareng, cuma selama ada widget yang nampilin. Permintaan internet lewat Rust (nggak kena CORS), dibatesin 12 detik dan 2 MB. Grid-nya disusun kolom demi kolom (2 baris), jadi lebar notch tinggal ngikutin jumlah kolom.
+
+- **Dua bahasa tanpa kamus terpisah.** Tiap teks ditulis berpasangan di tempatnya (`tr("Simpan", "Save")`), jadi nggak ada kunci terjemahan yang bisa ketinggalan. Ganti bahasa = tiap jendela dimuat ulang sekali.
 
 - **Hooks yang nggak pernah ngeganggu.** Claude Code menjalankan `pointify.exe --hook` di tiap kejadian. Exe yang sama dipakai sebagai relay: dia keluar sebelum aplikasi Tauri dibikin, ngoper datanya lewat socket lokal (127.0.0.1 plus token acak), dan selalu keluar dengan kode 0. Kalau PoinTify lagi mati, relay langsung keluar tanpa output, jadi Claude Code jalan seperti biasa. Permintaan izin ditahan sampai dijawab di notch, dan kalau prosesnya dibatalin dari terminal, kartunya ikut hilang.
 
@@ -143,7 +159,17 @@ Bikin installer:
 npm run tauri build
 ```
 
-Hasilnya ada di `src-tauri\target\release\bundle\nsis\PoinTify_<versi>_x64-setup.exe`. Tiap tag versi baru (misalnya `v0.3.0`) yang di-push ke GitHub, workflow [Rilis](.github/workflows/release.yml) bikin installer yang sama secara otomatis dan nyiapin draft rilis.
+Hasilnya ada di `src-tauri\target\release\bundle\nsis\PoinTify_<versi>_x64-setup.exe`. Tiap tag versi baru (misalnya `v0.4.0`) yang di-push ke GitHub, workflow [Rilis](.github/workflows/release.yml) bikin installer yang sama secara otomatis dan nyiapin draft rilis. Catatan tiap versi ada di [CHANGELOG.md](CHANGELOG.md).
+
+### Update otomatis (buat yang ngerilis)
+
+File update ditandatangani biar PoinTify cuma mau masang update dari lu. Sekali aja:
+
+1. Bikin pasangan kunci: `npx tauri signer generate -w "$env:USERPROFILE\.tauri\pointify.key"`. Simpen file `.key`-nya baik-baik dan **jangan** di-commit.
+2. Isi `plugins.updater.pubkey` di [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) pakai isi file `pointify.key.pub`.
+3. Di GitHub: Settings › Secrets and variables › Actions, tambahin `TAURI_SIGNING_PRIVATE_KEY` (isi file `.key`) dan `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (password-nya, boleh kosong).
+
+Abis itu tiap rilis yang di-Publish otomatis kebaca sama PoinTify yang udah kepasang. Kalau `pubkey` masih kosong, fitur update-nya diem aja.
 
 ### Chat dengan Claude
 
@@ -154,6 +180,19 @@ irm https://claude.ai/install.ps1 | iex
 ```
 
 Setelah itu buka tab Chat di PoinTify dan ikutin langkah login-nya.
+
+## English
+
+**A little helper that lives at the top of your Windows screen.** PoinTify is a Dynamic Island-style notch for Windows, built with Tauri 2, Rust, and React. It ships in English and Indonesian and follows your Windows language automatically.
+
+- **Notch with a widget canvas:** 22 widgets (clock, calendar, countdown, to-do, notes, clipboard history, focus timer, water, launcher, Claude usage, quick prompts, sessions, music, Pip, system stats, network, quick toggles, weather, prayer times, exchange rates, GitHub, and a custom JSON widget). Arrange them, resize them, and let important ones go **Live** in the small notch.
+- **Music + synced lyrics** from Windows media controls (Spotify, browsers, and more), with lyrics from [LRCLIB](https://lrclib.net).
+- **Pip, the mascot,** is a letter P with a spring-physics animation engine. Drag him out of the notch and he becomes a real desktop pet: throw him, pet him, feed him files, play chase, watch him perch on windows, dance to music, and snack on popcorn while you watch videos.
+- **Shelf** for dragging files in and back out, a **Pomodoro focus timer**, and **water reminders**.
+- **Claude integration (optional):** chat with Claude from the notch through Claude Code, and monitor/approve Claude Code terminal sessions. These need [Claude Code](https://code.claude.com/docs/en/setup) and a Claude subscription. **Everything else works without Claude or any account.**
+- **Welcome tour** on first launch and **automatic updates** from GitHub Releases.
+
+Download the latest `PoinTify_<version>_x64-setup.exe` from [Releases](https://github.com/ShineReborn-Creative/PoinTify/releases/latest). The installer isn't signed yet, so Windows may show "Windows protected your PC": click **More info** → **Run anyway**. To build from source: `npm install`, then `npm run tauri dev`.
 
 ## Terima kasih
 

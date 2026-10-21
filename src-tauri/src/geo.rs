@@ -22,8 +22,13 @@ mod imp {
         Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize},
     };
 
-    const OFF: &str =
-        "Lokasi Windows mati. Nyalain di Settings › Privacy & security › Location, termasuk \"Let desktop apps access your location\".";
+    fn off() -> String {
+        crate::i18n::tr(
+            "Lokasi Windows mati. Nyalain di Settings › Privacy & security › Location, termasuk \"Let desktop apps access your location\".",
+            "Windows location is off. Turn it on in Settings › Privacy & security › Location, including \"Let desktop apps access your location\".",
+        )
+        .to_string()
+    }
 
     fn locate_inner() -> Result<GeoFix, String> {
         // Buat app desktop ini nggak munculin dialog, cuma ngecek izinnya.
@@ -31,17 +36,21 @@ mod imp {
             && let Ok(status) = op.join()
             && status != GeolocationAccessStatus::Allowed
         {
-            return Err(OFF.into());
+            return Err(off());
         }
         let g = Geolocator::new().map_err(|e| e.to_string())?;
         let _ = g.SetDesiredAccuracy(PositionAccuracy::Default);
         // Boleh pakai posisi yang umurnya sampai 10 menit; tunggu paling lama 15 detik.
-        let pos =
-            g.GetGeopositionAsyncWithAgeAndTimeout(TimeSpan { Duration: 10 * 60 * 10_000_000 }, TimeSpan { Duration: 15 * 10_000_000 })
-                .and_then(|op| op.join())
-                .map_err(|e| {
-                    if e.code().0 as u32 == 0x8007_0005 { OFF.to_string() } else { format!("Lokasi nggak kebaca: {}", e.message()) }
-                })?;
+        let pos = g
+            .GetGeopositionAsyncWithAgeAndTimeout(TimeSpan { Duration: 10 * 60 * 10_000_000 }, TimeSpan { Duration: 15 * 10_000_000 })
+            .and_then(|op| op.join())
+            .map_err(|e| {
+                if e.code().0 as u32 == 0x8007_0005 {
+                    off()
+                } else {
+                    format!("{}: {}", crate::i18n::tr("Lokasi nggak kebaca", "Couldn't read location"), e.message())
+                }
+            })?;
         let c = pos.Coordinate().map_err(|e| e.to_string())?;
         let p = c.Point().and_then(|p| p.Position()).map_err(|e| e.to_string())?;
         Ok(GeoFix { lat: p.Latitude, lon: p.Longitude, accuracy: c.Accuracy().unwrap_or(0.0) })
@@ -58,7 +67,7 @@ mod imp {
             r
         })
         .join()
-        .map_err(|_| "Lokasi error".to_string())?
+        .map_err(|_| crate::i18n::tr("Lokasi error", "Location error").to_string())?
     }
 }
 

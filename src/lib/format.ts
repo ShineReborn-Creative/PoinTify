@@ -1,3 +1,5 @@
+import { tr } from "../i18n";
+
 export function mmss(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));
   const m = Math.floor(total / 60);
@@ -32,16 +34,16 @@ export function appName(appId: string): string {
   if (id.includes("vlc")) return "VLC";
   if (id.includes("youtube")) return "YouTube Music";
   const base = appId.split(/[\\/!]/).pop() ?? appId;
-  return base.replace(/\.exe$/i, "") || "Musik";
+  return base.replace(/\.exe$/i, "") || tr("Musik", "Music");
 }
 
 export function greeting(d = new Date()): string {
   const h = d.getHours();
-  if (h < 4) return "Begadang ya?";
-  if (h < 11) return "Pagi!";
-  if (h < 15) return "Siang!";
-  if (h < 18) return "Sore!";
-  return "Malam!";
+  if (h < 4) return tr("Begadang ya?", "Up late?");
+  if (h < 11) return tr("Pagi!", "Morning!");
+  if (h < 15) return tr("Siang!", "Afternoon!");
+  if (h < 18) return tr("Sore!", "Evening!");
+  return tr("Malam!", "Good night!");
 }
 
 export function uid(): string {

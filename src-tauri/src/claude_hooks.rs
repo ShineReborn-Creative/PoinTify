@@ -52,7 +52,8 @@ fn settings_path() -> Option<PathBuf> {
 }
 
 fn exe_path() -> Result<PathBuf, String> {
-    std::env::current_exe().map_err(|e| format!("Lokasi PoinTify nggak ketemu: {e}"))
+    std::env::current_exe()
+        .map_err(|e| format!("{}: {e}", crate::i18n::tr("Lokasi PoinTify nggak ketemu", "Couldn't find PoinTify's location")))
 }
 
 fn is_ours(handler: &Value) -> bool {
@@ -102,10 +103,22 @@ fn read_settings(path: &Path) -> Result<Value, String> {
     match fs::read_to_string(path) {
         Ok(s) if s.trim().is_empty() => Ok(json!({})),
         Ok(s) => serde_json::from_str::<Value>(&s)
-            .map_err(|e| format!("settings.json nggak kebaca ({e}). Benerin dulu file-nya, baru pasang lagi."))
-            .and_then(|v| if v.is_object() { Ok(v) } else { Err("Isi settings.json bukan objek JSON".into()) }),
+            .map_err(|e| {
+                format!(
+                    "{} ({e}). {}",
+                    crate::i18n::tr("settings.json nggak kebaca", "Couldn't parse settings.json"),
+                    crate::i18n::tr("Benerin dulu file-nya, baru pasang lagi.", "Fix the file first, then install again.")
+                )
+            })
+            .and_then(|v| {
+                if v.is_object() {
+                    Ok(v)
+                } else {
+                    Err(crate::i18n::tr("Isi settings.json bukan objek JSON", "settings.json isn't a JSON object").into())
+                }
+            }),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(json!({})),
-        Err(e) => Err(format!("settings.json nggak bisa dibuka: {e}")),
+        Err(e) => Err(format!("{}: {e}", crate::i18n::tr("settings.json nggak bisa dibuka", "Couldn't open settings.json"))),
     }
 }
 
@@ -172,7 +185,8 @@ fn backup(path: &Path) -> Result<Option<PathBuf>, String> {
         path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "settings.json".into())
     );
     let dest = path.with_file_name(name);
-    fs::copy(path, &dest).map_err(|e| format!("Backup settings.json gagal: {e}"))?;
+    fs::copy(path, &dest)
+        .map_err(|e| format!("{}: {e}", crate::i18n::tr("Backup settings.json gagal", "Couldn't back up settings.json")))?;
     Ok(Some(dest))
 }
 
@@ -184,8 +198,8 @@ fn write_settings(path: &Path, settings: &Value) -> Result<(), String> {
     text.push('\n');
     // Tulis ke file sementara dulu, baru diganti, biar nggak setengah jadi.
     let tmp = path.with_extension("json.pointify-tmp");
-    fs::write(&tmp, text).map_err(|e| format!("Gagal nulis settings.json: {e}"))?;
-    fs::rename(&tmp, path).map_err(|e| format!("Gagal nulis settings.json: {e}"))
+    fs::write(&tmp, text).map_err(|e| format!("{}: {e}", crate::i18n::tr("Gagal nulis settings.json", "Couldn't write settings.json")))?;
+    fs::rename(&tmp, path).map_err(|e| format!("{}: {e}", crate::i18n::tr("Gagal nulis settings.json", "Couldn't write settings.json")))
 }
 
 fn status_inner(version: Option<&str>) -> HooksStatus {
@@ -197,7 +211,7 @@ fn status_inner(version: Option<&str>) -> HooksStatus {
             settings_path: String::new(),
             exe_path: String::new(),
             preview: String::new(),
-            error: Some("Folder pengguna nggak ketemu".into()),
+            error: Some(crate::i18n::tr("Folder pengguna nggak ketemu", "User folder not found").into()),
         };
     };
     let mut preview = Map::new();
@@ -231,20 +245,29 @@ pub struct InstallResult {
 }
 
 fn install_inner(version: Option<&str>) -> Result<InstallResult, String> {
-    let path = settings_path().ok_or("Folder pengguna nggak ketemu")?;
+    let path = settings_path().ok_or(crate::i18n::tr("Folder pengguna nggak ketemu", "User folder not found"))?;
     let exe = exe_path()?;
     let mut settings = read_settings(&path)?;
     let backup_path = backup(&path)?;
 
     strip_ours(&mut settings);
-    let obj = settings.as_object_mut().ok_or("Isi settings.json bukan objek JSON")?;
+    let obj = settings.as_object_mut().ok_or(crate::i18n::tr("Isi settings.json bukan objek JSON", "settings.json isn't a JSON object"))?;
     let hooks = obj.entry("hooks").or_insert_with(|| json!({}));
-    let hooks = hooks.as_object_mut().ok_or("Bagian \"hooks\" di settings.json bentuknya aneh")?;
+    let hooks = hooks.as_object_mut().ok_or(crate::i18n::tr(
+        "Bagian \"hooks\" di settings.json bentuknya aneh",
+        "The \"hooks\" section in settings.json looks malformed",
+    ))?;
     for (ev, group) in wanted(&exe, supports_on_failure(version)) {
         let list = hooks.entry(ev).or_insert_with(|| json!([]));
         match list.as_array_mut() {
             Some(arr) => arr.push(group),
-            None => return Err("Bagian \"hooks\" di settings.json bentuknya aneh".into()),
+            None => {
+                return Err(crate::i18n::tr(
+                    "Bagian \"hooks\" di settings.json bentuknya aneh",
+                    "The \"hooks\" section in settings.json looks malformed",
+                )
+                .into());
+            }
         }
     }
     write_settings(&path, &settings)?;
@@ -252,7 +275,7 @@ fn install_inner(version: Option<&str>) -> Result<InstallResult, String> {
 }
 
 fn uninstall_inner(version: Option<&str>) -> Result<InstallResult, String> {
-    let path = settings_path().ok_or("Folder pengguna nggak ketemu")?;
+    let path = settings_path().ok_or(crate::i18n::tr("Folder pengguna nggak ketemu", "User folder not found"))?;
     let mut settings = read_settings(&path)?;
     if !strip_ours(&mut settings) {
         return Ok(InstallResult { status: status_inner(version), backup_path: None });

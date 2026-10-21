@@ -1,6 +1,7 @@
 import { todayKey } from "../lib/format";
 import { createStore } from "../lib/store";
 import { settingsStore } from "./settings";
+import { tr } from "../i18n";
 
 export type Phase = "focus" | "short" | "long";
 
@@ -23,9 +24,15 @@ export type TimerState = {
 const STORAGE = "pointify.timer.v1";
 
 export const PHASE_LABEL: Record<Phase, string> = {
-  focus: "Fokus",
-  short: "Istirahat",
-  long: "Istirahat panjang",
+  get focus() {
+    return tr("Fokus", "Focus");
+  },
+  get short() {
+    return tr("Istirahat", "Break");
+  },
+  get long() {
+    return tr("Istirahat panjang", "Long break");
+  },
 };
 
 export function phaseDuration(phase: Phase): number {

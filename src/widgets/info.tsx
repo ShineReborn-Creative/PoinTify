@@ -1,3 +1,4 @@
+import { locale, tr } from "../i18n";
 import { useEffect } from "react";
 import { Icon, type IconName } from "../components/Icon";
 import { api } from "../lib/api";
@@ -28,15 +29,15 @@ type Forecast = {
 type WInfo = { label: string; icon: IconName; rain: boolean };
 
 function weatherInfo(code: number, day = true): WInfo {
-  if (code === 0) return { label: "Cerah", icon: day ? "sun" : "moon", rain: false };
-  if (code <= 2) return { label: "Cerah berawan", icon: day ? "sun" : "moon", rain: false };
-  if (code === 3) return { label: "Berawan", icon: "cloud", rain: false };
-  if (code === 45 || code === 48) return { label: "Berkabut", icon: "cloud", rain: false };
-  if (code >= 51 && code <= 57) return { label: "Gerimis", icon: "rain", rain: true };
-  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { label: "Hujan", icon: "rain", rain: true };
-  if (code >= 71 && code <= 77) return { label: "Salju", icon: "cloud", rain: false };
-  if (code >= 95) return { label: "Badai petir", icon: "storm", rain: true };
-  return { label: "Berawan", icon: "cloud", rain: false };
+  if (code === 0) return { label: tr("Cerah", "Clear"), icon: day ? "sun" : "moon", rain: false };
+  if (code <= 2) return { label: tr("Cerah berawan", "Partly cloudy"), icon: day ? "sun" : "moon", rain: false };
+  if (code === 3) return { label: tr("Berawan", "Cloudy"), icon: "cloud", rain: false };
+  if (code === 45 || code === 48) return { label: tr("Berkabut", "Foggy"), icon: "cloud", rain: false };
+  if (code >= 51 && code <= 57) return { label: tr("Gerimis", "Drizzle"), icon: "rain", rain: true };
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { label: tr("Hujan", "Rain"), icon: "rain", rain: true };
+  if (code >= 71 && code <= 77) return { label: tr("Salju", "Snow"), icon: "cloud", rain: false };
+  if (code >= 95) return { label: tr("Badai petir", "Thunderstorm"), icon: "storm", rain: true };
+  return { label: tr("Berawan", "Cloudy"), icon: "cloud", rain: false };
 }
 
 /**
@@ -48,9 +49,9 @@ function nowInfo(c: Forecast["current"]): WInfo {
   const day = c.is_day === 1;
   const base = weatherInfo(c.weather_code, day);
   if (!base.rain || c.precipitation >= 0.1) return base;
-  if (c.cloud_cover < 25) return { label: "Cerah", icon: day ? "sun" : "moon", rain: false };
-  if (c.cloud_cover < 65) return { label: "Cerah berawan", icon: day ? "sun" : "moon", rain: false };
-  return { label: "Berawan", icon: "cloud", rain: false };
+  if (c.cloud_cover < 25) return { label: tr("Cerah", "Clear"), icon: day ? "sun" : "moon", rain: false };
+  if (c.cloud_cover < 65) return { label: tr("Cerah berawan", "Partly cloudy"), icon: day ? "sun" : "moon", rain: false };
+  return { label: tr("Berawan", "Cloudy"), icon: "cloud", rain: false };
 }
 
 /** "terasa 36°" kalau beda jauh sama suhu asli (lembap/angin). */
@@ -58,7 +59,7 @@ function feels(c: Forecast["current"]) {
   const t = Math.round(c.temperature_2m);
   const a = Math.round(c.apparent_temperature);
   if (Math.abs(a - t) < 2) return "";
-  return `terasa ${a}°`;
+  return tr(`terasa ${a}°`, `feels like ${a}°`);
 }
 
 export function useWeather(cfg: Record<string, unknown>) {
@@ -77,7 +78,7 @@ export function useWeather(cfg: Record<string, unknown>) {
   );
 }
 
-const DAY = (iso: string) => new Date(iso).toLocaleDateString("id-ID", { weekday: "short" });
+const DAY = (iso: string) => new Date(iso).toLocaleDateString(locale(), { weekday: "short" });
 
 function PlaceLabel({ data }: { data: Forecast }) {
   return (
@@ -93,7 +94,7 @@ export function WeatherWidget({ item, size }: WidgetProps) {
   useEffect(() => {
     pipConditionStore.set((c) => (c.rain === !!info?.rain ? c : { ...c, rain: !!info?.rain }));
   }, [info?.rain]);
-  if (!data || !info) return <WState error={!!error}>{error ?? "Ngecek cuaca…"}</WState>;
+  if (!data || !info) return <WState error={!!error}>{error ?? tr("Ngecek cuaca…", "Checking the weather…")}</WState>;
   const temp = Math.round(data.current.temperature_2m);
   if (size === "s") {
     return (
@@ -104,7 +105,7 @@ export function WeatherWidget({ item, size }: WidgetProps) {
           <strong className="tabular">{temp}°</strong>
         </div>
         <span className="muted ellipsis" title={info.label}>
-          {feels(data.current) ? `T${feels(data.current).slice(1)}` : info.label}
+          {feels(data.current) ? feels(data.current).charAt(0).toUpperCase() + feels(data.current).slice(1) : info.label}
         </span>
       </div>
     );
@@ -143,11 +144,11 @@ export function WeatherWidget({ item, size }: WidgetProps) {
 // ---------------------------------------------------------------------------
 
 const PRAYERS: [string, string][] = [
-  ["Fajr", "Subuh"],
-  ["Dhuhr", "Dzuhur"],
-  ["Asr", "Ashar"],
+  ["Fajr", tr("Subuh", "Fajr")],
+  ["Dhuhr", tr("Dzuhur", "Dhuhr")],
+  ["Asr", tr("Ashar", "Asr")],
   ["Maghrib", "Maghrib"],
-  ["Isha", "Isya"],
+  ["Isha", tr("Isya", "Isha")],
 ];
 
 type Timings = { data: { timings: Record<string, string> } };
@@ -186,11 +187,11 @@ export function PrayerWidget({ item, size }: WidgetProps) {
   const now = useNow(1000);
   const { data, error } = usePrayer(item.cfg);
   const p = prayerTimes(data, now);
-  if (!p) return <WState error={!!error}>{error ?? "Ngambil jadwal sholat…"}</WState>;
+  if (!p) return <WState error={!!error}>{error ?? tr("Ngambil jadwal sholat…", "Fetching prayer times…")}</WState>;
   if (size === "s") {
     return (
       <div className="w-prayer-s">
-        <WLabel icon="moon">{p.current ? "Waktunya" : "Berikutnya"}</WLabel>
+        <WLabel icon="moon">{p.current ? tr("Waktunya", "It's time") : tr("Berikutnya", "Next")}</WLabel>
         <strong>{p.current?.name ?? p.next.name}</strong>
         <span className="muted tabular">{p.current ? p.current.text : `${p.next.text} · ${duration(p.next.at - now)}`}</span>
       </div>
@@ -198,7 +199,7 @@ export function PrayerWidget({ item, size }: WidgetProps) {
   }
   return (
     <div className="w-prayer">
-      <WLabel icon="moon" right={<span className="tabular">{p.current ? `Waktunya ${p.current.name}` : `${p.next.name} ${duration(p.next.at - now)} lagi`}</span>}>
+      <WLabel icon="moon" right={<span className="tabular">{p.current ? tr(`Waktunya ${p.current.name}`, `Time for ${p.current.name}`) : tr(`${p.next.name} ${duration(p.next.at - now)} lagi`, `${p.next.name} in ${duration(p.next.at - now)}`)}</span>}>
         {data?.place ?? ""}
       </WLabel>
       <div className="w-prayer-row">
@@ -220,7 +221,7 @@ export function PrayerLive({ item }: WidgetProps) {
   const soon = p && p.next.at - now <= 15 * 60_000 ? p.next : null;
   const key = p?.current ? `now:${p.current.key}` : soon ? `soon:${soon.key}:${Math.floor((soon.at - now) / 1000)}` : "";
   useEffect(() => {
-    if (p?.current) setLive(item.id, { priority: 8, icon: "moon", label: "Waktunya", value: p.current.name, tone: "accent" });
+    if (p?.current) setLive(item.id, { priority: 8, icon: "moon", label: tr("Waktunya", "It's time"), value: p.current.name, tone: "accent" });
     else if (soon) setLive(item.id, { priority: 7, icon: "moon", label: soon.name, value: duration(soon.at - now), tone: "accent" });
     else setLive(item.id, null);
   }, [item.id, key]);
@@ -249,14 +250,14 @@ export function CurrencyWidget({ item }: WidgetProps) {
         {base} → {quote}
       </WLabel>
       {base === quote ? (
-        <WState>Pilih dua mata uang yang beda.</WState>
+        <WState>{tr("Pilih dua mata uang yang beda.", "Pick two different currencies.")}</WState>
       ) : rate ? (
         <>
-          <strong className="w-big tabular">{rate.toLocaleString("id-ID", { maximumFractionDigits: rate < 10 ? 4 : 0 })}</strong>
-          <span className="muted">1 {base} · {new Date(data.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</span>
+          <strong className="w-big tabular">{rate.toLocaleString(locale(), { maximumFractionDigits: rate < 10 ? 4 : 0 })}</strong>
+          <span className="muted">1 {base} · {new Date(data.date).toLocaleDateString(locale(), { day: "numeric", month: "short" })}</span>
         </>
       ) : (
-        <WState error={!!error}>{error ?? "Ngambil kurs…"}</WState>
+        <WState error={!!error}>{error ?? tr("Ngambil kurs…", "Fetching rates…")}</WState>
       )}
     </div>
   );
@@ -276,9 +277,9 @@ type Gh = {
 
 function ago(iso: string, now: number) {
   const ms = now - Date.parse(iso);
-  if (ms < 3_600_000) return `${Math.max(1, Math.round(ms / 60_000))} mnt lalu`;
-  if (ms < 86_400_000) return `${Math.round(ms / 3_600_000)} jam lalu`;
-  return `${Math.round(ms / 86_400_000)} hari lalu`;
+  if (ms < 3_600_000) return tr(`${Math.max(1, Math.round(ms / 60_000))} mnt lalu`, `${Math.max(1, Math.round(ms / 60_000))} min ago`);
+  if (ms < 86_400_000) return tr(`${Math.round(ms / 3_600_000)} jam lalu`, `${Math.round(ms / 3_600_000)}h ago`);
+  return tr(`${Math.round(ms / 86_400_000)} hari lalu`, `${Math.round(ms / 86_400_000)}d ago`);
 }
 
 export function GithubWidget({ item }: WidgetProps) {
@@ -317,10 +318,10 @@ export function GithubWidget({ item }: WidgetProps) {
               <Icon name="star" size={13} /> <b className="tabular">{data.stars}</b>
             </span>
             <span>
-              <Icon name="commit" size={13} /> <b className="tabular">{data.forks}</b> fork
+              <Icon name="commit" size={13} /> <b className="tabular">{data.forks}</b> {tr("fork", "forks")}
             </span>
             <span>
-              <Icon name="info" size={13} /> <b className="tabular">{data.issues}</b> isu
+              <Icon name="info" size={13} /> <b className="tabular">{data.issues}</b> {tr("isu", "issues")}
             </span>
           </div>
           {data.commit && (
@@ -331,7 +332,7 @@ export function GithubWidget({ item }: WidgetProps) {
           )}
         </>
       ) : (
-        <WState error={!!error}>{error ?? "Ngambil data repo…"}</WState>
+        <WState error={!!error}>{error ?? tr("Ngambil data repo…", "Fetching repo data…")}</WState>
       )}
     </div>
   );

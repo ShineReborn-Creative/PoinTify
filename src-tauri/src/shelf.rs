@@ -75,7 +75,14 @@ fn item_for(path: &Path) -> Option<ShelfItem> {
 }
 
 fn find(state: &State<ShelfState>, id: &str) -> Result<ShelfItem, String> {
-    state.0.lock().unwrap().iter().find(|i| i.id == id).cloned().ok_or_else(|| "File-nya udah nggak ada di rak".to_string())
+    state
+        .0
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|i| i.id == id)
+        .cloned()
+        .ok_or_else(|| crate::i18n::tr("File-nya udah nggak ada di rak", "That file is no longer on the shelf").to_string())
 }
 
 #[derive(Serialize)]

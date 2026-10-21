@@ -12,6 +12,7 @@ import { MusicWidget, PipWidget } from "./media";
 import { ClipboardWidget, NOTE_COLORS, NoteWidget, TimerWidget, TodoWidget, WaterWidget } from "./productivity";
 import { NetworkWidget, SystemLive, SystemWidget, TogglesWidget } from "./system";
 import { CalendarWidget, ClockWidget, CountdownLive, CountdownWidget, TIMEZONES } from "./time";
+import { tr } from "../i18n";
 
 export type Field =
   | { key: string; label: string; kind: "text"; placeholder?: string; hint?: string }
@@ -23,6 +24,21 @@ export type Field =
 
 export type Group = "Waktu" | "Produktif" | "Media" | "Sistem" | "Info" | "Claude" | "Lainnya";
 export const GROUPS: Group[] = ["Waktu", "Produktif", "Claude", "Media", "Sistem", "Info", "Lainnya"];
+
+/** Nama grup buat ditampilin (ID grupnya tetap bahasa Indonesia). */
+export function groupLabel(g: Group | "Semua"): string {
+  const en: Record<Group | "Semua", string> = {
+    Semua: "All",
+    Waktu: "Time",
+    Produktif: "Productivity",
+    Media: "Media",
+    Sistem: "System",
+    Info: "Info",
+    Claude: "Claude",
+    Lainnya: "Other",
+  };
+  return tr(g, en[g]);
+}
 
 type Props = WidgetProps & { mood: PipMood };
 
@@ -49,36 +65,36 @@ export type WidgetDef = {
 
 const LOC: Field = {
   key: "loc",
-  label: "Lokasi",
+  label: tr("Lokasi", "Location"),
   kind: "select",
   options: [
-    ["auto", "Lokasi PC (otomatis)"],
-    ["city", "Kota yang gue ketik"],
+    ["auto", tr("Lokasi PC (otomatis)", "PC location (automatic)")],
+    ["city", tr("Kota yang gue ketik", "A city I type")],
   ],
-  hint: "Otomatis pakai layanan lokasi Windows. Kalau lokasinya mati, pakai kota di bawah.",
+  hint: tr("Otomatis pakai layanan lokasi Windows. Kalau lokasinya mati, pakai kota di bawah.", "Uses Windows location services. If location is off, the city below is used."),
 };
-const CITY: Field = { key: "city", label: "Kota", kind: "text", placeholder: defaultCity(), hint: "Kosongin buat pakai kota dari zona waktu PC." };
+const CITY: Field = { key: "city", label: tr("Kota", "City"), kind: "text", placeholder: defaultCity(), hint: tr("Kosongin buat pakai kota dari zona waktu PC.", "Leave empty to use the city from your PC's time zone.") };
 
 export const WIDGETS: WidgetDef[] = [
   // Waktu
   {
     type: "clock",
-    name: "Jam",
-    desc: "Jam sekarang, bisa tambah zona waktu kedua.",
+    name: tr("Jam", "Clock"),
+    desc: tr("Jam sekarang, bisa tambah zona waktu kedua.", "The current time, with an optional second time zone."),
     icon: "clock",
     group: "Waktu",
     sizes: ["s", "w"],
     defaultSize: "s",
     fields: [
-      { key: "tz2", label: "Zona kedua", kind: "select", options: [["", "Nggak usah"], ...TIMEZONES] },
-      { key: "seconds", label: "Tampilin detik", kind: "toggle" },
+      { key: "tz2", label: tr("Zona kedua", "Second zone"), kind: "select", options: [["", tr("Nggak usah", "None")], ...TIMEZONES] },
+      { key: "seconds", label: tr("Tampilin detik", "Show seconds"), kind: "toggle" },
     ],
     Component: ClockWidget,
   },
   {
     type: "calendar",
-    name: "Kalender",
-    desc: "Tanggal hari ini atau sebulan penuh.",
+    name: tr("Kalender", "Calendar"),
+    desc: tr("Tanggal hari ini atau sebulan penuh.", "Today's date or the whole month."),
     icon: "calendar",
     group: "Waktu",
     sizes: ["s", "l"],
@@ -87,48 +103,48 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     type: "countdown",
-    name: "Hitung mundur",
-    desc: "Berapa lama lagi ke acara penting. Live pas tinggal sejam.",
+    name: tr("Hitung mundur", "Countdown"),
+    desc: tr("Berapa lama lagi ke acara penting. Live pas tinggal sejam.", "Time left until something important. Goes Live in the final hour."),
     icon: "hourglass",
     group: "Waktu",
     sizes: ["s", "w"],
     defaultSize: "s",
     defaultCfg: { title: "Deadline" },
     fields: [
-      { key: "title", label: "Nama acara", kind: "text", placeholder: "Deadline" },
-      { key: "target", label: "Waktunya", kind: "datetime" },
+      { key: "title", label: tr("Nama acara", "Event name"), kind: "text", placeholder: "Deadline" },
+      { key: "target", label: tr("Waktunya", "When"), kind: "datetime" },
     ],
     Component: CountdownWidget,
     Live: CountdownLive,
-    liveHint: "Nongol di notch pas tinggal 60 menit.",
+    liveHint: tr("Nongol di notch pas tinggal 60 menit.", "Shows in the notch when 60 minutes are left."),
   },
   // Produktif
   {
     type: "todo",
-    name: "To-do",
-    desc: "Daftar kerjaan singkat, centang langsung dari notch.",
+    name: tr("To-do", "To-do"),
+    desc: tr("Daftar kerjaan singkat, centang langsung dari notch.", "A short task list you can tick off right from the notch."),
     icon: "checklist",
     group: "Produktif",
     sizes: ["w", "l"],
     defaultSize: "l",
-    fields: [{ key: "title", label: "Judul", kind: "text", placeholder: "To-do" }],
+    fields: [{ key: "title", label: tr("Judul", "Title"), kind: "text", placeholder: tr("To-do", "To-do") }],
     Component: TodoWidget,
   },
   {
     type: "note",
-    name: "Catatan",
-    desc: "Sticky note buat coretan cepat.",
+    name: tr("Catatan", "Note"),
+    desc: tr("Sticky note buat coretan cepat.", "A sticky note for quick scribbles."),
     icon: "note",
     group: "Produktif",
     sizes: ["s", "w", "l"],
     defaultSize: "w",
-    fields: [{ key: "color", label: "Warna", kind: "select", options: NOTE_COLORS }],
+    fields: [{ key: "color", label: tr("Warna", "Color"), kind: "select", options: NOTE_COLORS }],
     Component: NoteWidget,
   },
   {
     type: "clipboard",
-    name: "Riwayat clipboard",
-    desc: "Teks yang barusan lu copy, klik buat copy lagi.",
+    name: tr("Riwayat clipboard", "Clipboard history"),
+    desc: tr("Teks yang barusan lu copy, klik buat copy lagi.", "Text you copied recently. Click to copy it again."),
     icon: "clipboard",
     group: "Produktif",
     sizes: ["w", "l"],
@@ -138,8 +154,8 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     type: "timer",
-    name: "Timer fokus",
-    desc: "Pomodoro yang sama kayak tab Timer.",
+    name: tr("Timer fokus", "Focus timer"),
+    desc: tr("Pomodoro yang sama kayak tab Timer.", "The same Pomodoro as the Focus tab."),
     icon: "timer",
     group: "Produktif",
     sizes: ["s", "w"],
@@ -149,8 +165,8 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     type: "water",
-    name: "Minum air",
-    desc: "Catat gelas air hari ini.",
+    name: tr("Minum air", "Water"),
+    desc: tr("Catat gelas air hari ini.", "Track today's glasses of water."),
     icon: "drop",
     group: "Produktif",
     sizes: ["s", "w"],
@@ -160,8 +176,8 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     type: "launcher",
-    name: "Peluncur",
-    desc: "Buka app, folder, atau link favorit sekali klik.",
+    name: tr("Peluncur", "Launcher"),
+    desc: tr("Buka app, folder, atau link favorit sekali klik.", "Open favorite apps, folders, or links in one click."),
     icon: "rocket",
     group: "Produktif",
     sizes: ["s", "w", "l"],
@@ -172,26 +188,26 @@ export const WIDGETS: WidgetDef[] = [
   // Claude
   {
     type: "usage",
-    name: "Usage Claude",
-    desc: "Hitung mundur reset usage, plus notif pas udah reset.",
+    name: tr("Usage Claude", "Claude usage"),
+    desc: tr("Hitung mundur reset usage, plus notif pas udah reset.", "Counts down to your usage reset and tells you when it resets."),
     icon: "sparkle",
     group: "Claude",
     sizes: ["s", "w"],
     defaultSize: "w",
     defaultCfg: { cycleHours: 5 },
     fields: [
-      { key: "resetAt", label: "Jam reset berikutnya", kind: "datetime", hint: "Liat di claude.ai › Settings › Usage." },
-      { key: "cycleHours", label: "Siklus (jam)", kind: "number", min: 1, max: 168 },
+      { key: "resetAt", label: tr("Jam reset berikutnya", "Next reset time"), kind: "datetime", hint: tr("Liat di claude.ai › Settings › Usage.", "Find it at claude.ai › Settings › Usage.") },
+      { key: "cycleHours", label: tr("Siklus (jam)", "Cycle (hours)"), kind: "number", min: 1, max: 168 },
     ],
     Component: UsageWidget,
     Live: UsageLive,
-    liveHint: "Nongol di notch 10 menit sebelum reset.",
+    liveHint: tr("Nongol di notch 10 menit sebelum reset.", "Shows in the notch 10 minutes before the reset."),
     single: true,
   },
   {
     type: "prompts",
-    name: "Prompt cepat",
-    desc: "Tombol prompt siap pakai. {clipboard} diganti teks yang lagi dicopy.",
+    name: tr("Prompt cepat", "Quick prompts"),
+    desc: tr("Tombol prompt siap pakai. {clipboard} diganti teks yang lagi dicopy.", "Ready-made prompt buttons. {clipboard} is replaced with the copied text."),
     icon: "sparkle",
     group: "Claude",
     sizes: ["w", "l"],
@@ -200,17 +216,17 @@ export const WIDGETS: WidgetDef[] = [
     fields: [
       {
         key: "prompts",
-        label: "Daftar prompt",
+        label: tr("Daftar prompt", "Prompts"),
         kind: "textarea",
-        hint: "Satu baris satu prompt: Nama | isi prompt. Tulis \\n buat ganti baris.",
+        hint: tr("Satu baris satu prompt: Nama | isi prompt. Tulis \\n buat ganti baris.", "One prompt per line: Name | prompt text. Write \\n for a line break."),
       },
     ],
     Component: PromptsWidget,
   },
   {
     type: "sessions",
-    name: "Sesi Claude",
-    desc: "Ringkasan sesi Claude yang lagi kerja.",
+    name: tr("Sesi Claude", "Claude sessions"),
+    desc: tr("Ringkasan sesi Claude yang lagi kerja.", "A summary of Claude sessions that are working."),
     icon: "terminal",
     group: "Claude",
     sizes: ["w"],
@@ -221,8 +237,8 @@ export const WIDGETS: WidgetDef[] = [
   // Media
   {
     type: "music",
-    name: "Musik",
-    desc: "Lagu yang lagi diputer, lengkap sama lirik.",
+    name: tr("Musik", "Music"),
+    desc: tr("Lagu yang lagi diputer, lengkap sama lirik.", "What's playing, with lyrics."),
     icon: "music",
     group: "Media",
     sizes: ["w", "l", "xl"],
@@ -233,7 +249,7 @@ export const WIDGETS: WidgetDef[] = [
   {
     type: "pip",
     name: "Pip",
-    desc: "Pip nongkrong di Beranda. Bisa diseret keluar ke desktop.",
+    desc: tr("Pip nongkrong di Beranda. Bisa diseret keluar ke desktop.", "Pip hangs out on Home. Drag him out to the desktop."),
     icon: "sparkle",
     group: "Media",
     sizes: ["s", "l"],
@@ -244,20 +260,20 @@ export const WIDGETS: WidgetDef[] = [
   // Sistem
   {
     type: "system",
-    name: "Sistem",
-    desc: "CPU, RAM, disk, baterai. Live kalau ada yang kritis.",
+    name: tr("Sistem", "System"),
+    desc: tr("CPU, RAM, disk, baterai. Live kalau ada yang kritis.", "CPU, RAM, disk, battery. Goes Live when something's critical."),
     icon: "cpu",
     group: "Sistem",
     sizes: ["s", "w"],
     defaultSize: "w",
     Component: SystemWidget,
     Live: SystemLive,
-    liveHint: "Nongol di notch pas baterai lemah, CPU/RAM mentok, atau disk mau penuh.",
+    liveHint: tr("Nongol di notch pas baterai lemah, CPU/RAM mentok, atau disk mau penuh.", "Shows in the notch when the battery is low, CPU/RAM maxes out, or the disk is nearly full."),
   },
   {
     type: "network",
-    name: "Internet",
-    desc: "Kecepatan unduh dan unggah sekarang.",
+    name: tr("Internet", "Network"),
+    desc: tr("Kecepatan unduh dan unggah sekarang.", "Current download and upload speed."),
     icon: "wifi",
     group: "Sistem",
     sizes: ["s", "w"],
@@ -266,8 +282,8 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     type: "toggles",
-    name: "Tombol cepat",
-    desc: "Volume, mic, dan mode tenang.",
+    name: tr("Tombol cepat", "Quick toggles"),
+    desc: tr("Volume, mic, dan mode tenang.", "Volume, mic, and quiet mode."),
     icon: "volume",
     group: "Sistem",
     sizes: ["w"],
@@ -278,8 +294,8 @@ export const WIDGETS: WidgetDef[] = [
   // Info
   {
     type: "weather",
-    name: "Cuaca",
-    desc: "Cuaca sekarang dan beberapa jam ke depan.",
+    name: tr("Cuaca", "Weather"),
+    desc: tr("Cuaca sekarang dan beberapa jam ke depan.", "The weather now and over the next few hours."),
     icon: "sun",
     group: "Info",
     sizes: ["s", "w", "l"],
@@ -289,8 +305,8 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     type: "prayer",
-    name: "Jadwal sholat",
-    desc: "Waktu sholat hari ini. Live pas mendekati waktunya.",
+    name: tr("Jadwal sholat", "Prayer times"),
+    desc: tr("Waktu sholat hari ini. Live pas mendekati waktunya.", "Today's prayer times. Goes Live as the next one approaches."),
     icon: "moon",
     group: "Info",
     sizes: ["s", "w"],
@@ -298,56 +314,56 @@ export const WIDGETS: WidgetDef[] = [
     fields: [LOC, CITY],
     Component: PrayerWidget,
     Live: PrayerLive,
-    liveHint: "Nongol di notch 15 menit sebelum waktu sholat.",
+    liveHint: tr("Nongol di notch 15 menit sebelum waktu sholat.", "Shows in the notch 15 minutes before prayer time."),
   },
   {
     type: "currency",
-    name: "Kurs",
-    desc: "Nilai tukar mata uang hari ini.",
+    name: tr("Kurs", "Exchange rate"),
+    desc: tr("Nilai tukar mata uang hari ini.", "Today's currency exchange rate."),
     icon: "money",
     group: "Info",
     sizes: ["s", "w"],
     defaultSize: "s",
     defaultCfg: { base: "USD", quote: "IDR" },
     fields: [
-      { key: "base", label: "Dari", kind: "select", options: CURRENCIES.map((c) => [c, c]) },
-      { key: "quote", label: "Ke", kind: "select", options: CURRENCIES.map((c) => [c, c]) },
+      { key: "base", label: tr("Dari", "From"), kind: "select", options: CURRENCIES.map((c) => [c, c]) },
+      { key: "quote", label: tr("Ke", "To"), kind: "select", options: CURRENCIES.map((c) => [c, c]) },
     ],
     Component: CurrencyWidget,
   },
   {
     type: "github",
     name: "GitHub",
-    desc: "Bintang, fork, issue, dan rilis terbaru repo lu.",
+    desc: tr("Bintang, fork, issue, dan rilis terbaru repo lu.", "Stars, forks, issues, and the latest release of your repo."),
     icon: "star",
     group: "Info",
     sizes: ["s", "w"],
     defaultSize: "w",
     defaultCfg: { repo: "ShineReborn-Creative/PoinTify" },
-    fields: [{ key: "repo", label: "Repo", kind: "text", placeholder: "pemilik/nama-repo" }],
+    fields: [{ key: "repo", label: "Repo", kind: "text", placeholder: tr("pemilik/nama-repo", "owner/repo-name") }],
     Component: GithubWidget,
   },
   // Lainnya
   {
     type: "custom",
-    name: "Kustom (JSON)",
-    desc: "Ambil satu angka atau teks dari API JSON mana aja.",
+    name: tr("Kustom (JSON)", "Custom (JSON)"),
+    desc: tr("Ambil satu angka atau teks dari API JSON mana aja.", "Pull a number or text from any JSON API."),
     icon: "plug",
     group: "Lainnya",
     sizes: ["s", "w"],
     defaultSize: "s",
     defaultCfg: { every: 60 },
     fields: [
-      { key: "label", label: "Judul", kind: "text", placeholder: "Harga Bitcoin" },
-      { key: "url", label: "Alamat API", kind: "text", placeholder: "https://api.contoh.com/data.json" },
-      { key: "path", label: "Jalur nilai", kind: "text", placeholder: "data.price", hint: "Pakai titik, misal items.0.price" },
-      { key: "prefix", label: "Depan", kind: "text", placeholder: "$" },
-      { key: "suffix", label: "Belakang", kind: "text", placeholder: " / hari" },
-      { key: "every", label: "Ambil ulang tiap (detik)", kind: "number", min: 10, max: 86400 },
+      { key: "label", label: tr("Judul", "Title"), kind: "text", placeholder: tr("Harga Bitcoin", "Bitcoin price") },
+      { key: "url", label: tr("Alamat API", "API URL"), kind: "text", placeholder: tr("https://api.contoh.com/data.json", "https://api.example.com/data.json") },
+      { key: "path", label: tr("Jalur nilai", "Value path"), kind: "text", placeholder: "data.price", hint: tr("Pakai titik, misal items.0.price", "Use dots, e.g. items.0.price") },
+      { key: "prefix", label: tr("Depan", "Prefix"), kind: "text", placeholder: "$" },
+      { key: "suffix", label: tr("Belakang", "Suffix"), kind: "text", placeholder: tr(" / hari", " / day") },
+      { key: "every", label: tr("Ambil ulang tiap (detik)", "Refresh every (seconds)"), kind: "number", min: 10, max: 86400 },
     ],
     Component: CustomWidget,
     Live: CustomLive,
-    liveHint: "Nilainya ikut muter di notch kecil (prioritas paling rendah).",
+    liveHint: tr("Nilainya ikut muter di notch kecil (prioritas paling rendah).", "The value rotates in the small notch (lowest priority)."),
   },
 ];
 

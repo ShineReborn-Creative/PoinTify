@@ -3,6 +3,7 @@ import { api, type ClaudeStatus } from "../lib/api";
 import { uid } from "../lib/format";
 import { createStore } from "../lib/store";
 import { settingsStore } from "./settings";
+import { tr } from "../i18n";
 
 // ---- Bentuk pesan di tampilan ----
 
@@ -347,22 +348,24 @@ function markLoggedOut() {
 function describeFailure(subtype: unknown): string {
   switch (subtype) {
     case "error_max_turns":
-      return "Claude berhenti karena kebanyakan langkah. Coba pecah permintaannya jadi lebih kecil.";
+      return tr("Claude berhenti karena kebanyakan langkah. Coba pecah permintaannya jadi lebih kecil.", "Claude stopped after too many steps. Try splitting the request into smaller ones.");
     case "error_during_execution":
-      return "Ada error waktu Claude lagi kerja. Coba kirim lagi.";
+      return tr("Ada error waktu Claude lagi kerja. Coba kirim lagi.", "Something went wrong while Claude was working. Try sending it again.");
     default:
-      return "Claude nggak berhasil nyelesaiin permintaan ini.";
+      return tr("Claude nggak berhasil nyelesaiin permintaan ini.", "Claude couldn't finish this request.");
   }
 }
 
 function explainStderr(stderr: string, code: number | null): string {
   const lower = stderr.toLowerCase();
   if (lower.includes("login") || lower.includes("auth") || lower.includes("credential")) {
-    return "Claude Code belum login. Buka Pengaturan, bagian Claude, terus klik Login.";
+    return tr("Claude Code belum login. Buka Pengaturan, bagian Claude, terus klik Login.", "Claude Code isn't logged in. Open Settings › Claude and click Login.");
   }
-  if (code === null) return "Dihentikan.";
+  if (code === null) return tr("Dihentikan.", "Stopped.");
   const tail = stderr.trim().split("\n").slice(-3).join("\n");
-  return tail ? `Claude Code berhenti (kode ${code}):\n${tail}` : `Claude Code berhenti dengan kode ${code}.`;
+  return tail
+    ? tr(`Claude Code berhenti (kode ${code}):\n${tail}`, `Claude Code exited (code ${code}):\n${tail}`)
+    : tr(`Claude Code berhenti dengan kode ${code}.`, `Claude Code exited with code ${code}.`);
 }
 
 export async function initChat() {

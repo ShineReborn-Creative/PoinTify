@@ -10,6 +10,7 @@ import { dragPipOut } from "../state/pet";
 import { settingsStore } from "../state/settings";
 import { useClaimPip } from "../state/pipSpot";
 import type { WidgetProps } from "./common";
+import { tr } from "../i18n";
 
 type Props = WidgetProps & { mood: PipMood };
 
@@ -41,13 +42,13 @@ export function MusicWidget({ size, mood }: Props) {
 
   const controls = (
     <div className="music-controls">
-      <button className="icon-btn" aria-label="Sebelumnya" onClick={() => void api.mediaControl("prev")}>
+      <button className="icon-btn" aria-label={tr("Sebelumnya", "Previous")} onClick={() => void api.mediaControl("prev")}>
         <Icon name="prev" size={size === "w" ? 15 : 18} />
       </button>
-      <button className="play-btn" aria-label={media.isPlaying ? "Jeda" : "Putar"} onClick={() => void api.mediaControl("toggle")}>
+      <button className="play-btn" aria-label={media.isPlaying ? tr("Jeda", "Pause") : tr("Putar", "Play")} onClick={() => void api.mediaControl("toggle")}>
         <Icon name={media.isPlaying ? "pause" : "play"} size={size === "w" ? 15 : 18} />
       </button>
-      <button className="icon-btn" aria-label="Berikutnya" onClick={() => void api.mediaControl("next")}>
+      <button className="icon-btn" aria-label={tr("Berikutnya", "Next")} onClick={() => void api.mediaControl("next")}>
         <Icon name="next" size={size === "w" ? 15 : 18} />
       </button>
     </div>
@@ -87,7 +88,7 @@ export function MusicWidget({ size, mood }: Props) {
             ref={barRef}
             className="progress"
             role="slider"
-            aria-label={media.kind === "video" ? "Posisi video" : "Posisi lagu"}
+            aria-label={media.kind === "video" ? tr("Posisi video", "Video position") : tr("Posisi lagu", "Song position")}
             aria-valuemin={0}
             aria-valuemax={Math.round(media.durationMs / 1000)}
             aria-valuenow={Math.round(pos / 1000)}
@@ -101,7 +102,7 @@ export function MusicWidget({ size, mood }: Props) {
       {size === "l" && <div className="w-music-l-controls">{controls}</div>}
       {media.kind === "video" ? (
         <div className="lyrics">
-          <div className="lyric-status muted">Lagi nonton. Pip udah siap popcorn 🍿</div>
+          <div className="lyric-status muted">{tr("Lagi nonton. Pip udah siap popcorn 🍿", "Watching something. Pip has the popcorn ready 🍿")}</div>
         </div>
       ) : settings?.showLyrics !== false && (
         <div className="lyrics">
@@ -113,7 +114,7 @@ export function MusicWidget({ size, mood }: Props) {
               {size === "xl" && <div className="lyric-next ellipsis">{next}</div>}
             </>
           ) : (
-            <div className="lyric-status muted">{lyrics.status === "loading" ? "Nyari lirik…" : "Lirik lagu ini belum ketemu."}</div>
+            <div className="lyric-status muted">{lyrics.status === "loading" ? tr("Nyari lirik…", "Finding lyrics…") : tr("Lirik lagu ini belum ketemu.", "No lyrics found for this song.")}</div>
           )}
         </div>
       )}
@@ -131,7 +132,7 @@ function MusicEmpty({ size, mood }: { size: Props["size"]; mood: PipMood }) {
         {away ? <Icon name="music" size={18} /> : <Pip mood={mood} size={34} glow interactive onDragOut={dragPipOut} />}
         <div>
           <strong>{greeting()}</strong>
-          <span className="muted">Puter lagu di Spotify atau YouTube</span>
+          <span className="muted">{tr("Puter lagu di Spotify atau YouTube", "Play something on Spotify or YouTube")}</span>
         </div>
       </div>
     );
@@ -147,7 +148,7 @@ function MusicEmpty({ size, mood }: { size: Props["size"]; mood: PipMood }) {
       )}
       <div>
         <strong className="music-greet">{greeting()}</strong>
-        <p className="muted">Puter lagu di Spotify atau YouTube, nanti lagunya muncul di sini lengkap sama liriknya.</p>
+        <p className="muted">{tr("Puter lagu di Spotify atau YouTube, nanti lagunya muncul di sini lengkap sama liriknya.", "Play something on Spotify or YouTube and it shows up here, lyrics included.")}</p>
       </div>
     </div>
   );
@@ -159,9 +160,9 @@ export function PipWidget({ size, mood }: Props) {
   if (away) {
     return (
       <div className={`w-pip away size-${size}`}>
-        <span className="muted">Pip lagi main di desktop</span>
+        <span className="muted">{tr("Pip lagi main di desktop", "Pip is out on the desktop")}</span>
         <button className="btn small" onClick={() => void api.petHome()}>
-          Panggil balik
+          {tr("Panggil balik", "Call back")}
         </button>
       </div>
     );
@@ -172,7 +173,7 @@ export function PipWidget({ size, mood }: Props) {
       {size !== "s" && (
         <div>
           <strong>{greeting()}</strong>
-          <span className="muted">Klik, tahan, atau tarik gue ke bawah.</span>
+          <span className="muted">{tr("Klik, tahan, atau tarik gue ke bawah.", "Click me, hold me, or drag me down.")}</span>
         </div>
       )}
     </div>

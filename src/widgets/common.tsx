@@ -1,3 +1,4 @@
+import { isEn, locale } from "../i18n";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "../components/Icon";
 import type { WidgetItem, WidgetSize } from "./layout";
@@ -45,13 +46,14 @@ export function duration(ms: number): string {
   const d = Math.floor(s / 86400);
   const h = Math.floor((s % 86400) / 3600);
   const m = Math.floor((s % 3600) / 60);
-  if (d >= 2) return `${d} hari`;
-  if (d === 1) return `1 hari ${h}j`;
-  if (h > 0) return `${h}j ${m}m`;
-  if (m > 0) return `${m}m ${s % 60}d`;
-  return `${s}d`;
+  const en = isEn();
+  if (d >= 2) return en ? `${d} days` : `${d} hari`;
+  if (d === 1) return en ? `1 day ${h}h` : `1 hari ${h}j`;
+  if (h > 0) return en ? `${h}h ${m}m` : `${h}j ${m}m`;
+  if (m > 0) return en ? `${m}m ${s % 60}s` : `${m}m ${s % 60}d`;
+  return en ? `${s}s` : `${s}d`;
 }
 
 export function hhmm(d: Date, timeZone?: string) {
-  return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: timeZone || undefined }).replace(".", ":");
+  return d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: timeZone || undefined }).replace(".", ":");
 }

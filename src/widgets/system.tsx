@@ -6,6 +6,7 @@ import { useStore } from "../lib/store";
 import { quietStore, setQuiet } from "../state/quiet";
 import { Meter, WLabel, WState, type WidgetProps } from "./common";
 import { bytes, setLive, speed, useSysStats } from "./data";
+import { tr } from "../i18n";
 
 const pct = (a: number, b: number) => (b > 0 ? a / b : 0);
 
@@ -21,7 +22,7 @@ function SystemSmall({ data }: { data: SysStats }) {
       label: "CPU",
       value: data.cpu / 100,
       text: `${Math.round(data.cpu)}`,
-      sub: data.cpu >= 85 ? "Panas" : data.cpu >= 50 ? "Sibuk" : "Santai",
+      sub: data.cpu >= 85 ? tr("Panas", "Hot") : data.cpu >= 50 ? tr("Sibuk", "Busy") : tr("Santai", "Idle"),
       color: data.cpu >= 85 ? "var(--red)" : "var(--accent)",
     },
     {
@@ -37,10 +38,10 @@ function SystemSmall({ data }: { data: SysStats }) {
     const b = data.battery;
     slides.push({
       key: "bat",
-      label: "Baterai",
+      label: tr("Baterai", "Battery"),
       value: b.percent / 100,
       text: `${b.percent}`,
-      sub: b.charging ? "Ngecas" : b.percent <= 15 ? "Mau habis" : "Aman",
+      sub: b.charging ? tr("Ngecas", "Charging") : b.percent <= 15 ? tr("Mau habis", "Low") : tr("Aman", "OK"),
       color: b.charging ? "var(--green)" : b.percent <= 15 ? "var(--red)" : b.percent <= 30 ? "var(--amber)" : "var(--green)",
     });
   }
@@ -57,7 +58,7 @@ function SystemSmall({ data }: { data: SysStats }) {
     <div
       className="w-sys-s"
       role="button"
-      title="Klik buat ganti"
+      title={tr("Klik buat ganti", "Click to switch")}
       onMouseEnter={() => setHold(true)}
       onMouseLeave={() => setHold(false)}
       onClick={() => setI((x) => x + 1)}
@@ -87,24 +88,25 @@ function SystemSmall({ data }: { data: SysStats }) {
 
 export function SystemWidget({ size }: WidgetProps) {
   const { data, error } = useSysStats();
-  if (!data) return <WState error={!!error}>{error ? "Data sistem nggak kebaca" : "Ngecek sistem…"}</WState>;
+  if (!data) return <WState error={!!error}>{error ? tr("Data sistem nggak kebaca", "Couldn't read system data") : tr("Ngecek sistem…", "Checking the system…")}</WState>;
   const ram = pct(data.memUsed, data.memTotal);
   const disk = 1 - pct(data.diskFree, data.diskTotal);
   if (size === "s") return <SystemSmall data={data} />;
   const rows: [string, number, string][] = [
     ["CPU", data.cpu / 100, `${Math.round(data.cpu)}%`],
     ["RAM", ram, `${bytes(data.memUsed)} / ${bytes(data.memTotal)}`],
-    ["Disk C", disk, `sisa ${bytes(data.diskFree)}`],
+    ["Disk C", disk, tr(`sisa ${bytes(data.diskFree)}`, `${bytes(data.diskFree)} free`)],
   ];
-  if (data.battery) rows.push(["Baterai", data.battery.percent / 100, `${data.battery.percent}%${data.battery.charging ? " · ngecas" : ""}`]);
+  const BAT = tr("Baterai", "Battery");
+  if (data.battery) rows.push([BAT, data.battery.percent / 100, `${data.battery.percent}%${data.battery.charging ? tr(" · ngecas", " · charging") : ""}`]);
   return (
     <div className="w-sys">
       {rows.slice(0, 4).map(([label, v, text]) => {
-        const warn = label === "Baterai" ? v <= 0.15 && !data.battery?.charging : v >= 0.9;
+        const warn = label === BAT ? v <= 0.15 && !data.battery?.charging : v >= 0.9;
         return (
           <div className="w-sys-row" key={label}>
             <span className="w-sys-label">{label}</span>
-            <Meter value={v} tone={warn ? "warn" : label === "Baterai" && data.battery?.charging ? "good" : undefined} />
+            <Meter value={v} tone={warn ? "warn" : label === BAT && data.battery?.charging ? "good" : undefined} />
             <span className="w-sys-val tabular muted">{text}</span>
           </div>
         );
@@ -124,13 +126,13 @@ export function SystemLive({ item }: WidgetProps) {
 
 function systemAlert(d: SysStats) {
   if (d.battery && !d.battery.charging && d.battery.percent <= 15) {
-    return { priority: 5, icon: "battery", label: "Baterai", value: `${d.battery.percent}%`, tone: "warn" as const };
+    return { priority: 5, icon: "battery", label: tr("Baterai", "Battery"), value: `${d.battery.percent}%`, tone: "warn" as const };
   }
   if (d.cpu >= 90) return { priority: 4, icon: "cpu", label: "CPU", value: `${Math.round(d.cpu)}%`, tone: "warn" as const };
   if (d.memTotal > 0 && d.memUsed / d.memTotal >= 0.93) {
     return { priority: 3, icon: "cpu", label: "RAM", value: `${Math.round((d.memUsed / d.memTotal) * 100)}%`, tone: "warn" as const };
   }
-  if (d.diskTotal > 0 && d.diskFree < 5e9) return { priority: 2, icon: "file", label: "Disk C sisa", value: bytes(d.diskFree), tone: "warn" as const };
+  if (d.diskTotal > 0 && d.diskFree < 5e9) return { priority: 2, icon: "file", label: tr("Disk C sisa", "Disk C free"), value: bytes(d.diskFree), tone: "warn" as const };
   return null;
 }
 
@@ -170,23 +172,23 @@ export function TogglesWidget() {
       .catch((e) => setMicError(String(e)));
   return (
     <div className="w-toggles">
-      <button className="w-tog" aria-label="Kecilin volume" onClick={() => void api.sysMediaKey("volumeDown")}>
+      <button className="w-tog" aria-label={tr("Kecilin volume", "Volume down")} onClick={() => void api.sysMediaKey("volumeDown")}>
         <Icon name="minus" size={16} />
         <span>Vol</span>
       </button>
-      <button className="w-tog" aria-label="Bisuin suara" onClick={() => void api.sysMediaKey("mute")}>
+      <button className="w-tog" aria-label={tr("Bisuin suara", "Mute")} onClick={() => void api.sysMediaKey("mute")}>
         <Icon name="volumeOff" size={16} />
         <span>Mute</span>
       </button>
-      <button className="w-tog" aria-label="Gedein volume" onClick={() => void api.sysMediaKey("volumeUp")}>
+      <button className="w-tog" aria-label={tr("Gedein volume", "Volume up")} onClick={() => void api.sysMediaKey("volumeUp")}>
         <Icon name="plus" size={16} />
         <span>Vol</span>
       </button>
       <button
         className={`w-tog${mic ? " on warn" : ""}`}
         aria-pressed={!!mic}
-        aria-label={mic ? "Nyalain mic" : "Bisuin mic"}
-        title={micError ?? (mic ? "Mic lagi dibisuin" : "Mic nyala")}
+        aria-label={mic ? tr("Nyalain mic", "Unmute mic") : tr("Bisuin mic", "Mute mic")}
+        title={micError ?? (mic ? tr("Mic lagi dibisuin", "Mic is muted") : tr("Mic nyala", "Mic is on"))}
         disabled={mic === null && !!micError}
         onClick={toggleMic}
       >
@@ -196,11 +198,11 @@ export function TogglesWidget() {
       <button
         className={`w-tog${quiet ? " on" : ""}`}
         aria-pressed={quiet}
-        title={quiet ? "Mode tenang nyala: notif dan suara PoinTify diem" : "Mode tenang"}
+        title={quiet ? tr("Mode tenang nyala: notif dan suara PoinTify diem", "Quiet mode on: PoinTify notifications and sounds are silenced") : tr("Mode tenang", "Quiet mode")}
         onClick={() => setQuiet(!quiet)}
       >
         <Icon name={quiet ? "bellOff" : "bell"} size={16} />
-        <span>Tenang</span>
+        <span>{tr("Tenang", "Quiet")}</span>
       </button>
     </div>
   );

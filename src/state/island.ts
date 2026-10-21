@@ -11,7 +11,7 @@ export type PeekAction = { label: string; primary?: boolean; run: () => void };
 
 export type Peek = {
   id: string;
-  kind: "water" | "timer" | "claude" | "shelf" | "info";
+  kind: "water" | "timer" | "claude" | "shelf" | "info" | "tour";
   title: string;
   body?: string;
   mood: PipMood;
@@ -103,6 +103,8 @@ export const SIZES = {
   /** Lagi muter lagu yang ada liriknya: lirik jalan di tengah. */
   compactLyrics: { w: 460, h: 34 },
   peek: { w: 392, h: 96 },
+  /** Kartu tour perkenalan: teksnya lebih panjang. */
+  tour: { w: 488, h: 128 },
   expanded: {
     home: { w: 620, h: 262 },
     chat: { w: 620, h: 440 },
@@ -140,13 +142,13 @@ export function pin(pinned = true) {
 let peekTimer: number | undefined;
 
 /** Tampilkan kartu notifikasi kecil (kalau pulau lagi nggak kebuka). */
-export function showPeek(peek: Omit<Peek, "id">) {
-  // Mode tenang: notif kecil nggak usah nyembul.
-  if (quietStore.get()) return;
+export function showPeek(peek: Omit<Peek, "id">, opts: { force?: boolean } = {}) {
+  // Mode tenang: notif kecil nggak usah nyembul (kecuali yang diminta lu sendiri, kayak tour).
+  if (quietStore.get() && !opts.force) return;
   const s = islandStore.get();
   const full: Peek = { ...peek, id: `${Date.now()}` };
   window.clearTimeout(peekTimer);
-  if (s.mode === "expanded") {
+  if (s.mode === "expanded" && !opts.force) {
     // Lagi dibuka: nggak usah ganggu, cukup bunyi kecil.
     return;
   }

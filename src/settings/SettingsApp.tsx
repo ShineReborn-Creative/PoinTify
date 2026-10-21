@@ -6,19 +6,22 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "../components/Icon";
 import { Pip } from "../components/Pip";
 import { api, type ClaudeStatus, type HooksStatus, type Settings } from "../lib/api";
+import { emitTo } from "@tauri-apps/api/event";
+import { tr } from "../i18n";
 import { useStore } from "../lib/store";
 import { settingsStore, updateSettings } from "../state/settings";
+import { checkUpdate, installUpdate, updateStore } from "../state/update";
 
 type Section = "umum" | "pip" | "musik" | "fokus" | "minum" | "claude" | "tentang";
 
-const SECTIONS: { id: Section; label: string; icon: IconName }[] = [
-  { id: "umum", label: "Umum", icon: "gear" },
-  { id: "pip", label: "Pip desktop", icon: "sparkle" },
-  { id: "musik", label: "Musik & lirik", icon: "music" },
-  { id: "fokus", label: "Timer fokus", icon: "timer" },
-  { id: "minum", label: "Pengingat minum", icon: "drop" },
-  { id: "claude", label: "Claude", icon: "chat" },
-  { id: "tentang", label: "Tentang", icon: "info" },
+const SECTIONS: { id: Section; label: () => string; icon: IconName }[] = [
+  { id: "umum", label: () => tr("Umum", "General"), icon: "gear" },
+  { id: "pip", label: () => tr("Pip desktop", "Desktop Pip"), icon: "sparkle" },
+  { id: "musik", label: () => tr("Musik & lirik", "Music & lyrics"), icon: "music" },
+  { id: "fokus", label: () => tr("Timer fokus", "Focus timer"), icon: "timer" },
+  { id: "minum", label: () => tr("Pengingat minum", "Water reminder"), icon: "drop" },
+  { id: "claude", label: () => "Claude", icon: "chat" },
+  { id: "tentang", label: () => tr("Tentang", "About"), icon: "info" },
 ];
 
 const SECTION_KEY = "pointify.settings.section";
@@ -56,13 +59,13 @@ export function SettingsApp() {
       <header className="titlebar" data-tauri-drag-region>
         <div className="titlebar-name" data-tauri-drag-region>
           <Pip size={18} />
-          <span data-tauri-drag-region>Pengaturan PoinTify</span>
+          <span data-tauri-drag-region>{tr("Pengaturan PoinTify", "PoinTify Settings")}</span>
         </div>
         <div className="titlebar-buttons">
-          <button aria-label="Kecilkan" onClick={() => void getCurrentWindow().minimize()}>
+          <button aria-label={tr("Kecilkan", "Minimize")} onClick={() => void getCurrentWindow().minimize()}>
             <Icon name="minus" size={14} />
           </button>
-          <button aria-label="Tutup" className="close" onClick={() => void getCurrentWindow().close()}>
+          <button aria-label={tr("Tutup", "Close")} className="close" onClick={() => void getCurrentWindow().close()}>
             <Icon name="close" size={14} />
           </button>
         </div>
@@ -73,7 +76,7 @@ export function SettingsApp() {
           {SECTIONS.map((s) => (
             <button key={s.id} className={section === s.id ? "active" : ""} onClick={() => setSection(s.id)}>
               <Icon name={s.icon} size={16} />
-              {s.label}
+              {s.label()}
             </button>
           ))}
         </nav>
@@ -142,14 +145,14 @@ function Stepper({
   const clamp = (v: number) => Math.max(min, Math.min(max, v));
   return (
     <div className="stepper" aria-label={label}>
-      <button aria-label={`Kurangi ${label}`} onClick={() => onChange(clamp(value - step))} disabled={value <= min}>
+      <button aria-label={`${tr("Kurangi", "Decrease")} ${label}`} onClick={() => onChange(clamp(value - step))} disabled={value <= min}>
         <Icon name="minus" size={12} />
       </button>
       <span className="tabular">
         {value}
         {suffix && <small> {suffix}</small>}
       </span>
-      <button aria-label={`Tambah ${label}`} onClick={() => onChange(clamp(value + step))} disabled={value >= max}>
+      <button aria-label={`${tr("Tambah", "Increase")} ${label}`} onClick={() => onChange(clamp(value + step))} disabled={value >= max}>
         <Icon name="plus" size={12} />
       </button>
     </div>
@@ -204,33 +207,52 @@ function ShortcutRecorder({ value, onChange }: { value: string; onChange: (v: st
         setRecording(false);
       }}
     >
-      {recording ? "Tekan kombinasi tombol…" : value || "Mati"}
+      {recording ? tr("Tekan kombinasi tombol…", "Press a key combination…") : value || tr("Mati", "Off")}
     </button>
   );
 }
 
 function GeneralSection({ s }: { s: Settings }) {
+  const replayTour = () => {
+    updateSettings({ tourDone: false });
+    void emitTo("main", "tour-start");
+  };
   return (
     <>
-      <Heading title="Umum" desc="Cara notch muncul dan nyambung sama Windows." />
+      <Heading title={tr("Umum", "General")} desc={tr("Cara notch muncul dan nyambung sama Windows.", "How the notch shows up and works with Windows.")} />
       <div className="group">
-        <Row label="Jalan otomatis pas Windows nyala" hint="PoinTify langsung nongol tiap lu nyalain PC.">
-          <Toggle label="Jalan otomatis" checked={s.launchAtStartup} onChange={(v) => updateSettings({ launchAtStartup: v })} />
+        <Row label={tr("Bahasa", "Language")} hint={tr("Otomatis ikut bahasa Windows.", "Automatic follows your Windows language.")}>
+          <select className="select" value={s.language ?? "auto"} onChange={(e) => updateSettings({ language: e.target.value as Settings["language"] })}>
+            <option value="auto">{tr("Otomatis", "Automatic")}</option>
+            <option value="id">Bahasa Indonesia</option>
+            <option value="en">English</option>
+          </select>
         </Row>
-        <Row label="Buka pas kursor lewat" hint="Kalau dimatiin, notch baru kebuka pas diklik.">
-          <Toggle label="Buka pas kursor lewat" checked={s.openOnHover} onChange={(v) => updateSettings({ openOnHover: v })} />
+        <Row label={tr("Jalan otomatis pas Windows nyala", "Start with Windows")} hint={tr("PoinTify langsung nongol tiap lu nyalain PC.", "PoinTify shows up every time you turn on your PC.")}>
+          <Toggle label={tr("Jalan otomatis", "Start with Windows")} checked={s.launchAtStartup} onChange={(v) => updateSettings({ launchAtStartup: v })} />
         </Row>
-        <Row label="Jeda sebelum kebuka" hint="Biar notch nggak kebuka pas kursor cuma lewat sekilas.">
-          <Stepper label="jeda" value={s.hoverDelayMs} min={0} max={1000} step={50} suffix="ms" onChange={(v) => updateSettings({ hoverDelayMs: v })} />
+        <Row label={tr("Buka pas kursor lewat", "Open on hover")} hint={tr("Kalau dimatiin, notch baru kebuka pas diklik.", "When off, the notch only opens when clicked.")}>
+          <Toggle label={tr("Buka pas kursor lewat", "Open on hover")} checked={s.openOnHover} onChange={(v) => updateSettings({ openOnHover: v })} />
         </Row>
-        <Row label="Sembunyi pas app fullscreen" hint="Nonton film atau main game tanpa diganggu.">
-          <Toggle label="Sembunyi pas fullscreen" checked={s.hideInFullscreen} onChange={(v) => updateSettings({ hideInFullscreen: v })} />
+        <Row label={tr("Jeda sebelum kebuka", "Hover delay")} hint={tr("Biar notch nggak kebuka pas kursor cuma lewat sekilas.", "So the notch doesn't open when the cursor just passes by.")}>
+          <Stepper label={tr("jeda", "delay")} value={s.hoverDelayMs} min={0} max={1000} step={50} suffix="ms" onChange={(v) => updateSettings({ hoverDelayMs: v })} />
         </Row>
-        <Row label="Suara" hint="Bunyi kecil pas notch kebuka, timer selesai, atau Claude beres.">
-          <Toggle label="Suara" checked={s.sounds} onChange={(v) => updateSettings({ sounds: v })} />
+        <Row label={tr("Sembunyi pas app fullscreen", "Hide when an app is fullscreen")} hint={tr("Nonton film atau main game tanpa diganggu.", "Watch movies or play games undisturbed.")}>
+          <Toggle label={tr("Sembunyi pas fullscreen", "Hide in fullscreen")} checked={s.hideInFullscreen} onChange={(v) => updateSettings({ hideInFullscreen: v })} />
         </Row>
-        <Row label="Shortcut buka chat" hint="Klik, lalu tekan kombinasi baru. Backspace buat matiin.">
+        <Row label={tr("Suara", "Sounds")} hint={tr("Bunyi kecil pas notch kebuka, timer selesai, atau Claude beres.", "Small sounds when the notch opens, a timer ends, or Claude finishes.")}>
+          <Toggle label={tr("Suara", "Sounds")} checked={s.sounds} onChange={(v) => updateSettings({ sounds: v })} />
+        </Row>
+        <Row label={tr("Shortcut buka chat", "Chat shortcut")} hint={tr("Klik, lalu tekan kombinasi baru. Backspace buat matiin.", "Click, then press a new combination. Backspace turns it off.")}>
           <ShortcutRecorder value={s.shortcut} onChange={(v) => updateSettings({ shortcut: v })} />
+        </Row>
+        <Row label={tr("Update otomatis", "Automatic updates")} hint={tr("Cek versi baru di GitHub tiap PoinTify nyala. Masangnya tetap nunggu izin lu.", "Checks GitHub for a new version on startup. Installing still asks you first.")}>
+          <Toggle label={tr("Update otomatis", "Automatic updates")} checked={s.autoUpdate !== false} onChange={(v) => updateSettings({ autoUpdate: v })} />
+        </Row>
+        <Row label={tr("Tour perkenalan", "Welcome tour")} hint={tr("Pip ngenalin fitur-fitur PoinTify satu-satu.", "Pip walks you through PoinTify's features.")}>
+          <button className="btn" onClick={replayTour}>
+            <Icon name="sparkle" size={14} /> {tr("Tonton lagi", "Replay")}
+          </button>
         </Row>
       </div>
     </>
@@ -239,63 +261,89 @@ function GeneralSection({ s }: { s: Settings }) {
 
 function PipSection({ s }: { s: Settings }) {
   const off = !s.petMode;
+  const min = (n: number) => tr(`${n} menit`, n === 1 ? "1 minute" : `${n} minutes`);
   return (
     <>
-      <Heading title="Pip desktop" desc="Pip keluar dari notch dan hidup di layar lu: jalan-jalan, nangkring, ngomong, ikut kegiatan lu." />
+      <Heading
+        title={tr("Pip desktop", "Desktop Pip")}
+        desc={tr(
+          "Pip keluar dari notch dan hidup di layar lu: jalan-jalan, nangkring, ngomong, ikut kegiatan lu.",
+          "Pip leaves the notch and lives on your screen: wandering, perching, chatting, and joining in on what you do.",
+        )}
+      />
       <div className="group">
-        <Row label="Pip di desktop" hint="Bisa juga dengan nyeret Pip ke bawah dari notch. Lepas di area notch buat pulang.">
-          <Toggle label="Pip di desktop" checked={s.petMode} onChange={(v) => updateSettings({ petMode: v })} />
+        <Row
+          label={tr("Pip di desktop", "Pip on desktop")}
+          hint={tr("Bisa juga dengan nyeret Pip ke bawah dari notch. Lepas di area notch buat pulang.", "You can also drag Pip down out of the notch. Drop him on the notch to send him home.")}
+        >
+          <Toggle label={tr("Pip di desktop", "Pip on desktop")} checked={s.petMode} onChange={(v) => updateSettings({ petMode: v })} />
         </Row>
       </div>
       <div className={`group${off ? " dim" : ""}`}>
-        <Row label="Gerak sendiri" hint="Jalan, lari, loncat, sama manjat pinggir layar kalau lagi santai.">
-          <Toggle label="Gerak sendiri" checked={s.petWander !== false} onChange={(v) => updateSettings({ petWander: v })} />
+        <Row label={tr("Gerak sendiri", "Move on his own")} hint={tr("Jalan, lari, loncat, sama manjat pinggir layar kalau lagi santai.", "Walks, runs, hops, and climbs screen edges when things are quiet.")}>
+          <Toggle label={tr("Gerak sendiri", "Move on his own")} checked={s.petWander !== false} onChange={(v) => updateSettings({ petWander: v })} />
         </Row>
-        <Row label="Seberapa aktif" hint="Kalem jarang gerak, Hiperaktif nggak bisa diem.">
+        <Row label={tr("Seberapa aktif", "Activity level")} hint={tr("Kalem jarang gerak, Hiperaktif nggak bisa diem.", "Calm rarely moves, Hyper can't sit still.")}>
           <select
             className="select"
             value={s.petActivity ?? "normal"}
             disabled={s.petWander === false}
             onChange={(e) => updateSettings({ petActivity: e.target.value as Settings["petActivity"] })}
           >
-            <option value="calm">Kalem</option>
+            <option value="calm">{tr("Kalem", "Calm")}</option>
             <option value="normal">Normal</option>
-            <option value="hyper">Hiperaktif</option>
+            <option value="hyper">{tr("Hiperaktif", "Hyper")}</option>
           </select>
         </Row>
-        <Row label="Ngomong tiap" hint="Balon omongan kecil: sapaan, ngingetin minum, komentar lagu. Mode tenang bikin dia diem.">
-          <select
-            className="select"
-            value={String(s.petTalkMinutes ?? 3)}
-            onChange={(e) => updateSettings({ petTalkMinutes: Number(e.target.value) })}
-          >
-            <option value="0">Nggak usah ngomong</option>
-            <option value="1">1 menit</option>
-            <option value="3">3 menit</option>
-            <option value="5">5 menit</option>
-            <option value="10">10 menit</option>
-            <option value="30">30 menit</option>
+        <Row
+          label={tr("Ngomong tiap", "Talk every")}
+          hint={tr("Balon omongan kecil: sapaan, ngingetin minum, komentar lagu. Mode tenang bikin dia diem.", "Little speech bubbles: greetings, water reminders, song comments. Quiet mode keeps him silent.")}
+        >
+          <select className="select" value={String(s.petTalkMinutes ?? 3)} onChange={(e) => updateSettings({ petTalkMinutes: Number(e.target.value) })}>
+            <option value="0">{tr("Nggak usah ngomong", "Never")}</option>
+            {[1, 3, 5, 10, 30].map((n) => (
+              <option key={n} value={String(n)}>
+                {min(n)}
+              </option>
+            ))}
           </select>
         </Row>
-        <Row label="Nangkring di jendela" hint="Jatuh di atas jendela lain = duduk di pinggir atasnya. Jendelanya digeser, Pip ikut.">
-          <Toggle label="Nangkring di jendela" checked={s.petPerch !== false} onChange={(v) => updateSettings({ petPerch: v })} />
+        <Row
+          label={tr("Nangkring di jendela", "Perch on windows")}
+          hint={tr("Jatuh di atas jendela lain = duduk di pinggir atasnya. Jendelanya digeser, Pip ikut.", "Land on another window and he sits on its top edge. Move the window and Pip comes along.")}
+        >
+          <Toggle label={tr("Nangkring di jendela", "Perch on windows")} checked={s.petPerch !== false} onChange={(v) => updateSettings({ petPerch: v })} />
         </Row>
-        <Row label="Ikut kegiatan lu" hint="Ikat kepala pas fokus, laptop mini pas Claude kerja, joget pas musik.">
-          <Toggle label="Ikut kegiatan" checked={s.petFollow !== false} onChange={(v) => updateSettings({ petFollow: v })} />
+        <Row
+          label={tr("Ikut kegiatan lu", "Join your activities")}
+          hint={tr(
+            "Ikat kepala pas fokus, laptop mini pas Claude kerja atau lu ngetik, joget pas musik, popcorn pas nonton.",
+            "Headband while you focus, a mini laptop when Claude works or you type, dancing to music, popcorn when you watch.",
+          )}
+        >
+          <Toggle label={tr("Ikut kegiatan", "Join activities")} checked={s.petFollow !== false} onChange={(v) => updateSettings({ petFollow: v })} />
         </Row>
-        <Row label="Papan info Live" hint="Pip megang papan info widget Live. Kalau penting, dia lari ke notch.">
-          <Toggle label="Papan Live" checked={s.petLiveSign !== false} onChange={(v) => updateSettings({ petLiveSign: v })} />
+        <Row label={tr("Papan info Live", "Live sign")} hint={tr("Pip megang papan info widget Live. Kalau penting, dia lari ke notch.", "Pip holds a sign with Live widget info. If it's urgent, he runs to the notch.")}>
+          <Toggle label={tr("Papan Live", "Live sign")} checked={s.petLiveSign !== false} onChange={(v) => updateSettings({ petLiveSign: v })} />
         </Row>
-        <Row label="Main sama kursor" hint="Kursor diem di deket Pip, dia nyamperin. Digoyang-goyang, dia nerkam. Dilempar ke arahnya, dia menghindar.">
-          <Toggle label="Main sama kursor" checked={s.petCursor !== false} onChange={(v) => updateSettings({ petCursor: v })} />
+        <Row
+          label={tr("Main sama kursor", "Play with the cursor")}
+          hint={tr(
+            "Kursor diem di deket Pip, dia nyamperin. Digoyang-goyang, dia nerkam. Dilempar ke arahnya, dia menghindar.",
+            "Rest the cursor near Pip and he comes over. Wiggle it and he pounces. Fling it at him and he dodges.",
+          )}
+        >
+          <Toggle label={tr("Main sama kursor", "Play with the cursor")} checked={s.petCursor !== false} onChange={(v) => updateSettings({ petCursor: v })} />
         </Row>
-        <Row label="Tidur siang" hint="Lama nggak diperhatiin, Pip tidur. Deketin kursor buat bangunin.">
-          <Toggle label="Tidur siang" checked={s.petNap !== false} onChange={(v) => updateSettings({ petNap: v })} />
+        <Row label={tr("Tidur siang", "Naps")} hint={tr("Lama nggak diperhatiin, Pip tidur. Deketin kursor buat bangunin.", "Ignore Pip for a while and he dozes off. Move the cursor close to wake him.")}>
+          <Toggle label={tr("Tidur siang", "Naps")} checked={s.petNap !== false} onChange={(v) => updateSettings({ petNap: v })} />
         </Row>
       </div>
       <p className="note">
-        Cara main: seret dan lempar Pip, gosok kursor bolak-balik di atasnya buat ngelus, klik dua kali buat buka notch,
-        klik kanan buat menu (minum, main bola, kejar-kejaran, tidur). Seret file ke Pip buat ngasih makan; filenya dicatet diem-diem ke Rak tanpa buka notch.
+        {tr(
+          "Cara main: seret dan lempar Pip, gosok kursor bolak-balik di atasnya buat ngelus, klik dua kali buat buka notch, klik kanan buat menu (minum, main bola, kejar-kejaran, tidur). Seret file ke Pip buat ngasih makan; filenya dicatet diem-diem ke Rak tanpa buka notch.",
+          "How to play: drag and throw Pip, rub the cursor back and forth over him to pet him, double-click to open the notch, right-click for the menu (drink, ball, chase, nap). Drag a file onto Pip to feed him; it quietly lands on the Shelf without opening the notch.",
+        )}
       </p>
     </>
   );
@@ -304,21 +352,24 @@ function PipSection({ s }: { s: Settings }) {
 function MusicSection({ s }: { s: Settings }) {
   return (
     <>
-      <Heading title="Musik & lirik" desc="Lagu dibaca dari kontrol media Windows: Spotify, browser, dan app musik lain." />
+      <Heading
+        title={tr("Musik & lirik", "Music & lyrics")}
+        desc={tr("Lagu dibaca dari kontrol media Windows: Spotify, browser, dan app musik lain.", "Songs are read from Windows media controls: Spotify, browsers, and other music apps.")}
+      />
       <div className="group">
-        <Row label="Tampilkan lirik" hint="Lirik sinkron diambil dari LRCLIB.">
-          <Toggle label="Tampilkan lirik" checked={s.showLyrics} onChange={(v) => updateSettings({ showLyrics: v })} />
+        <Row label={tr("Tampilkan lirik", "Show lyrics")} hint={tr("Lirik sinkron diambil dari LRCLIB.", "Synced lyrics come from LRCLIB.")}>
+          <Toggle label={tr("Tampilkan lirik", "Show lyrics")} checked={s.showLyrics} onChange={(v) => updateSettings({ showLyrics: v })} />
         </Row>
-        <Row label="Lirik di notch kecil" hint="Baris yang lagi dinyanyiin jalan di tengah notch, tanpa perlu dibuka.">
+        <Row label={tr("Lirik di notch kecil", "Lyrics in the small notch")} hint={tr("Baris yang lagi dinyanyiin jalan di tengah notch, tanpa perlu dibuka.", "The line being sung scrolls in the middle of the notch, no need to open it.")}>
           <Toggle
-            label="Lirik di notch kecil"
+            label={tr("Lirik di notch kecil", "Lyrics in the small notch")}
             checked={s.compactLyrics !== false}
             disabled={!s.showLyrics}
             onChange={(v) => updateSettings({ compactLyrics: v })}
           />
         </Row>
-        <Row label="Geser waktu lirik" hint="Tambah kalau lirik kerasa telat, kurangi kalau kecepetan.">
-          <Stepper label="geser lirik" value={s.lyricOffsetMs} min={-3000} max={3000} step={100} suffix="ms" onChange={(v) => updateSettings({ lyricOffsetMs: v })} />
+        <Row label={tr("Geser waktu lirik", "Lyrics offset")} hint={tr("Tambah kalau lirik kerasa telat, kurangi kalau kecepetan.", "Increase if lyrics feel late, decrease if they're early.")}>
+          <Stepper label={tr("geser lirik", "lyrics offset")} value={s.lyricOffsetMs} min={-3000} max={3000} step={100} suffix="ms" onChange={(v) => updateSettings({ lyricOffsetMs: v })} />
         </Row>
       </div>
     </>
@@ -326,24 +377,32 @@ function MusicSection({ s }: { s: Settings }) {
 }
 
 function FocusSection({ s }: { s: Settings }) {
+  const mnt = tr("mnt", "min");
   return (
     <>
-      <Heading title="Timer fokus" desc="Teknik Pomodoro: fokus sebentar, istirahat sebentar, ulangi." />
+      <Heading title={tr("Timer fokus", "Focus timer")} desc={tr("Teknik Pomodoro: fokus sebentar, istirahat sebentar, ulangi.", "The Pomodoro technique: focus a bit, rest a bit, repeat.")} />
       <div className="group">
-        <Row label="Lama fokus">
-          <Stepper label="lama fokus" value={s.focusMinutes} min={5} max={120} step={5} suffix="mnt" onChange={(v) => updateSettings({ focusMinutes: v })} />
+        <Row label={tr("Lama fokus", "Focus length")}>
+          <Stepper label={tr("lama fokus", "focus length")} value={s.focusMinutes} min={5} max={120} step={5} suffix={mnt} onChange={(v) => updateSettings({ focusMinutes: v })} />
         </Row>
-        <Row label="Istirahat pendek">
-          <Stepper label="istirahat pendek" value={s.shortBreakMinutes} min={1} max={30} suffix="mnt" onChange={(v) => updateSettings({ shortBreakMinutes: v })} />
+        <Row label={tr("Istirahat pendek", "Short break")}>
+          <Stepper label={tr("istirahat pendek", "short break")} value={s.shortBreakMinutes} min={1} max={30} suffix={mnt} onChange={(v) => updateSettings({ shortBreakMinutes: v })} />
         </Row>
-        <Row label="Istirahat panjang">
-          <Stepper label="istirahat panjang" value={s.longBreakMinutes} min={5} max={60} step={5} suffix="mnt" onChange={(v) => updateSettings({ longBreakMinutes: v })} />
+        <Row label={tr("Istirahat panjang", "Long break")}>
+          <Stepper label={tr("istirahat panjang", "long break")} value={s.longBreakMinutes} min={5} max={60} step={5} suffix={mnt} onChange={(v) => updateSettings({ longBreakMinutes: v })} />
         </Row>
-        <Row label="Istirahat panjang tiap" hint="Jumlah sesi fokus sebelum istirahat panjang.">
-          <Stepper label="sesi" value={s.sessionsBeforeLongBreak} min={2} max={8} suffix="sesi" onChange={(v) => updateSettings({ sessionsBeforeLongBreak: v })} />
+        <Row label={tr("Istirahat panjang tiap", "Long break every")} hint={tr("Jumlah sesi fokus sebelum istirahat panjang.", "Number of focus sessions before a long break.")}>
+          <Stepper
+            label={tr("sesi", "sessions")}
+            value={s.sessionsBeforeLongBreak}
+            min={2}
+            max={8}
+            suffix={tr("sesi", "sessions")}
+            onChange={(v) => updateSettings({ sessionsBeforeLongBreak: v })}
+          />
         </Row>
-        <Row label="Langsung mulai istirahat" hint="Abis fokus beres, timer istirahat jalan sendiri.">
-          <Toggle label="Langsung mulai istirahat" checked={s.autoStartBreaks} onChange={(v) => updateSettings({ autoStartBreaks: v })} />
+        <Row label={tr("Langsung mulai istirahat", "Start breaks automatically")} hint={tr("Abis fokus beres, timer istirahat jalan sendiri.", "When a focus session ends, the break timer starts by itself.")}>
+          <Toggle label={tr("Langsung mulai istirahat", "Start breaks automatically")} checked={s.autoStartBreaks} onChange={(v) => updateSettings({ autoStartBreaks: v })} />
         </Row>
       </div>
     </>
@@ -353,22 +412,30 @@ function FocusSection({ s }: { s: Settings }) {
 function WaterSection({ s }: { s: Settings }) {
   return (
     <>
-      <Heading title="Pengingat minum" desc="Pip nyembul dari notch buat ngingetin lu minum air." />
+      <Heading title={tr("Pengingat minum", "Water reminder")} desc={tr("Pip nyembul dari notch buat ngingetin lu minum air.", "Pip pops out of the notch to remind you to drink water.")} />
       <div className="group">
-        <Row label="Nyalakan pengingat">
-          <Toggle label="Pengingat minum" checked={s.waterEnabled} onChange={(v) => updateSettings({ waterEnabled: v })} />
+        <Row label={tr("Nyalakan pengingat", "Enable reminder")}>
+          <Toggle label={tr("Pengingat minum", "Water reminder")} checked={s.waterEnabled} onChange={(v) => updateSettings({ waterEnabled: v })} />
         </Row>
-        <Row label="Ingetin tiap">
-          <Stepper label="jarak pengingat" value={s.waterIntervalMinutes} min={15} max={180} step={15} suffix="mnt" onChange={(v) => updateSettings({ waterIntervalMinutes: v })} />
+        <Row label={tr("Ingetin tiap", "Remind every")}>
+          <Stepper
+            label={tr("jarak pengingat", "reminder interval")}
+            value={s.waterIntervalMinutes}
+            min={15}
+            max={180}
+            step={15}
+            suffix={tr("mnt", "min")}
+            onChange={(v) => updateSettings({ waterIntervalMinutes: v })}
+          />
         </Row>
-        <Row label="Target harian">
-          <Stepper label="target" value={s.waterGoal} min={1} max={16} suffix="gelas" onChange={(v) => updateSettings({ waterGoal: v })} />
+        <Row label={tr("Target harian", "Daily goal")}>
+          <Stepper label={tr("target", "goal")} value={s.waterGoal} min={1} max={16} suffix={tr("gelas", "glasses")} onChange={(v) => updateSettings({ waterGoal: v })} />
         </Row>
-        <Row label="Mulai jam" hint="Di luar jam ini Pip nggak bakal ngingetin.">
-          <Stepper label="jam mulai" value={s.waterStartHour} min={0} max={23} suffix=":00" onChange={(v) => updateSettings({ waterStartHour: v })} />
+        <Row label={tr("Mulai jam", "From")} hint={tr("Di luar jam ini Pip nggak bakal ngingetin.", "Pip won't remind you outside these hours.")}>
+          <Stepper label={tr("jam mulai", "start hour")} value={s.waterStartHour} min={0} max={23} suffix=":00" onChange={(v) => updateSettings({ waterStartHour: v })} />
         </Row>
-        <Row label="Sampai jam">
-          <Stepper label="jam selesai" value={s.waterEndHour} min={1} max={24} suffix=":00" onChange={(v) => updateSettings({ waterEndHour: v })} />
+        <Row label={tr("Sampai jam", "Until")}>
+          <Stepper label={tr("jam selesai", "end hour")} value={s.waterEndHour} min={1} max={24} suffix=":00" onChange={(v) => updateSettings({ waterEndHour: v })} />
         </Row>
       </div>
     </>
@@ -395,7 +462,7 @@ function ClaudeSection({ s }: { s: Settings }) {
   }, [s.claudePath]);
 
   const addProject = async () => {
-    const picked = await openDialog({ directory: true, multiple: false, title: "Pilih folder project" });
+    const picked = await openDialog({ directory: true, multiple: false, title: tr("Pilih folder project", "Choose a project folder") });
     if (typeof picked !== "string" || s.projects.some((p) => p.path === picked)) return;
     const name = picked.split(/[\\/]/).filter(Boolean).pop() ?? picked;
     updateSettings({ projects: [...s.projects, { name, path: picked }] });
@@ -408,11 +475,15 @@ function ClaudeSection({ s }: { s: Settings }) {
     });
   };
 
+  const checkingText = tr("Ngecek…", "Checking…");
   return (
     <>
       <Heading
         title="Claude"
-        desc="Chat di PoinTify jalan lewat Claude Code di PC ini dan pakai login langganan Claude lu."
+        desc={tr(
+          "Chat di PoinTify jalan lewat Claude Code di PC ini dan pakai login langganan Claude lu. Fitur lain PoinTify jalan tanpa Claude.",
+          "Chat in PoinTify runs through Claude Code on this PC using your Claude subscription. Everything else in PoinTify works without Claude.",
+        )}
       />
 
       <div className={`status-card${status?.installed && status.loggedIn ? " ok" : ""}`}>
@@ -420,17 +491,17 @@ function ClaudeSection({ s }: { s: Settings }) {
         <div className="status-text">
           <strong>
             {!status
-              ? "Ngecek…"
+              ? checkingText
               : !status.installed
-                ? "Claude Code belum terpasang"
+                ? tr("Claude Code belum terpasang", "Claude Code isn't installed")
                 : !status.loggedIn
-                  ? "Claude Code belum login"
-                  : "Siap dipakai"}
+                  ? tr("Claude Code belum login", "Claude Code isn't logged in")
+                  : tr("Siap dipakai", "Ready")}
           </strong>
           <span className="muted">
             {status?.installed
               ? [status.version, status.account, status.path].filter(Boolean).join(" · ")
-              : "Pasang lewat PowerShell: irm https://claude.ai/install.ps1 | iex"}
+              : tr("Pasang lewat PowerShell: irm https://claude.ai/install.ps1 | iex", "Install from PowerShell: irm https://claude.ai/install.ps1 | iex")}
           </span>
         </div>
         <div className="status-actions">
@@ -440,7 +511,7 @@ function ClaudeSection({ s }: { s: Settings }) {
             </button>
           )}
           <button className="btn" onClick={() => void check()} disabled={checking}>
-            <Icon name="refresh" size={14} /> {checking ? "Ngecek…" : "Cek lagi"}
+            <Icon name="refresh" size={14} /> {checking ? checkingText : tr("Cek lagi", "Check again")}
           </button>
         </div>
       </div>
@@ -448,33 +519,33 @@ function ClaudeSection({ s }: { s: Settings }) {
       <HooksCard />
 
       <div className="group">
-        <Row label="Model bawaan" hint="Opus paling pinter, Sonnet seimbang, Haiku paling cepat.">
+        <Row label={tr("Model bawaan", "Default model")} hint={tr("Opus paling pinter, Sonnet seimbang, Haiku paling cepat.", "Opus is the smartest, Sonnet is balanced, Haiku is the fastest.")}>
           <select className="select" value={s.claudeModel} onChange={(e) => updateSettings({ claudeModel: e.target.value })}>
             <option value="opus">Opus</option>
             <option value="sonnet">Sonnet</option>
             <option value="haiku">Haiku</option>
           </select>
         </Row>
-        <Row label="Tingkat mikir" hint="Makin tinggi makin teliti, tapi lebih lama.">
+        <Row label={tr("Tingkat mikir", "Effort")} hint={tr("Makin tinggi makin teliti, tapi lebih lama.", "Higher is more thorough, but slower.")}>
           <select className="select" value={s.claudeEffort} onChange={(e) => updateSettings({ claudeEffort: e.target.value })}>
-            <option value="low">Rendah</option>
-            <option value="medium">Sedang</option>
-            <option value="high">Tinggi</option>
-            <option value="xhigh">Sangat tinggi</option>
-            <option value="max">Maksimal</option>
+            <option value="low">{tr("Rendah", "Low")}</option>
+            <option value="medium">{tr("Sedang", "Medium")}</option>
+            <option value="high">{tr("Tinggi", "High")}</option>
+            <option value="xhigh">{tr("Sangat tinggi", "Very high")}</option>
+            <option value="max">{tr("Maksimal", "Max")}</option>
           </select>
         </Row>
-        <Row label="Mode bawaan" hint="Ngobrol: cuma baca dan diskusi. Kerjain: boleh ngedit file project.">
+        <Row label={tr("Mode bawaan", "Default mode")} hint={tr("Ngobrol: cuma baca dan diskusi. Kerjain: boleh ngedit file project.", "Chat: read and discuss only. Work: may edit project files.")}>
           <select className="select" value={s.claudeMode} onChange={(e) => updateSettings({ claudeMode: e.target.value })}>
-            <option value="chat">Ngobrol</option>
-            <option value="work">Kerjain</option>
+            <option value="chat">{tr("Ngobrol", "Chat")}</option>
+            <option value="work">{tr("Kerjain", "Work")}</option>
           </select>
         </Row>
-        <Row label="Lokasi claude.exe" hint="Kosongin biar dicari otomatis.">
+        <Row label={tr("Lokasi claude.exe", "claude.exe location")} hint={tr("Kosongin biar dicari otomatis.", "Leave empty to find it automatically.")}>
           <input
             className="text-input"
             value={s.claudePath}
-            placeholder="Otomatis"
+            placeholder={tr("Otomatis", "Automatic")}
             spellCheck={false}
             onChange={(e) => updateSettings({ claudePath: e.target.value })}
           />
@@ -483,14 +554,17 @@ function ClaudeSection({ s }: { s: Settings }) {
 
       <div className="group">
         <div className="group-head">
-          <span>Folder project</span>
+          <span>{tr("Folder project", "Project folders")}</span>
           <button className="btn" onClick={() => void addProject()}>
-            <Icon name="plus" size={14} /> Tambah
+            <Icon name="plus" size={14} /> {tr("Tambah", "Add")}
           </button>
         </div>
         {s.projects.length === 0 ? (
           <p className="empty-note">
-            Belum ada project. Tambahin folder project lu biar Claude bisa baca kodenya dan (di mode Kerjain) ngedit file.
+            {tr(
+              "Belum ada project. Tambahin folder project lu biar Claude bisa baca kodenya dan (di mode Kerjain) ngedit file.",
+              "No projects yet. Add your project folder so Claude can read the code and (in Work mode) edit files.",
+            )}
           </p>
         ) : (
           s.projects.map((p) => (
@@ -500,7 +574,7 @@ function ClaudeSection({ s }: { s: Settings }) {
                 <span>{p.name}</span>
                 <span className="muted ellipsis">{p.path}</span>
               </div>
-              <button className="icon-btn" aria-label={`Hapus ${p.name}`} title="Hapus dari daftar" onClick={() => removeProject(p.path)}>
+              <button className="icon-btn" aria-label={`${tr("Hapus", "Remove")} ${p.name}`} title={tr("Hapus dari daftar", "Remove from list")} onClick={() => removeProject(p.path)}>
                 <Icon name="trash" size={14} />
               </button>
             </div>
@@ -511,24 +585,33 @@ function ClaudeSection({ s }: { s: Settings }) {
   );
 }
 
-const HOOKS_TEXT: Record<HooksStatus["state"], { title: string; body: string }> = {
+const HOOKS_TEXT = (): Record<HooksStatus["state"], { title: string; body: string }> => ({
   installed: {
-    title: "Sesi terminal dipantau",
-    body: "Sesi Claude Code di terminal muncul di tab Sesi. Permintaan izin dan pertanyaannya bisa dijawab dari notch.",
+    title: tr("Sesi terminal dipantau", "Terminal sessions are monitored"),
+    body: tr(
+      "Sesi Claude Code di terminal muncul di tab Sesi. Permintaan izin dan pertanyaannya bisa dijawab dari notch.",
+      "Claude Code sessions in your terminal show up in the Sessions tab. You can answer permission requests and questions from the notch.",
+    ),
   },
   outdated: {
-    title: "Perlu dipasang ulang",
-    body: "Hooks yang terpasang nunjuk ke lokasi PoinTify yang lama. Pasang ulang biar nyambung lagi.",
+    title: tr("Perlu dipasang ulang", "Needs reinstalling"),
+    body: tr(
+      "Hooks yang terpasang nunjuk ke lokasi PoinTify yang lama. Pasang ulang biar nyambung lagi.",
+      "The installed hooks point to an old PoinTify location. Reinstall to reconnect.",
+    ),
   },
   partial: {
-    title: "Kepasang sebagian",
-    body: "Ada hooks PoinTify yang hilang dari settings.json. Pasang ulang biar lengkap.",
+    title: tr("Kepasang sebagian", "Partially installed"),
+    body: tr("Ada hooks PoinTify yang hilang dari settings.json. Pasang ulang biar lengkap.", "Some PoinTify hooks are missing from settings.json. Reinstall to complete them."),
   },
   missing: {
-    title: "Pantau sesi Claude Code di terminal",
-    body: "PoinTify nambahin hooks ke settings.json Claude Code. Hooks lain punya lu nggak diubah, dan file lama di-backup dulu. Kalau PoinTify lagi mati, Claude Code tetap jalan biasa.",
+    title: tr("Pantau sesi Claude Code di terminal", "Monitor Claude Code sessions in the terminal"),
+    body: tr(
+      "PoinTify nambahin hooks ke settings.json Claude Code. Hooks lain punya lu nggak diubah, dan file lama di-backup dulu. Kalau PoinTify lagi mati, Claude Code tetap jalan biasa.",
+      "PoinTify adds hooks to Claude Code's settings.json. Your other hooks stay untouched and the old file is backed up first. If PoinTify isn't running, Claude Code works as usual.",
+    ),
   },
-};
+});
 
 function HooksCard() {
   const [status, setStatus] = useState<HooksStatus | null>(null);
@@ -558,31 +641,31 @@ function HooksCard() {
   };
 
   const state = status?.state ?? "missing";
-  const text = HOOKS_TEXT[state];
+  const text = HOOKS_TEXT()[state];
   return (
     <div className={`status-card hooks-card${state === "installed" ? " ok" : ""}`}>
       <div className="hooks-main">
         <Icon name={state === "installed" ? "shield" : "terminal"} size={22} />
         <div className="status-text">
-          <strong>{status ? text.title : "Ngecek…"}</strong>
+          <strong>{status ? text.title : tr("Ngecek…", "Checking…")}</strong>
           <span className="muted wrap">{text.body}</span>
         </div>
         <div className="status-actions">
           {state === "installed" ? (
-            <button className="btn" disabled={busy} onClick={() => void run(api.hooksUninstall, "Hooks PoinTify udah dicopot.")}>
-              Copot
+            <button className="btn" disabled={busy} onClick={() => void run(api.hooksUninstall, tr("Hooks PoinTify udah dicopot.", "PoinTify hooks removed."))}>
+              {tr("Copot", "Remove")}
             </button>
           ) : (
             <>
               <button className="btn ghost" onClick={() => setShowPreview((v) => !v)}>
-                {showPreview ? "Tutup" : "Lihat isinya"}
+                {showPreview ? tr("Tutup", "Close") : tr("Lihat isinya", "Preview")}
               </button>
               <button
                 className="btn btn-primary"
                 disabled={busy || !status || !!status.error}
-                onClick={() => void run(api.hooksInstall, "Terpasang. Sesi Claude Code yang baru dibuka langsung kepantau.")}
+                onClick={() => void run(api.hooksInstall, tr("Terpasang. Sesi Claude Code yang baru dibuka langsung kepantau.", "Installed. New Claude Code sessions are monitored right away."))}
               >
-                {busy ? "Masang…" : state === "missing" ? "Pasang" : "Pasang ulang"}
+                {busy ? tr("Masang…", "Installing…") : state === "missing" ? tr("Pasang", "Install") : tr("Pasang ulang", "Reinstall")}
               </button>
             </>
           )}
@@ -591,13 +674,60 @@ function HooksCard() {
       {showPreview && status && (
         <div className="hooks-preview">
           <span className="muted">
-            Ditambahin ke <code>{status.settingsPath}</code>:
+            {tr("Ditambahin ke", "Added to")} <code>{status.settingsPath}</code>:
           </span>
           <pre>{status.preview}</pre>
         </div>
       )}
       {(error || status?.error) && <p className="hooks-error">{error ?? status?.error}</p>}
       {note && <p className="hooks-note muted">{note}</p>}
+    </div>
+  );
+}
+
+function UpdateCard() {
+  const u = useStore(updateStore);
+  const busy = u.status === "checking" || u.status === "downloading";
+  const title =
+    u.status === "checking"
+      ? tr("Ngecek versi baru…", "Checking for updates…")
+      : u.status === "available"
+        ? tr(`Versi ${u.version} udah ada`, `Version ${u.version} is available`)
+        : u.status === "downloading"
+          ? tr(`Ngunduh… ${u.progress ?? 0}%`, `Downloading… ${u.progress ?? 0}%`)
+          : u.status === "ready"
+            ? tr("Beres, PoinTify restart…", "Done, restarting PoinTify…")
+            : u.status === "none"
+              ? tr("Udah versi terbaru", "You're on the latest version")
+              : u.status === "off"
+                ? tr("Update otomatis belum aktif", "Auto-update isn't active")
+              : u.status === "error"
+                ? tr("Gagal ngecek update", "Couldn't check for updates")
+                : tr("Update", "Updates");
+  return (
+    <div className={`status-card update-card${u.status === "none" ? " ok" : ""}`}>
+      <Icon name="refresh" size={22} />
+      <div className="status-text">
+        <strong>{title}</strong>
+        <span className="muted wrap">
+          {u.status === "error" || u.status === "off"
+            ? u.error
+            : u.status === "available" && u.notes
+              ? u.notes.split("\n").find((l) => l.trim()) ?? ""
+              : tr("Update diambil dari GitHub Releases PoinTify.", "Updates come from PoinTify's GitHub Releases.")}
+        </span>
+      </div>
+      <div className="status-actions">
+        {u.status === "available" ? (
+          <button className="btn btn-primary" onClick={() => void installUpdate()}>
+            {tr("Pasang & restart", "Install & restart")}
+          </button>
+        ) : (
+          <button className="btn" disabled={busy || u.status === "ready"} onClick={() => void checkUpdate()}>
+            <Icon name="refresh" size={14} /> {u.status === "checking" ? tr("Ngecek…", "Checking…") : tr("Cek update", "Check for updates")}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -612,26 +742,32 @@ function AboutSection() {
   }, []);
   return (
     <>
-      <Heading title="Tentang" desc="Asisten kecil di atas layar Windows lu." />
+      <Heading title={tr("Tentang", "About")} desc={tr("Asisten kecil di atas layar Windows lu.", "A little helper at the top of your Windows screen.")} />
       <div className="about">
         <Pip mood={greeting ? "wave" : "idle"} size={96} glow interactive />
         <div>
           <h2>PoinTify {version && <span className="muted">v{version}</span>}</h2>
           <p className="muted">
-            Notch ala Dynamic Island buat Windows: musik dan lirik, timer fokus, pengingat minum, rak file, dan chat
-            sama Claude. Dibikin pakai Tauri, Rust, dan React.
+            {tr(
+              "Notch ala Dynamic Island buat Windows: musik dan lirik, widget, timer fokus, pengingat minum, rak file, Pip yang hidup di desktop, dan chat sama Claude. Dibikin pakai Tauri, Rust, dan React.",
+              "A Dynamic Island-style notch for Windows: music and lyrics, widgets, a focus timer, water reminders, a file shelf, a Pip who lives on your desktop, and chat with Claude. Built with Tauri, Rust, and React.",
+            )}
           </p>
-          <p className="muted">Maskotnya Pip: huruf P yang hidup. Titiknya itu "point", badge-nya "tify".</p>
+          <p className="muted">{tr('Maskotnya Pip: huruf P yang hidup. Titiknya itu "point", badge-nya "tify".', 'The mascot is Pip, a living letter P. The dot is the "point", the badge is the "tify".')}</p>
           <div className="setup-actions">
+            <button className="btn" onClick={() => void openUrl("https://github.com/ShineReborn-Creative/PoinTify")}>
+              GitHub
+            </button>
             <button className="btn" onClick={() => void openUrl("https://lrclib.net")}>
-              Lirik dari LRCLIB
+              {tr("Lirik dari LRCLIB", "Lyrics by LRCLIB")}
             </button>
             <button className="btn" onClick={() => void openUrl("https://code.claude.com/docs")}>
-              Dokumentasi Claude Code
+              {tr("Dokumentasi Claude Code", "Claude Code docs")}
             </button>
           </div>
         </div>
       </div>
+      <UpdateCard />
     </>
   );
 }

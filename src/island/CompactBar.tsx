@@ -13,6 +13,7 @@ import { activeLyricIndex, lyricsStore, mediaStore, positionAt } from "../state/
 import { fullDuration, remaining, timerStore } from "../state/timer";
 import type { LiveInfo } from "../widgets/data";
 import { LiveActivity } from "../widgets/live";
+import { tr } from "../i18n";
 
 export type Activity = "claude" | "agent" | "live" | "timer" | "music" | null;
 
@@ -40,7 +41,7 @@ function ClaudeActivity() {
   const tool = [...chat.live].reverse().find((s) => s.kind === "tool");
   return (
     <span className="compact-label">
-      {chat.lastActivity === "working" && tool?.kind === "tool" ? `Claude: ${tool.name}` : "Claude lagi mikir"}
+      {chat.lastActivity === "working" && tool?.kind === "tool" ? `Claude: ${tool.name}` : tr("Claude lagi mikir", "Claude is thinking")}
       <span className="dots" aria-hidden="true">
         <i />
         <i />
@@ -53,7 +54,7 @@ function ClaudeActivity() {
 /** Pip di notch kecil. Bisa diseret keluar jadi Pip desktop; kalau lagi di desktop, tempatnya kosong. */
 function CompactPip({ mood }: { mood: PipMood }) {
   const settings = useStore(settingsStore);
-  if (settings?.petMode) return <span className="compact-pip-away" title="Pip lagi di desktop" />;
+  if (settings?.petMode) return <span className="compact-pip-away" title={tr("Pip lagi di desktop", "Pip is on the desktop")} />;
   return <Pip mood={mood} size={24} onDragOut={dragPipOut} onEngine={(e) => (compactPip.engine = e)} />;
 }
 
@@ -75,7 +76,7 @@ function AgentActivity() {
     );
   }
   const step = [...s.steps].reverse().find((x) => x.kind === "tool");
-  const what = step ? `${toolLabel(step.tool ?? "")} ${step.detail}`.trim() : "lagi mikir";
+  const what = step ? `${toolLabel(step.tool ?? "")} ${step.detail}`.trim() : tr("lagi mikir", "thinking");
   return (
     <span className="compact-label" title={`${s.project}: ${what}`}>
       <span className="compact-project">{s.project}</span>
@@ -133,7 +134,7 @@ function MusicActivity() {
     <span className="compact-music">
       {media.thumbnail && <img src={media.thumbnail} alt="" />}
       {media.kind === "video" ? (
-        <span className="compact-popcorn" role="img" aria-label="Lagi nonton">
+        <span className="compact-popcorn" role="img" aria-label={tr("Lagi nonton", "Watching")}>
           🍿
         </span>
       ) : (

@@ -23,6 +23,7 @@ import {
 } from "../../state/chat";
 import { guardBlur, pin } from "../../state/island";
 import { settingsStore, updateSettings } from "../../state/settings";
+import { tr } from "../../i18n";
 
 const INSTALL_CMD = "irm https://claude.ai/install.ps1 | iex";
 
@@ -35,8 +36,8 @@ export function ChatTab({ mood }: { mood: PipMood }) {
       <div className="chat-setup">
         <Pip mood="thinking" size={56} glow />
         <div>
-          <strong>Ngecek Claude Code…</strong>
-          <p className="muted">Bentar, gue liat dulu Claude Code udah terpasang di PC ini atau belum.</p>
+          <strong>{tr("Ngecek Claude Code…", "Checking Claude Code…")}</strong>
+          <p className="muted">{tr("Bentar, gue liat dulu Claude Code udah terpasang di PC ini atau belum.", "Hang on, checking whether Claude Code is installed on this PC.")}</p>
         </div>
       </div>
     );
@@ -56,10 +57,12 @@ function InstallCard({ loading }: { loading: boolean }) {
     <div className="chat-setup">
       <Pip mood="notify" size={56} glow />
       <div className="setup-body">
-        <strong>Pasang Claude Code dulu</strong>
+        <strong>{tr("Pasang Claude Code dulu", "Install Claude Code first")}</strong>
         <p className="muted">
-          PoinTify ngobrol sama Claude lewat Claude Code, pakai login langganan Claude lu. Buka PowerShell, jalanin
-          perintah ini, lalu klik Cek lagi.
+          {tr(
+            "PoinTify ngobrol sama Claude lewat Claude Code, pakai login langganan Claude lu. Buka PowerShell, jalanin perintah ini, lalu klik Cek lagi. Fitur PoinTify yang lain tetap jalan tanpa ini.",
+            "PoinTify talks to Claude through Claude Code, using your Claude subscription. Open PowerShell, run this command, then click Check again. The rest of PoinTify works without it.",
+          )}
         </p>
         <div className="cmd-row">
           <code>{INSTALL_CMD}</code>
@@ -71,15 +74,15 @@ function InstallCard({ loading }: { loading: boolean }) {
               window.setTimeout(() => setCopied(false), 1500);
             }}
           >
-            {copied ? "Tersalin" : "Salin"}
+            {copied ? tr("Tersalin", "Copied") : tr("Salin", "Copy")}
           </button>
         </div>
         <div className="setup-actions">
           <button className="btn btn-primary" onClick={() => void refreshClaudeStatus()} disabled={loading}>
-            <Icon name="refresh" size={14} /> {loading ? "Ngecek…" : "Cek lagi"}
+            <Icon name="refresh" size={14} /> {loading ? tr("Ngecek…", "Checking…") : tr("Cek lagi", "Check again")}
           </button>
           <button className="btn ghost" onClick={() => void openUrl("https://code.claude.com/docs/en/setup")}>
-            Panduan lengkap
+            {tr("Panduan lengkap", "Full guide")}
           </button>
         </div>
       </div>
@@ -92,17 +95,19 @@ function LoginCard({ loading }: { loading: boolean }) {
     <div className="chat-setup">
       <Pip mood="notify" size={56} glow />
       <div className="setup-body">
-        <strong>Login ke Claude</strong>
+        <strong>{tr("Login ke Claude", "Log in to Claude")}</strong>
         <p className="muted">
-          Claude Code belum login, atau login-nya udah kedaluwarsa. Klik Login, nanti kebuka jendela terminal dan
-          browser. Ikutin sampai beres, terus klik Cek lagi.
+          {tr(
+            "Claude Code belum login, atau login-nya udah kedaluwarsa. Klik Login, nanti kebuka jendela terminal dan browser. Ikutin sampai beres, terus klik Cek lagi.",
+            "Claude Code isn't logged in, or the login expired. Click Login and a terminal and browser window will open. Follow along until it's done, then click Check again.",
+          )}
         </p>
         <div className="setup-actions">
           <button className="btn btn-primary" onClick={() => void api.claudeLogin()}>
             Login
           </button>
           <button className="btn" onClick={() => void refreshClaudeStatus()} disabled={loading}>
-            <Icon name="refresh" size={14} /> {loading ? "Ngecek…" : "Cek lagi"}
+            <Icon name="refresh" size={14} /> {loading ? tr("Ngecek…", "Checking…") : tr("Cek lagi", "Check again")}
           </button>
         </div>
       </div>
@@ -182,7 +187,7 @@ function ChatHeader() {
   const addFolder = async () => {
     guardBlur(120_000);
     try {
-      const picked = await openDialog({ directory: true, multiple: false, title: "Pilih folder project" });
+      const picked = await openDialog({ directory: true, multiple: false, title: tr("Pilih folder project", "Choose a project folder") });
       if (typeof picked === "string") {
         const name = picked.split(/[\\/]/).filter(Boolean).pop() ?? picked;
         const projects = settings.projects.some((p) => p.path === picked)
@@ -202,14 +207,14 @@ function ChatHeader() {
       <div className="project-picker">
         <button className="chip" onClick={() => setMenuOpen((v) => !v)} aria-expanded={menuOpen} title={active?.path}>
           <Icon name="folder" size={14} />
-          <span className="ellipsis">{active?.name ?? "Tanpa project"}</span>
+          <span className="ellipsis">{active?.name ?? tr("Tanpa project", "No project")}</span>
           <Icon name="chevronDown" size={14} />
         </button>
         {menuOpen && (
           <div className="menu" role="menu">
             <button role="menuitem" className={!active ? "selected" : ""} onClick={() => choose(null)}>
-              Tanpa project
-              <span className="muted">Ngobrol bebas</span>
+              {tr("Tanpa project", "No project")}
+              <span className="muted">{tr("Ngobrol bebas", "Free chat")}</span>
             </button>
             {settings.projects.map((p) => (
               <button
@@ -224,31 +229,31 @@ function ChatHeader() {
               </button>
             ))}
             <button role="menuitem" className="menu-add" onClick={() => void addFolder()}>
-              <Icon name="plus" size={14} /> Tambah folder project…
+              <Icon name="plus" size={14} /> {tr("Tambah folder project…", "Add project folder…")}
             </button>
           </div>
         )}
       </div>
 
-      <div className="segmented small" role="tablist" aria-label="Mode Claude">
+      <div className="segmented small" role="tablist" aria-label={tr("Mode Claude", "Claude mode")}>
         <button
           role="tab"
           aria-selected={settings.claudeMode !== "work"}
           className={settings.claudeMode !== "work" ? "active" : ""}
           onClick={() => updateSettings({ claudeMode: "chat" })}
-          title="Claude cuma baca dan diskusi, nggak ngubah file"
+          title={tr("Claude cuma baca dan diskusi, nggak ngubah file", "Claude only reads and discusses, no file changes")}
         >
-          Ngobrol
+          {tr("Ngobrol", "Chat")}
         </button>
         <button
           role="tab"
           aria-selected={settings.claudeMode === "work"}
           className={settings.claudeMode === "work" ? "active warn" : ""}
           onClick={() => updateSettings({ claudeMode: "work" })}
-          title="Claude boleh ngedit file di folder project"
+          title={tr("Claude boleh ngedit file di folder project", "Claude may edit files in the project folder")}
           disabled={!active}
         >
-          Kerjain
+          {tr("Kerjain", "Work")}
         </button>
       </div>
 
@@ -256,7 +261,7 @@ function ChatHeader() {
         className="select"
         value={settings.claudeModel}
         onChange={(e) => updateSettings({ claudeModel: e.target.value })}
-        aria-label="Model Claude"
+        aria-label={tr("Model Claude", "Claude model")}
       >
         <option value="opus">Opus</option>
         <option value="sonnet">Sonnet</option>
@@ -264,11 +269,11 @@ function ChatHeader() {
       </select>
 
       <div className="chat-head-right">
-        {desktopError && <span className="head-error" title={desktopError}>Gagal buka Desktop</span>}
+        {desktopError && <span className="head-error" title={desktopError}>{tr("Gagal buka Desktop", "Couldn't open Desktop")}</span>}
         <button
           className="icon-btn"
-          title="Lanjutin di Claude Desktop"
-          aria-label="Lanjutin di Claude Desktop"
+          title={tr("Lanjutin di Claude Desktop", "Continue in Claude Desktop")}
+          aria-label={tr("Lanjutin di Claude Desktop", "Continue in Claude Desktop")}
           onClick={() => {
             setDesktopError(null);
             api.claudeOpenDesktop(chat.sessionId, chat.key || null).catch((e) => setDesktopError(String(e)));
@@ -276,7 +281,7 @@ function ChatHeader() {
         >
           <Icon name="desktop" size={16} />
         </button>
-        <button className="icon-btn" title="Chat baru" aria-label="Chat baru" onClick={newChat}>
+        <button className="icon-btn" title={tr("Chat baru", "New chat")} aria-label={tr("Chat baru", "New chat")} onClick={newChat}>
           <Icon name="plus" size={16} />
         </button>
       </div>
@@ -290,19 +295,31 @@ function EmptyChat({ mood }: { mood: PipMood }) {
   const work = settings?.claudeMode === "work";
   const ideas = hasProject
     ? work
-      ? ["Rapihin kode di file yang terakhir gue ubah", "Tambahin komentar yang jelas di fungsi-fungsi utama", "Cari dan benerin warning TypeScript"]
-      : ["Jelasin struktur project ini", "Apa yang bisa ditingkatin dari project ini?", "Brainstorm fitur berikutnya"]
-    : ["Bantu gue brainstorm ide project", "Jelasin konsep ini pakai contoh sederhana", "Bikinin rencana belajar Rust seminggu"];
+      ? [
+          tr("Rapihin kode di file yang terakhir gue ubah", "Tidy up the code in the files I changed last"),
+          tr("Tambahin komentar yang jelas di fungsi-fungsi utama", "Add clear comments to the main functions"),
+          tr("Cari dan benerin warning TypeScript", "Find and fix TypeScript warnings"),
+        ]
+      : [
+          tr("Jelasin struktur project ini", "Explain this project's structure"),
+          tr("Apa yang bisa ditingkatin dari project ini?", "What could be improved in this project?"),
+          tr("Brainstorm fitur berikutnya", "Brainstorm the next feature"),
+        ]
+    : [
+        tr("Bantu gue brainstorm ide project", "Help me brainstorm a project idea"),
+        tr("Jelasin konsep ini pakai contoh sederhana", "Explain a concept with a simple example"),
+        tr("Bikinin rencana belajar Rust seminggu", "Make me a one-week plan to learn Rust"),
+      ];
   return (
     <div className="chat-empty">
       <Pip mood={mood === "sleep" ? "idle" : mood} size={60} glow interactive />
-      <strong>{work ? "Mau dikerjain apa?" : "Mau ngobrolin apa?"}</strong>
+      <strong>{work ? tr("Mau dikerjain apa?", "What should we work on?") : tr("Mau ngobrolin apa?", "What do you want to talk about?")}</strong>
       <span className="muted">
         {hasProject
           ? work
-            ? "Mode Kerjain: Claude boleh ngedit file di folder project ini."
-            : "Mode Ngobrol: Claude bisa baca project lu, tapi nggak ngubah apa-apa."
-          : "Pilih folder project di atas kalau mau Claude ngerti kode lu."}
+            ? tr("Mode Kerjain: Claude boleh ngedit file di folder project ini.", "Work mode: Claude may edit files in this project folder.")
+            : tr("Mode Ngobrol: Claude bisa baca project lu, tapi nggak ngubah apa-apa.", "Chat mode: Claude can read your project but won't change anything.")
+          : tr("Pilih folder project di atas kalau mau Claude ngerti kode lu.", "Pick a project folder above if you want Claude to understand your code.")}
       </span>
       <div className="ideas">
         {ideas.map((t) => (
@@ -361,7 +378,7 @@ function LiveMessage({ segs, mood, showAvatar }: { segs: Seg[]; mood: PipMood; s
       <div className="avatar">{showAvatar && <Pip mood={mood} size={22} />}</div>
       <div className="assistant-body">
         {segs.length === 0 ? (
-          <span className="typing" aria-label="Claude lagi mikir">
+          <span className="typing" aria-label={tr("Claude lagi mikir", "Claude is thinking")}>
             <i />
             <i />
             <i />
@@ -440,7 +457,7 @@ function Composer() {
             <span key={a} className="attach-chip" title={a}>
               <Icon name="clip" size={12} />
               {basename(a)}
-              <button aria-label={`Lepas ${basename(a)}`} onClick={() => detach(a)}>
+              <button aria-label={`${tr("Lepas", "Remove")} ${basename(a)}`} onClick={() => detach(a)}>
                 <Icon name="close" size={10} />
               </button>
             </span>
@@ -452,7 +469,7 @@ function Composer() {
           ref={ref}
           rows={1}
           value={text}
-          placeholder={work ? "Minta Claude ngerjain sesuatu di project ini…" : "Tanya apa aja ke Claude…"}
+          placeholder={work ? tr("Minta Claude ngerjain sesuatu di project ini…", "Ask Claude to do something in this project…") : tr("Tanya apa aja ke Claude…", "Ask Claude anything…")}
           onChange={(e) => setText(e.target.value)}
           onFocus={() => {
             pin(true);
@@ -466,11 +483,11 @@ function Composer() {
           }}
         />
         {chat.running ? (
-          <button className="send-btn stop" aria-label="Hentikan" title="Hentikan" onClick={stopMessage}>
+          <button className="send-btn stop" aria-label={tr("Hentikan", "Stop")} title={tr("Hentikan", "Stop")} onClick={stopMessage}>
             <Icon name="stop" size={14} />
           </button>
         ) : (
-          <button className="send-btn" aria-label="Kirim" title="Kirim (Enter)" onClick={submit} disabled={!text.trim()}>
+          <button className="send-btn" aria-label={tr("Kirim", "Send")} title={tr("Kirim (Enter)", "Send (Enter)")} onClick={submit} disabled={!text.trim()}>
             <Icon name="send" size={16} />
           </button>
         )}

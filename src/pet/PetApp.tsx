@@ -9,6 +9,7 @@ import { IS_WINDOWS } from "../state/pet";
 import { settingsStore } from "../state/settings";
 import { pipConditionStore } from "../widgets/data";
 import { chatter, EMPTY_CONTEXT, eventLine, fileComment, type PetCond, type PetContext, type PetLive, EVENT_LINES } from "./talk";
+import { tr } from "../i18n";
 
 const PIP_SIZE = 84;
 /** Jeda antar gerak sendiri (detik) per tingkat aktif. */
@@ -523,14 +524,14 @@ export function PetApp() {
       const { Menu } = await import("@tauri-apps/api/menu");
       const menu = await Menu.new({
         items: [
-          { id: "drink", text: "Kasih minum 💧", action: drinkWater },
-          { id: "play", text: "Ajak main bola ⚽", action: play },
+          { id: "drink", text: tr("Kasih minum 💧", "Give water 💧"), action: drinkWater },
+          { id: "play", text: tr("Ajak main bola ⚽", "Play ball ⚽"), action: play },
           chasing
-            ? { id: "chase", text: "Udahan kejar-kejaran", action: () => void api.petChase(0) }
-            : { id: "chase", text: "Main kejar-kejaran 🏃", action: chase },
+            ? { id: "chase", text: tr("Udahan kejar-kejaran", "Stop chasing"), action: () => void api.petChase(0) }
+            : { id: "chase", text: tr("Main kejar-kejaran 🏃", "Play chase 🏃"), action: chase },
           {
             id: "nap",
-            text: s.current.sleeping ? "Bangun ☀️" : "Tidur 💤",
+            text: s.current.sleeping ? tr("Bangun ☀️", "Wake up ☀️") : tr("Tidur 💤", "Nap 💤"),
             action: () => {
               if (s.current.sleeping) touch();
               else {
@@ -540,8 +541,8 @@ export function PetApp() {
             },
           },
           { item: "Separator" },
-          { id: "open", text: "Buka notch", action: () => void emitTo("main", "pet-open", null) },
-          { id: "home", text: "Pulang ke notch", action: () => void api.petHome() },
+          { id: "open", text: tr("Buka notch", "Open notch"), action: () => void emitTo("main", "pet-open", null) },
+          { id: "home", text: tr("Pulang ke notch", "Back to notch"), action: () => void api.petHome() },
         ],
       });
       await menu.popup();
@@ -575,7 +576,7 @@ export function PetApp() {
         <button
           ref={signRef}
           className={`pet-sign side-${face > 0 ? "r" : "l"}${sign.tone ? ` ${sign.tone}` : ""}${sign.priority >= 5 ? " urgent" : ""}`}
-          title="Buka widget-nya"
+          title={tr("Buka widget-nya", "Open the widget")}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => {
             touch();
@@ -603,8 +604,8 @@ export function PetApp() {
         {hover && !carried && (
           <button
             className="pet-home"
-            aria-label="Balik ke notch"
-            title="Balik ke notch"
+            aria-label={tr("Balik ke notch", "Back to notch")}
+            title={tr("Balik ke notch", "Back to notch")}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={() => void api.petHome()}
           >

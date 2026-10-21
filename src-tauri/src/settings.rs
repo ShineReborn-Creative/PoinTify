@@ -69,6 +69,12 @@ pub struct Settings {
     // Kanvas widget di Beranda: susunan, ukuran, dan isi tiap widget.
     // Bentuknya diatur frontend, Rust cuma nyimpen.
     pub widgets: serde_json::Value,
+    /// "auto" (ikut Windows), "id", atau "en".
+    pub language: String,
+    /// Tour perkenalan udah pernah ditonton.
+    pub tour_done: bool,
+    /// Cek versi baru di GitHub pas PoinTify nyala.
+    pub auto_update: bool,
 }
 
 impl Default for Settings {
@@ -110,6 +116,9 @@ impl Default for Settings {
             pet_nap: true,
             pet_cursor: true,
             widgets: serde_json::Value::Null,
+            language: "auto".into(),
+            tour_done: false,
+            auto_update: true,
         }
     }
 }
@@ -140,6 +149,7 @@ pub fn init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         },
         None => Settings::default(),
     };
+    crate::i18n::set_from(&loaded.language);
     *app.state::<SettingsState>().0.lock().unwrap() = loaded;
     Ok(())
 }
@@ -156,7 +166,7 @@ pub fn write_atomic(path: &std::path::Path, contents: &str) -> std::io::Result<(
 }
 
 fn save(app: &AppHandle, s: &Settings) -> Result<(), String> {
-    let path = file_path(app).ok_or("Folder config nggak ketemu")?;
+    let path = file_path(app).ok_or(crate::i18n::tr("Folder config nggak ketemu", "Config folder not found"))?;
     let json = serde_json::to_string_pretty(s).map_err(|e| e.to_string())?;
     write_atomic(&path, &json).map_err(|e| e.to_string())
 }
@@ -214,7 +224,7 @@ pub fn settings_get(state: State<SettingsState>) -> Settings {
 #[tauri::command]
 pub fn settings_patch(app: AppHandle, patch: serde_json::Value) -> Result<Settings, String> {
     let serde_json::Value::Object(patch) = patch else {
-        return Err("Format pengaturan salah".into());
+        return Err(crate::i18n::tr("Format pengaturan salah", "Invalid settings format").into());
     };
     let merged = {
         let state = app.state::<SettingsState>();
@@ -225,7 +235,8 @@ pub fn settings_patch(app: AppHandle, patch: serde_json::Value) -> Result<Settin
                 map.insert(k, v);
             }
         }
-        serde_json::from_value::<Settings>(value).map_err(|e| format!("Pengaturan nggak valid: {e}"))?
+        serde_json::from_value::<Settings>(value)
+            .map_err(|e| format!("{}: {e}", crate::i18n::tr("Pengaturan nggak valid", "Invalid settings")))?
     };
     settings_set(app, merged)
 }
@@ -244,6 +255,9 @@ pub fn settings_set(app: AppHandle, settings: Settings) -> Result<Settings, Stri
     }
     if previous.pet_mode != settings.pet_mode {
         crate::pet::apply_mode_later(&app, settings.pet_mode);
+    }
+    if crate::i18n::set_from(&settings.language) {
+        crate::tray::relabel(&app);
     }
     let _ = app.emit("settings-changed", &settings);
     Ok(settings)
@@ -276,7 +290,7 @@ fn open_window(app: &AppHandle) -> tauri::Result<()> {
         return Ok(());
     }
     tauri::WebviewWindowBuilder::new(app, "settings", tauri::WebviewUrl::App("index.html".into()))
-        .title("Pengaturan PoinTify")
+        .title(crate::i18n::tr("Pengaturan PoinTify", "PoinTify Settings"))
         .inner_size(820.0, 600.0)
         .min_inner_size(680.0, 500.0)
         .decorations(false)

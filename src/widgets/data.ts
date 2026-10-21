@@ -2,6 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useSyncExternalStore } from "react";
 import { api, type ClipItem, type SysStats } from "../lib/api";
 import { createStore, type Store } from "../lib/store";
+import { isEn, tr } from "../i18n";
 
 // ---------------------------------------------------------------------------
 // Data yang di-poll bareng: banyak widget bisa minta data yang sama (misalnya
@@ -122,10 +123,10 @@ export async function geocode(city: string): Promise<Place> {
   if (cached) return cached;
   type Res = { results?: { name: string; latitude: number; longitude: number; timezone: string }[] };
   const r = await api.httpGetJson<Res>(
-    `https://geocoding-api.open-meteo.com/v1/search?count=1&language=id&format=json&name=${encodeURIComponent(city.trim())}`,
+    `https://geocoding-api.open-meteo.com/v1/search?count=1&language=${isEn() ? "en" : "id"}&format=json&name=${encodeURIComponent(city.trim())}`,
   );
   const hit = r.results?.[0];
-  if (!hit) throw new Error(`Kota "${city}" nggak ketemu`);
+  if (!hit) throw new Error(tr(`Kota "${city}" nggak ketemu`, `City "${city}" not found`));
   const place = { name: hit.name, lat: hit.latitude, lon: hit.longitude, tz: hit.timezone };
   try {
     localStorage.setItem(GEO_KEY, JSON.stringify({ ...geoCache(), [key]: place }));
@@ -147,11 +148,11 @@ async function placeName(lat: number, lon: number): Promise<string> {
   type Rev = { locality?: string; city?: string; principalSubdivision?: string };
   try {
     const r = await api.httpGetJson<Rev>(
-      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=id`,
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=${isEn() ? "en" : "id"}`,
     );
-    return r.locality || r.city || r.principalSubdivision || "Lokasi lu";
+    return r.locality || r.city || r.principalSubdivision || tr("Lokasi lu", "Your location");
   } catch {
-    return "Lokasi lu";
+    return tr("Lokasi lu", "Your location");
   }
 }
 

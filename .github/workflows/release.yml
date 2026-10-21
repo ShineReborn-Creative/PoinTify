@@ -1,5 +1,6 @@
-# Bikin installer Windows otomatis tiap ada tag versi baru (misalnya v0.3.0).
+# Bikin installer Windows otomatis tiap ada tag versi baru (misalnya v0.4.0).
 # Hasilnya draft di halaman Releases: cek dulu, terus klik Publish.
+# Abis di-Publish, PoinTify yang udah terpasang di PC orang bakal nawarin update.
 name: Rilis
 
 on:
@@ -34,14 +35,30 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Kunci buat tanda tangan file update (Settings › Secrets and variables › Actions).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "PoinTify __VERSION__"
+          # Nyalain file update (.sig + latest.json) cuma pas rilis, biar build lokal tetap jalan tanpa kunci.
+          args: --config src-tauri/tauri.updater.conf.json
+          includeUpdaterJson: true
           releaseBody: |
-            Installer Windows (64-bit): unduh file `PoinTify_..._x64-setup.exe` di bawah.
+            **Windows (64-bit):** unduh `PoinTify_..._x64-setup.exe` di bawah.
 
             Windows mungkin nampilin "Windows protected your PC" karena installer-nya belum ditandatangani. Klik **More info** → **Run anyway**.
+            Udah pasang versi lama? PoinTify bakal nawarin update sendiri.
 
-            Fitur chat dan pantau sesi butuh [Claude Code](https://code.claude.com/docs/en/setup) yang udah login.
+            Fitur chat dan pantau sesi butuh [Claude Code](https://code.claude.com/docs/en/setup) yang udah login. Fitur lain jalan tanpa Claude.
+
+            ---
+
+            **Windows (64-bit):** download `PoinTify_..._x64-setup.exe` below.
+
+            Windows may show "Windows protected your PC" because the installer isn't signed yet. Click **More info** → **Run anyway**.
+            Already have an older version? PoinTify will offer the update itself.
+
+            Chat and session monitoring need a logged-in [Claude Code](https://code.claude.com/docs/en/setup). Everything else works without Claude.
           releaseDraft: true
           prerelease: false

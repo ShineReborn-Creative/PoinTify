@@ -25,7 +25,8 @@ import {
   type WidgetItem,
   type WidgetSize,
 } from "./layout";
-import { GROUPS, widgetDef, WIDGETS, type Field, type WidgetDef } from "./registry";
+import { groupLabel, GROUPS, widgetDef, WIDGETS, type Field, type WidgetDef } from "./registry";
+import { tr } from "../i18n";
 
 const LONG_PRESS_MS = 550;
 
@@ -59,9 +60,9 @@ export function WidgetCanvas({ mood }: { mood: PipMood }) {
       <div className="w-canvas" ref={scroller}>
         {empty ? (
           <div className="w-canvas-empty">
-            <span className="muted">Beranda lu kosong.</span>
+            <span className="muted">{tr("Beranda lu kosong.", "Your Home is empty.")}</span>
             <button className="btn btn-primary" onClick={() => setEditing(true)}>
-              <Icon name="plus" size={14} /> Tambah widget
+              <Icon name="plus" size={14} /> {tr("Tambah widget", "Add widget")}
             </button>
           </div>
         ) : (
@@ -78,7 +79,7 @@ export function WidgetCanvas({ mood }: { mood: PipMood }) {
                 onClick={() => openGallery(true)}
               >
                 <Icon name="plus" size={20} />
-                <span>Tambah widget</span>
+                <span>{tr("Tambah widget", "Add widget")}</span>
               </button>
             )}
           </div>
@@ -159,9 +160,9 @@ function Tile({ item, place, mood }: { item: WidgetItem; place: { col: number; r
   if (!def) {
     return (
       <div className="w-tile w-unknown" style={style} data-wid={item.id}>
-        <span className="muted">Widget "{item.type}" nggak dikenal</span>
+        <span className="muted">{tr(`Widget "${item.type}" nggak dikenal`, `Unknown widget "${item.type}"`)}</span>
         {edit.editing && (
-          <button className="w-tile-ctl w-remove" aria-label="Hapus" onClick={() => removeWidget(item.id)}>
+          <button className="w-tile-ctl w-remove" aria-label={tr("Hapus", "Remove")} onClick={() => removeWidget(item.id)}>
             <Icon name="minus" size={12} />
           </button>
         )}
@@ -194,15 +195,15 @@ function Tile({ item, place, mood }: { item: WidgetItem; place: { col: number; r
       </div>
       {edit.editing && (
         <>
-          <button className="w-tile-ctl w-remove" aria-label={`Hapus ${def.name}`} title="Hapus" onClick={() => removeWidget(item.id)}>
+          <button className="w-tile-ctl w-remove" aria-label={`${tr("Hapus", "Remove")} ${def.name}`} title={tr("Hapus", "Remove")} onClick={() => removeWidget(item.id)}>
             <Icon name="minus" size={12} />
           </button>
           <div className="w-tile-tools">
             {canResize && (
               <button
                 className="w-tile-ctl"
-                title={`Ukuran: ${SIZE_LABEL[item.size]} (klik buat ganti)`}
-                aria-label="Ganti ukuran"
+                title={tr(`Ukuran: ${SIZE_LABEL[item.size]} (klik buat ganti)`, `Size: ${SIZE_LABEL[item.size]} (click to change)`)}
+                aria-label={tr("Ganti ukuran", "Change size")}
                 onClick={() => updateWidget(item.id, { size: nextSize() })}
               >
                 <Icon name="resize" size={12} />
@@ -210,7 +211,7 @@ function Tile({ item, place, mood }: { item: WidgetItem; place: { col: number; r
               </button>
             )}
             {configurable && (
-              <button className="w-tile-ctl" title="Pengaturan widget" aria-label="Pengaturan widget" onClick={() => openConfig(item.id)}>
+              <button className="w-tile-ctl" title={tr("Pengaturan widget", "Widget settings")} aria-label={tr("Pengaturan widget", "Widget settings")} onClick={() => openConfig(item.id)}>
                 <Icon name="gear" size={12} />
               </button>
             )}
@@ -243,17 +244,17 @@ function Gallery() {
   };
 
   return (
-    <div className="w-overlay fade-in" role="dialog" aria-label="Tambah widget">
+    <div className="w-overlay fade-in" role="dialog" aria-label={tr("Tambah widget", "Add widget")}>
       <div className="w-overlay-head">
-        <strong>Tambah widget</strong>
+        <strong>{tr("Tambah widget", "Add widget")}</strong>
         <div className="w-groups">
           {(["Semua", ...GROUPS] as const).map((g) => (
             <button key={g} className={`w-group${group === g ? " active" : ""}`} onClick={() => setGroup(g)}>
-              {g}
+              {groupLabel(g)}
             </button>
           ))}
         </div>
-        <button className="icon-btn" aria-label="Tutup" onClick={() => openGallery(false)}>
+        <button className="icon-btn" aria-label={tr("Tutup", "Close")} onClick={() => openGallery(false)}>
           <Icon name="close" size={15} />
         </button>
       </div>
@@ -261,7 +262,7 @@ function Gallery() {
         {list.map((d) => {
           const taken = !!d.single && has(d);
           return (
-            <button key={d.type} className="w-gal-item" disabled={taken} onClick={() => add(d)} title={taken ? "Udah kepasang" : d.desc}>
+            <button key={d.type} className="w-gal-item" disabled={taken} onClick={() => add(d)} title={taken ? tr("Udah kepasang", "Already added") : d.desc}>
               <span className="w-gal-icon">
                 <Icon name={d.icon} size={17} />
               </span>
@@ -270,7 +271,7 @@ function Gallery() {
                   {d.name}
                   {d.Live && <span className="w-live-mini">Live</span>}
                 </b>
-                <span className="muted">{taken ? "Udah kepasang" : d.desc}</span>
+                <span className="muted">{taken ? tr("Udah kepasang", "Already added") : d.desc}</span>
               </span>
             </button>
           );
@@ -371,7 +372,7 @@ function ConfigPanel({ id }: { id: string }) {
   if (!item || !def) return null;
   const Extra = def.Config;
   return (
-    <div className="w-overlay fade-in" role="dialog" aria-label={`Pengaturan ${def.name}`}>
+    <div className="w-overlay fade-in" role="dialog" aria-label={`${tr("Pengaturan", "Settings for")} ${def.name}`}>
       <div className="w-overlay-head">
         <span className="w-gal-icon">
           <Icon name={def.icon} size={15} />
@@ -379,13 +380,13 @@ function ConfigPanel({ id }: { id: string }) {
         <strong>{def.name}</strong>
         <span className="muted ellipsis w-overlay-desc">{def.desc}</span>
         <button className="btn btn-primary" onClick={() => openConfig(null)}>
-          Selesai
+          {tr("Selesai", "Done")}
         </button>
       </div>
       <div className="w-config w-scroll">
         {def.sizes.length > 1 && (
           <label className="w-field">
-            <span>Ukuran</span>
+            <span>{tr("Ukuran", "Size")}</span>
             <div className="w-seg">
               {def.sizes.map((s: WidgetSize) => (
                 <button key={s} className={item.size === s ? "active" : ""} onClick={() => updateWidget(item.id, { size: s })}>
@@ -404,7 +405,7 @@ function ConfigPanel({ id }: { id: string }) {
         ))}
         {def.Live && (
           <label className="w-field">
-            <span>Live di notch kecil</span>
+            <span>{tr("Live di notch kecil", "Live in the small notch")}</span>
             <button
               className={`w-switch${item.live ? " on" : ""}`}
               role="switch"
@@ -418,13 +419,13 @@ function ConfigPanel({ id }: { id: string }) {
         )}
         {Extra && (
           <div className="w-field wide">
-            <span>Isi</span>
+            <span>{tr("Isi", "Items")}</span>
             <Extra item={item} />
           </div>
         )}
         <div className="w-field wide w-config-foot">
           <button className="btn danger" onClick={() => removeWidget(item.id)}>
-            <Icon name="trash" size={13} /> Hapus widget
+            <Icon name="trash" size={13} /> {tr("Hapus widget", "Remove widget")}
           </button>
         </div>
       </div>
@@ -445,8 +446,8 @@ export function EditToggle() {
     return (
       <button
         className="icon-btn"
-        aria-label="Atur widget"
-        title="Atur widget (atau tahan lama widget mana aja)"
+        aria-label={tr("Atur widget", "Arrange widgets")}
+        title={tr("Atur widget (atau tahan lama widget mana aja)", "Arrange widgets (or long-press any widget)")}
         onClick={() => {
           pin(true);
           setEditing(true);
@@ -460,17 +461,17 @@ export function EditToggle() {
     <>
       <button
         className={`btn small${confirmReset ? " danger" : " ghost"}`}
-        title="Balikin susunan awal (isi to-do & catatan ikut kehapus)"
+        title={tr("Balikin susunan awal (isi to-do & catatan ikut kehapus)", "Restore the default layout (to-dos & notes are cleared)")}
         onClick={() => {
           if (!confirmReset) return setConfirmReset(true);
           setConfirmReset(false);
           resetLayout();
         }}
       >
-        {confirmReset ? "Yakin reset?" : "Reset"}
+        {confirmReset ? tr("Yakin reset?", "Really reset?") : "Reset"}
       </button>
       <button className="btn btn-primary small" onClick={() => setEditing(false)}>
-        Selesai
+        {tr("Selesai", "Done")}
       </button>
     </>
   );

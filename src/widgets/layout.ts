@@ -2,6 +2,7 @@ import { createStore } from "../lib/store";
 import { uid } from "../lib/format";
 import { windowWidth } from "../state/island";
 import { settingsStore, updateSettings } from "../state/settings";
+import { tr } from "../i18n";
 
 /** s = 1×1, w = 2×1 (lebar), l = 2×2 (besar), xl = 3×2 (paling besar). */
 export type WidgetSize = "s" | "w" | "l" | "xl";
@@ -13,7 +14,12 @@ export const SIZE_CELLS: Record<WidgetSize, [number, number]> = {
   xl: [3, 2],
 };
 
-export const SIZE_LABEL: Record<WidgetSize, string> = { s: "Kecil", w: "Lebar", l: "Besar", xl: "Jumbo" };
+export const SIZE_LABEL: Record<WidgetSize, string> = {
+  s: tr("Kecil", "Small"),
+  w: tr("Lebar", "Wide"),
+  l: tr("Besar", "Large"),
+  xl: tr("Jumbo", "Jumbo"),
+};
 
 export type WidgetItem = {
   id: string;

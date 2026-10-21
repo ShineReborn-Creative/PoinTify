@@ -16,6 +16,7 @@ import {
   timerStore,
   type Phase,
 } from "../../state/timer";
+import { tr } from "../../i18n";
 
 const PHASES: Phase[] = ["focus", "short", "long"];
 
@@ -34,12 +35,12 @@ export function TimerTab() {
       <Ring size={168} stroke={7} progress={1 - left / total} color={color}>
         <div className="timer-face">
           <span className="timer-time tabular">{mmss(left)}</span>
-          <span className="muted">{timer.running ? PHASE_LABEL[timer.phase] : "Dijeda"}</span>
+          <span className="muted">{timer.running ? PHASE_LABEL[timer.phase] : tr("Dijeda", "Paused")}</span>
         </div>
       </Ring>
 
       <div className="timer-side">
-        <div className="segmented" role="tablist" aria-label="Jenis sesi">
+        <div className="segmented" role="tablist" aria-label={tr("Jenis sesi", "Session type")}>
           {PHASES.map((p) => (
             <button
               key={p}
@@ -54,30 +55,34 @@ export function TimerTab() {
         </div>
 
         <div className="timer-controls">
-          <button className="icon-btn" aria-label="Ulangi dari awal" title="Ulangi" onClick={resetTimer}>
+          <button className="icon-btn" aria-label={tr("Ulangi dari awal", "Restart")} title={tr("Ulangi", "Restart")} onClick={resetTimer}>
             <Icon name="reset" size={18} />
           </button>
           <button
             className="play-btn big"
-            aria-label={timer.running ? "Jeda" : "Mulai"}
+            aria-label={timer.running ? tr("Jeda", "Pause") : tr("Mulai", "Start")}
             onClick={() => (timer.running ? pauseTimer() : startTimer())}
           >
             <Icon name={timer.running ? "pause" : "play"} size={22} />
           </button>
-          <button className="icon-btn" aria-label="Lewati sesi ini" title="Lewati" onClick={skipPhase}>
+          <button className="icon-btn" aria-label={tr("Lewati sesi ini", "Skip this session")} title={tr("Lewati", "Skip")} onClick={skipPhase}>
             <Icon name="skip" size={18} />
           </button>
         </div>
 
-        <div className="cycle" aria-label={`Sesi ${timer.cycleCount} dari ${every} sebelum istirahat panjang`}>
+        <div className="cycle" aria-label={tr(`Sesi ${timer.cycleCount} dari ${every} sebelum istirahat panjang`, `Session ${timer.cycleCount} of ${every} before a long break`)}>
           {Array.from({ length: every }, (_, i) => (
             <span key={i} className={i < timer.cycleCount ? "cycle-dot done" : "cycle-dot"} />
           ))}
-          <span className="muted">sebelum istirahat panjang</span>
+          <span className="muted">{tr("sebelum istirahat panjang", "before a long break")}</span>
         </div>
 
         <p className="timer-stats">
-          Hari ini <strong>{timer.todaySessions} sesi</strong> · <strong>{focusMinutesToday} menit</strong> fokus
+          {tr("Hari ini", "Today")} <strong>{timer.todaySessions} {tr("sesi", timer.todaySessions === 1 ? "session" : "sessions")}</strong> ·{" "}
+          <strong>
+            {focusMinutesToday} {tr("menit", "min")}
+          </strong>{" "}
+          {tr("fokus", "focused")}
         </p>
       </div>
     </div>

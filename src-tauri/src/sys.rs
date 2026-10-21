@@ -145,7 +145,7 @@ mod imp {
             "volumeUp" => VK_VOLUME_UP,
             "volumeDown" => VK_VOLUME_DOWN,
             "mute" => VK_VOLUME_MUTE,
-            _ => return Err("Tombol nggak dikenal".into()),
+            _ => return Err(crate::i18n::tr("Tombol nggak dikenal", "Unknown key").into()),
         };
         press(vk.0);
         Ok(())
@@ -164,7 +164,7 @@ mod imp {
             }
             result
         });
-        run.join().map_err(|_| "Audio Windows error".to_string())?
+        run.join().map_err(|_| crate::i18n::tr("Audio Windows error", "Windows audio error").to_string())?
     }
 
     unsafe fn mic_inner(toggle: bool) -> Result<bool, String> {
@@ -173,9 +173,11 @@ mod imp {
             System::Com::{CLSCTX_ALL, CoCreateInstance},
         };
         unsafe {
-            let enumerator: IMMDeviceEnumerator =
-                CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).map_err(|e| format!("Audio Windows nggak kebuka: {e}"))?;
-            let device = enumerator.GetDefaultAudioEndpoint(eCapture, eConsole).map_err(|_| "Nggak ada mic yang kepasang".to_string())?;
+            let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
+                .map_err(|e| format!("{}: {e}", crate::i18n::tr("Audio Windows nggak kebuka", "Couldn't open Windows audio")))?;
+            let device = enumerator
+                .GetDefaultAudioEndpoint(eCapture, eConsole)
+                .map_err(|_| crate::i18n::tr("Nggak ada mic yang kepasang", "No microphone connected").to_string())?;
             let volume: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None).map_err(|e| e.to_string())?;
             let mut muted = volume.GetMute().map_err(|e| e.to_string())?.as_bool();
             if toggle {

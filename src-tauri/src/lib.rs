@@ -6,6 +6,7 @@ mod drop_catcher;
 mod feed;
 mod geo;
 mod hook_relay;
+mod i18n;
 mod island;
 mod lyrics;
 mod media;
@@ -30,6 +31,13 @@ pub fn hook_relay() -> i32 {
     hook_relay::run()
 }
 
+/// Update otomatis cuma nyala kalau kunci publik updater udah diisi di
+/// tauri.conf.json (tanpa kunci, file update nggak bisa dicek keasliannya).
+#[tauri::command]
+fn updater_ready(app: tauri::AppHandle) -> bool {
+    app.config().plugins.0.get("updater").and_then(|u| u.get("pubkey")).and_then(|k| k.as_str()).is_some_and(|k| !k.trim().is_empty())
+}
+
 #[cfg_attr(mobile, mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -42,6 +50,8 @@ pub fn run() {
         .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(settings::SettingsState::default())
         .manage(island::IslandState::default())
         .manage(media::MediaState::default())
@@ -80,6 +90,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            updater_ready,
             island::island_set_hit,
             island::island_focus,
             media::media_get,

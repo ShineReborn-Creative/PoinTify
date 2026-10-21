@@ -5,13 +5,14 @@ import { api, type AgentSession, type AgentStep, type HooksStatus } from "../../
 import { useStore } from "../../lib/store";
 import { toolLabel } from "../../lib/tools";
 import { agentsStore } from "../../state/agents";
+import { tr } from "../../i18n";
 
-const STATUS_LABEL: Record<AgentSession["status"], string> = {
-  working: "lagi kerja",
-  waiting: "nunggu lu",
-  idle: "selesai",
-  ended: "ditutup",
-};
+const STATUS_LABEL = (): Record<AgentSession["status"], string> => ({
+  working: tr("lagi kerja", "working"),
+  waiting: tr("nunggu lu", "waiting for you"),
+  idle: tr("selesai", "done"),
+  ended: tr("ditutup", "closed"),
+});
 
 /** Buka pengaturan langsung di bagian Claude. */
 export function openClaudeSettings() {
@@ -82,12 +83,12 @@ function SessionView({ session }: { session: AgentSession }) {
             <span className="plus">+{totals.added}</span> <span className="minus">−{totals.removed}</span>
           </span>
         )}
-        <span className={`status-chip ${session.status}`}>{STATUS_LABEL[session.status]}</span>
+        <span className={`status-chip ${session.status}`}>{STATUS_LABEL()[session.status]}</span>
         {session.status === "ended" && (
           <button
             className="icon-btn"
-            aria-label="Hapus dari daftar"
-            title="Hapus dari daftar"
+            aria-label={tr("Hapus dari daftar", "Remove from list")}
+            title={tr("Hapus dari daftar", "Remove from list")}
             onClick={() => void api.agentsDismiss(session.id)}
           >
             <Icon name="close" size={14} />
@@ -95,7 +96,7 @@ function SessionView({ session }: { session: AgentSession }) {
         )}
       </div>
       <div className="steps" ref={listRef}>
-        {session.steps.length === 0 && <p className="muted steps-empty">Sesi kebuka. Nunggu perintah pertama…</p>}
+        {session.steps.length === 0 && <p className="muted steps-empty">{tr("Sesi kebuka. Nunggu perintah pertama…", "Session started. Waiting for the first prompt…")}</p>}
         {session.steps.map((s) => (
           <StepRow key={s.id} step={s} />
         ))}
@@ -126,7 +127,7 @@ function StepRow({ step }: { step: AgentStep }) {
     return (
       <div className={`step tool${step.ok === false ? " failed" : ""}`}>
         {step.ok === null ? (
-          <span className="spinner" aria-label="lagi dikerjain" />
+          <span className="spinner" aria-label={tr("lagi dikerjain", "in progress")} />
         ) : (
           <Icon name={step.ok ? "check" : "close"} size={12} />
         )}
@@ -144,7 +145,7 @@ function StepRow({ step }: { step: AgentStep }) {
   return (
     <div className={`step tool${step.ok === false ? " failed" : ""}`} title={step.target ?? step.detail}>
       {step.ok === null ? (
-        <span className="spinner" aria-label="lagi jalan" />
+        <span className="spinner" aria-label={tr("lagi jalan", "running")} />
       ) : (
         <Icon name={step.ok ? "check" : "close"} size={12} />
       )}
@@ -172,15 +173,21 @@ function EmptySessions({ mood }: { mood: PipMood }) {
     <div className="agents-empty">
       <Pip mood={mood === "sleep" ? "idle" : mood} size={64} glow interactive />
       <div>
-        <strong>{installed ? "Belum ada sesi yang jalan" : "Pantau Claude Code dari sini"}</strong>
+        <strong>{installed ? tr("Belum ada sesi yang jalan", "No sessions running yet") : tr("Pantau Claude Code dari sini", "Monitor Claude Code from here")}</strong>
         <p className="muted">
           {installed
-            ? "Kerjaan Claude muncul di sini: dari chat di app Claude (selama chat-nya nyambung ke PC ini) dan dari claude di terminal. Kalau Claude minta izin, lu bisa jawab langsung dari notch."
-            : "Lihat Claude Code di terminal lagi ngapain, izinin perintahnya, dan jawab pertanyaannya tanpa bolak-balik ke terminal."}
+            ? tr(
+                "Kerjaan Claude muncul di sini: dari chat di app Claude (selama chat-nya nyambung ke PC ini) dan dari claude di terminal. Kalau Claude minta izin, lu bisa jawab langsung dari notch.",
+                "Claude's work shows up here: from chats in the Claude app (while they're linked to this PC) and from claude in your terminal. When Claude asks for permission, answer right from the notch.",
+              )
+            : tr(
+                "Lihat Claude Code di terminal lagi ngapain, izinin perintahnya, dan jawab pertanyaannya tanpa bolak-balik ke terminal.",
+                "See what Claude Code is doing in your terminal, approve its commands, and answer its questions without switching windows.",
+              )}
         </p>
         {hooks && !installed && (
           <button className="btn btn-primary" onClick={openClaudeSettings}>
-            {hooks.state === "outdated" ? "Pasang ulang di Pengaturan" : "Pasang di Pengaturan"}
+            {hooks.state === "outdated" ? tr("Pasang ulang di Pengaturan", "Reinstall in Settings") : tr("Pasang di Pengaturan", "Install in Settings")}
           </button>
         )}
       </div>

@@ -6,6 +6,7 @@ import { settingsStore } from "../state/settings";
 import type { AgentQuestion, PendingRequest } from "../lib/api";
 import { toolLabel } from "../lib/tools";
 import { answerRequest } from "../state/agents";
+import { tr } from "../i18n";
 
 /** Ukuran pulau buat kartu ini, biar area klik-nya pas. */
 export function approvalSize(p: PendingRequest): { w: number; h: number } {
@@ -50,27 +51,27 @@ function PermissionBody({ request, more }: { request: PendingRequest; more: numb
   const isCommand = request.tool === "Bash" || request.tool === "PowerShell";
   return (
     <>
-      <Header request={request} title="Claude minta izin" more={more} />
+      <Header request={request} title={tr("Claude minta izin", "Claude needs permission")} more={more} />
       <div className={`approval-detail${isCommand ? " mono" : ""}`} title={request.target ?? request.detail}>
         {request.detail || toolLabel(request.tool)}
       </div>
       <div className="approval-actions">
         {!request.chatId && (
-          <button className="btn ghost" onClick={() => respond("terminal")} title="Tampilkan pilihan di terminal">
-            <Icon name="terminal" size={14} /> Di terminal
+          <button className="btn ghost" onClick={() => respond("terminal")} title={tr("Tampilkan pilihan di terminal", "Show the options in the terminal")}>
+            <Icon name="terminal" size={14} /> {tr("Di terminal", "In terminal")}
           </button>
         )}
         <span className="spacer" />
         <button className="btn" onClick={() => respond("deny")}>
-          Tolak
+          {tr("Tolak", "Deny")}
         </button>
         {request.alwaysLabel && (
-          <button className="btn" onClick={() => respond("always")} title={`Izinin terus: ${request.alwaysLabel}`}>
-            Selalu
+          <button className="btn" onClick={() => respond("always")} title={`${tr("Izinin terus", "Always allow")}: ${request.alwaysLabel}`}>
+            {tr("Selalu", "Always")}
           </button>
         )}
         <button className="btn btn-primary" onClick={() => respond("allow")}>
-          Izinin
+          {tr("Izinin", "Allow")}
         </button>
       </div>
     </>
@@ -111,7 +112,7 @@ function QuestionBody({ request, more }: { request: PendingRequest; more: number
     <>
       <Header
         request={request}
-        title={questions.length > 1 ? `Claude nanya (${index + 1}/${questions.length})` : "Claude nanya"}
+        title={questions.length > 1 ? `${tr("Claude nanya", "Claude asks")} (${index + 1}/${questions.length})` : tr("Claude nanya", "Claude asks")}
         more={more}
       />
       <p className="approval-question">{q.question}</p>
@@ -130,12 +131,12 @@ function QuestionBody({ request, more }: { request: PendingRequest; more: number
       </div>
       <div className="approval-actions">
         <button className="btn ghost" onClick={() => void answerRequest(request.id, { action: "terminal" })}>
-          <Icon name="terminal" size={14} /> Jawab di terminal
+          <Icon name="terminal" size={14} /> {tr("Jawab di terminal", "Answer in terminal")}
         </button>
         <span className="spacer" />
         {q.multiSelect && (
           <button className="btn btn-primary" disabled={!chosen.length} onClick={() => finish(answers)}>
-            {last ? "Kirim" : "Lanjut"}
+            {last ? tr("Kirim", "Send") : tr("Lanjut", "Next")}
           </button>
         )}
       </div>
