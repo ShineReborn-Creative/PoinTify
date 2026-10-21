@@ -905,6 +905,76 @@ fn start_order(app: &AppHandle, b: &mut Brain, kind: &str, on: Surface, cx: f64,
 }
 
 // ---------------------------------------------------------------------------
+// Lagi ngetik? (buat Pip ikut buka laptop)
+// ---------------------------------------------------------------------------
+
+/// Nebak lu lagi ngetik: tiap 30 ms dicek ada tombol ketik (huruf, angka,
+/// spasi, enter, tanda baca) yang baru dipencet atau nggak. Yang dihitung
+/// cuma *jumlah* pencetan; tombol apa yang dipencet nggak pernah disimpen,
+/// jadi isi ketikan nggak bisa disusun ulang. Scroll dan klik mouse nggak
+/// keitung, Ctrl/Alt/Shift sendirian juga nggak.
+struct TypingGuess {
+    was_down: bool,
+    hits: Vec<Instant>,
+    typing: bool,
+}
+
+impl TypingGuess {
+    fn new() -> Self {
+        Self { was_down: false, hits: Vec::new(), typing: false }
+    }
+
+    /// Balikin Some(baru) kalau statusnya berubah.
+    fn update(&mut self) -> Option<bool> {
+        let now = Instant::now();
+        let (down, pressed) = typing_keys();
+        // Pencetan baru: ada tombol yang baru turun, atau kepencet di antara dua cek.
+        if pressed || (down && !self.was_down) {
+            self.hits.push(now);
+        }
+        self.was_down = down;
+        self.hits.retain(|t| now.duration_since(*t) < Duration::from_millis(2500));
+        let typing = if self.typing { !self.hits.is_empty() } else { self.hits.len() >= 3 };
+        if typing != self.typing {
+            self.typing = typing;
+            return Some(typing);
+        }
+        None
+    }
+}
+
+/// (ada tombol ketik yang lagi ditahan, ada yang kepencet sejak cek terakhir).
+#[cfg(windows)]
+fn typing_keys() -> (bool, bool) {
+    use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
+    const RANGES: [(i32, i32); 9] = [
+        (0x08, 0x08), // Backspace
+        (0x0D, 0x0D), // Enter
+        (0x20, 0x20), // Spasi
+        (0x30, 0x39), // 0-9
+        (0x41, 0x5A), // A-Z
+        (0x60, 0x6F), // Numpad
+        (0xBA, 0xC0), // Tanda baca
+        (0xDB, 0xDE), // Kurung, garis miring, kutip
+        (0xE2, 0xE2), // Tanda baca tambahan (keyboard non-US)
+    ];
+    let (mut down, mut pressed) = (false, false);
+    for (a, b) in RANGES {
+        for vk in a..=b {
+            let st = unsafe { GetAsyncKeyState(vk) } as u16;
+            down |= st & 0x8000 != 0;
+            pressed |= st & 0x0001 != 0;
+        }
+    }
+    (down, pressed)
+}
+
+#[cfg(not(windows))]
+fn typing_keys() -> (bool, bool) {
+    (false, false)
+}
+
+// ---------------------------------------------------------------------------
 // Pantauan: kursor, tembus klik, app fullscreen
 // ---------------------------------------------------------------------------
 
@@ -918,6 +988,7 @@ fn start_watcher(app: AppHandle) {
     }
     thread::spawn(move || {
         let mut over = false;
+        let mut typing = TypingGuess::new();
         let mut hidden = false;
         let mut last_slow = Instant::now() - Duration::from_secs(10);
         let mut last_cursor = (f64::NAN, f64::NAN);
@@ -948,6 +1019,10 @@ fn start_watcher(app: AppHandle) {
                 continue;
             };
             let rel = ((cursor.x - pos.x as f64) / scale, (cursor.y - pos.y as f64) / scale);
+
+            if let Some(now_typing) = typing.update() {
+                let _ = app.emit_to(LABEL, "pet-typing", now_typing);
+            }
 
             // Mata Pip ngikutin kursor.
             if last_sent.elapsed() >= CURSOR_EVERY

@@ -41,6 +41,8 @@ export function PetApp() {
   const [sleeping, setSleeping] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [face, setFace] = useState<1 | -1>(1);
+  /** Lu lagi ngetik di keyboard (ditebak Rust tanpa baca isi ketikan). */
+  const [typing, setTyping] = useState(false);
 
   const engine = useRef<PipEngine | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -58,8 +60,8 @@ export function PetApp() {
   const rub = useRef<{ x: number; dir: number; flips: number[] }>({ x: 0, dir: 0, flips: [] });
 
   // Nilai terbaru buat dipakai di timer.
-  const s = useRef({ settings, mood, carried, hover, sleeping, playing, ctx, live });
-  s.current = { settings, mood, carried, hover, sleeping, playing, ctx, live };
+  const s = useRef({ settings, mood, carried, hover, sleeping, playing, ctx, live, typing });
+  s.current = { settings, mood, carried, hover, sleeping, playing, ctx, live, typing };
 
   const talkOn = () => (s.current.settings?.petTalkMinutes ?? 3) > 0 && !quietOn();
 
@@ -154,6 +156,7 @@ export function PetApp() {
       listen<PetContext>("pet-context", (e) => setCtx(e.payload)),
       listen<PetLive>("pet-live", (e) => setLive(e.payload)),
       listen<PetCond>("pet-cond", (e) => pipConditionStore.set(e.payload)),
+      listen<boolean>("pet-typing", (e) => setTyping(e.payload)),
       listen<boolean>("pet-carry", (e) => {
         setCarried(e.payload);
         if (e.payload) {
@@ -268,11 +271,19 @@ export function PetApp() {
     };
   }, [sayEvent, touch]);
 
-  // Barang yang dipakai: ikat kepala pas fokus, laptop pas Claude kerja.
+  // Barang yang dipakai: ikat kepala pas fokus, laptop pas Claude kerja atau lu lagi ngetik.
   const follow = settings?.petFollow !== false;
+  const busyTyping = follow && typing && !carried && !sleeping;
   useEffect(() => {
-    engine.current?.setProp(follow ? (ctx.focus ? "headband" : ctx.claude ? "laptop" : null) : null);
-  }, [follow, ctx.focus, ctx.claude]);
+    engine.current?.setProp(follow ? (ctx.focus ? "headband" : ctx.claude || busyTyping ? "laptop" : null) : null);
+  }, [follow, ctx.focus, ctx.claude, busyTyping]);
+  // Mulai ngetik: Pip berhenti jalan dan ikut ngetik.
+  useEffect(() => {
+    if (!busyTyping) return;
+    stopGait();
+    engine.current?.setLean(0);
+    nextMove.current = Math.max(nextMove.current, Date.now() + 8000);
+  }, [busyTyping]);
 
   // Otak kecil: gerak sendiri, ngomong, tidur siang. Dicek tiap detik.
   useEffect(() => {
@@ -280,7 +291,7 @@ export function PetApp() {
       const c = s.current;
       const cfg = c.settings;
       const now = Date.now();
-      const calmMood = c.mood === "idle" || c.mood === "music";
+      const calmMood = (c.mood === "idle" || c.mood === "music") && !(c.typing && c.settings?.petFollow !== false);
       const free = !c.carried && !c.hover && !c.sleeping && !c.playing && !visiting.current;
 
       // Tidur siang kalau lama dicuekin (malem lebih cepet ngantuk).
@@ -425,7 +436,11 @@ export function PetApp() {
     }
   };
 
-  const shown: PipMood = carried ? "listening" : sleeping ? "sleep" : flash ?? mood;
+  const shown: PipMood = carried
+    ? "listening"
+    : sleeping
+      ? "sleep"
+      : flash ?? (busyTyping && (mood === "idle" || mood === "music") ? "working" : mood);
   const sign = signShown ? live.info : null;
 
   return (
