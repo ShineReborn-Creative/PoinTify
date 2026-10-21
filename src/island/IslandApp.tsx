@@ -382,6 +382,14 @@ export function IslandApp() {
     return activity ? SIZES.compactWide : SIZES.compactBase;
   }, [island.mode, island.tab, island.peek?.kind, activity, request, homeW, lyricBar]);
 
+  // Lagi melar atau nyusut? Melar pakai pegas yang mantul, nyusut yang kalem.
+  const lastSize = useRef(size);
+  const growing = useRef(true);
+  if (size.w !== lastSize.current.w || size.h !== lastSize.current.h) {
+    growing.current = size.w * size.h > lastSize.current.w * lastSize.current.h;
+    lastSize.current = size;
+  }
+
   // Kebuka penuh selalu di tengah; selain itu di tempat terakhir notch digeser.
   const offset = island.mode === "expanded" && !request ? 0 : clampOffset(island.offset, size.w);
   const drag = useIslandDrag(size.w);
@@ -435,7 +443,7 @@ export function IslandApp() {
   if (!settings) return null;
 
   return (
-    <div className={`stage${island.dragging ? " dragging" : ""}`}>
+    <div className={`stage${island.dragging ? " dragging" : ""}${growing.current ? " grow" : ""}`}>
       <LiveProbes />
       <div className="island-shell" style={{ width: size.w, height: size.h, transform: `translateX(${offset}px)` }}>
         <span className="shoulder left" />

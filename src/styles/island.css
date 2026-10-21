@@ -16,10 +16,29 @@ html, body, #root {
 
 .island-shell {
   position: relative;
-  transition: width 0.44s var(--ease), height 0.44s var(--ease), transform 0.44s var(--ease);
+  /* Nyusut: kalem, cepet, nggak mantul. */
+  transition: width 0.42s var(--spring-close), height 0.42s var(--spring-close), transform 0.44s var(--ease);
+}
+/* Melar: kenyal kayak pegas, kelewat dikit terus balik. */
+.stage.grow .island-shell {
+  transition: width 0.6s var(--spring-open), height 0.6s var(--spring-open), transform 0.44s var(--ease);
 }
 /* Lagi diseret: ikut kursor langsung, tanpa jeda animasi. */
 .stage.dragging .island-shell { transition: width 0.3s var(--ease), height 0.3s var(--ease); }
+
+/* Isi notch pas kebuka: muncul dari agak kecil + buram, ikut pegasnya. */
+.island > .expanded,
+.island > .peek,
+.island > .tour,
+.island > .approval {
+  transform-origin: 50% 0;
+  animation: island-pop 0.5s var(--spring-open) 0.04s both;
+}
+@keyframes island-pop {
+  from { opacity: 0; transform: scale(0.96) translateY(-6px); filter: blur(3px); }
+  60% { opacity: 1; filter: blur(0); }
+  to { opacity: 1; transform: none; filter: none; }
+}
 .stage.dragging .island { cursor: grabbing; }
 
 /* "Bahu" cekung di kiri-kanan atas, biar nyatu sama tepi layar kayak notch beneran. */
@@ -463,7 +482,8 @@ html, body, #root {
 .setup-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 @media (prefers-reduced-motion: reduce) {
-  .island-shell, .island { transition: none; }
+  .island-shell, .island, .stage.grow .island-shell { transition: none; }
+  .island > .expanded, .island > .peek, .island > .tour, .island > .approval { animation: none; }
   .bars i, .dots i, .typing i, .lyric-now, .md.streaming > :last-child::after { animation: none !important; }
 }
 
