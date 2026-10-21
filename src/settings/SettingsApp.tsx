@@ -9,10 +9,11 @@ import { api, type ClaudeStatus, type HooksStatus, type Settings } from "../lib/
 import { useStore } from "../lib/store";
 import { settingsStore, updateSettings } from "../state/settings";
 
-type Section = "umum" | "musik" | "fokus" | "minum" | "claude" | "tentang";
+type Section = "umum" | "pip" | "musik" | "fokus" | "minum" | "claude" | "tentang";
 
 const SECTIONS: { id: Section; label: string; icon: IconName }[] = [
   { id: "umum", label: "Umum", icon: "gear" },
+  { id: "pip", label: "Pip desktop", icon: "sparkle" },
   { id: "musik", label: "Musik & lirik", icon: "music" },
   { id: "fokus", label: "Timer fokus", icon: "timer" },
   { id: "minum", label: "Pengingat minum", icon: "drop" },
@@ -78,6 +79,7 @@ export function SettingsApp() {
         </nav>
         <main className="panel">
           {section === "umum" && <GeneralSection s={settings} />}
+          {section === "pip" && <PipSection s={settings} />}
           {section === "musik" && <MusicSection s={settings} />}
           {section === "fokus" && <FocusSection s={settings} />}
           {section === "minum" && <WaterSection s={settings} />}
@@ -221,12 +223,6 @@ function GeneralSection({ s }: { s: Settings }) {
         <Row label="Jeda sebelum kebuka" hint="Biar notch nggak kebuka pas kursor cuma lewat sekilas.">
           <Stepper label="jeda" value={s.hoverDelayMs} min={0} max={1000} step={50} suffix="ms" onChange={(v) => updateSettings({ hoverDelayMs: v })} />
         </Row>
-        <Row label="Pip di desktop" hint="Pip keluar dari notch dan nongkrong di layar. Bisa juga dengan nyeret Pip keluar dari notch.">
-          <Toggle label="Pip di desktop" checked={s.petMode} onChange={(v) => updateSettings({ petMode: v })} />
-        </Row>
-        <Row label="Pip jalan-jalan sendiri" hint="Sesekali Pip geser dikit ke kiri atau kanan kalau lagi santai.">
-          <Toggle label="Pip jalan-jalan" checked={s.petWander} onChange={(v) => updateSettings({ petWander: v })} />
-        </Row>
         <Row label="Sembunyi pas app fullscreen" hint="Nonton film atau main game tanpa diganggu.">
           <Toggle label="Sembunyi pas fullscreen" checked={s.hideInFullscreen} onChange={(v) => updateSettings({ hideInFullscreen: v })} />
         </Row>
@@ -237,6 +233,67 @@ function GeneralSection({ s }: { s: Settings }) {
           <ShortcutRecorder value={s.shortcut} onChange={(v) => updateSettings({ shortcut: v })} />
         </Row>
       </div>
+    </>
+  );
+}
+
+function PipSection({ s }: { s: Settings }) {
+  const off = !s.petMode;
+  return (
+    <>
+      <Heading title="Pip desktop" desc="Pip keluar dari notch dan hidup di layar lu: jalan-jalan, nangkring, ngomong, ikut kegiatan lu." />
+      <div className="group">
+        <Row label="Pip di desktop" hint="Bisa juga dengan nyeret Pip ke bawah dari notch. Lepas di area notch buat pulang.">
+          <Toggle label="Pip di desktop" checked={s.petMode} onChange={(v) => updateSettings({ petMode: v })} />
+        </Row>
+      </div>
+      <div className={`group${off ? " dim" : ""}`}>
+        <Row label="Gerak sendiri" hint="Jalan, lari, loncat, sama manjat pinggir layar kalau lagi santai.">
+          <Toggle label="Gerak sendiri" checked={s.petWander} onChange={(v) => updateSettings({ petWander: v })} />
+        </Row>
+        <Row label="Seberapa aktif" hint="Kalem jarang gerak, Hiperaktif nggak bisa diem.">
+          <select
+            className="select"
+            value={s.petActivity ?? "normal"}
+            disabled={!s.petWander}
+            onChange={(e) => updateSettings({ petActivity: e.target.value as Settings["petActivity"] })}
+          >
+            <option value="calm">Kalem</option>
+            <option value="normal">Normal</option>
+            <option value="hyper">Hiperaktif</option>
+          </select>
+        </Row>
+        <Row label="Ngomong tiap" hint="Balon omongan kecil: sapaan, ngingetin minum, komentar lagu. Mode tenang bikin dia diem.">
+          <select
+            className="select"
+            value={String(s.petTalkMinutes ?? 3)}
+            onChange={(e) => updateSettings({ petTalkMinutes: Number(e.target.value) })}
+          >
+            <option value="0">Nggak usah ngomong</option>
+            <option value="1">1 menit</option>
+            <option value="3">3 menit</option>
+            <option value="5">5 menit</option>
+            <option value="10">10 menit</option>
+            <option value="30">30 menit</option>
+          </select>
+        </Row>
+        <Row label="Nangkring di jendela" hint="Jatuh di atas jendela lain = duduk di pinggir atasnya. Jendelanya digeser, Pip ikut.">
+          <Toggle label="Nangkring di jendela" checked={s.petPerch !== false} onChange={(v) => updateSettings({ petPerch: v })} />
+        </Row>
+        <Row label="Ikut kegiatan lu" hint="Ikat kepala pas fokus, laptop mini pas Claude kerja, joget pas musik.">
+          <Toggle label="Ikut kegiatan" checked={s.petFollow !== false} onChange={(v) => updateSettings({ petFollow: v })} />
+        </Row>
+        <Row label="Papan info Live" hint="Pip megang papan info widget Live. Kalau penting, dia lari ke notch.">
+          <Toggle label="Papan Live" checked={s.petLiveSign !== false} onChange={(v) => updateSettings({ petLiveSign: v })} />
+        </Row>
+        <Row label="Tidur siang" hint="Lama nggak diperhatiin, Pip tidur. Deketin kursor buat bangunin.">
+          <Toggle label="Tidur siang" checked={s.petNap !== false} onChange={(v) => updateSettings({ petNap: v })} />
+        </Row>
+      </div>
+      <p className="note">
+        Cara main: seret dan lempar Pip, gosok kursor bolak-balik di atasnya buat ngelus, klik dua kali buat buka notch,
+        klik kanan buat menu (minum, main bola, tidur).
+      </p>
     </>
   );
 }

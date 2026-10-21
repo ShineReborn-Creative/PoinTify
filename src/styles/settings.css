@@ -125,3 +125,8 @@ html, body, #root { background: #0d0d10; overflow: hidden; }
 }
 .hooks-error { font-size: 12px; color: var(--red); line-height: 1.5; }
 .hooks-note { font-size: 12px; line-height: 1.5; word-break: break-all; }
+
+/* Pip desktop */
+.group.dim { opacity: 0.5; }
+.note { margin-top: 14px; font-size: 12px; line-height: 1.55; color: var(--muted); }
+.toggle:disabled { opacity: 0.4; cursor: default; }

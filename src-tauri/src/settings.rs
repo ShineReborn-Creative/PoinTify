@@ -52,6 +52,18 @@ pub struct Settings {
     pub pet_mode: bool,
     pub pet_wander: bool,
     pub pet_pos: Option<[i32; 2]>,
+    /// "calm" | "normal" | "hyper": seberapa sering Pip gerak sendiri.
+    pub pet_activity: String,
+    /// Pip ngomong lewat balon tiap sekian menit (0 = nggak pernah).
+    pub pet_talk_minutes: u32,
+    /// Boleh nangkring di pinggir atas jendela lain.
+    pub pet_perch: bool,
+    /// Ikut kegiatan lu: joget pas musik, ngetik pas Claude kerja, ikat kepala pas fokus.
+    pub pet_follow: bool,
+    /// Megang papan info Live.
+    pub pet_live_sign: bool,
+    /// Tidur siang kalau lama dicuekin.
+    pub pet_nap: bool,
     // Kanvas widget di Beranda: susunan, ukuran, dan isi tiap widget.
     // Bentuknya diatur frontend, Rust cuma nyimpen.
     pub widgets: serde_json::Value,
@@ -88,6 +100,12 @@ impl Default for Settings {
             pet_mode: false,
             pet_wander: true,
             pet_pos: None,
+            pet_activity: "normal".into(),
+            pet_talk_minutes: 3,
+            pet_perch: true,
+            pet_follow: true,
+            pet_live_sign: true,
+            pet_nap: true,
             widgets: serde_json::Value::Null,
         }
     }

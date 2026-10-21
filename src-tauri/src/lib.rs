@@ -109,7 +109,7 @@ pub fn run() {
             pet::pet_drop,
             pet::pet_home,
             pet::pet_set_hit,
-            pet::pet_wander,
+            pet::pet_do,
             pet::pet_visit,
             pet::pet_return,
             sys::sys_stats,

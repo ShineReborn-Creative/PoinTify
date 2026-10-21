@@ -39,7 +39,13 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
 
 - **Ngikutin kursor.** Rust ngirim posisi kursor global, jadi mata Pip ngelirik ke mana pun kursor lu di layar, badannya ikut condong dikit.
 - **Bisa diajak main.** Klik sekali dia kesel, klik dua kali dia dadah, klik tiga kali cepet dia pusing. Tahan kursor di atasnya dua detik, matanya jadi hati.
-- **Bisa keluar dari notch.** Seret Pip keluar, dia jadi teman kecil di desktop: diem di tempat lu naruh dia (diinget walau PoinTify ditutup), sesekali jalan-jalan, dan terbang ke sebelah notch tiap ada notif. Seret balik ke notch buat masukin lagi.
+- **Bisa keluar dari notch.** Seret Pip ke bawah, dia jadi pet desktop beneran:
+  - **Fisika:** ada gravitasi, bisa dilempar (mantul di pinggir layar, pusing kalau kekencengan), dan nangkring di pinggir atas jendela lain. Jendelanya digeser, Pip ikut; ditutup, dia jatuh.
+  - **Gerak sendiri:** jalan, lari, loncat-loncat, manjat pinggir layar terus nempel di sana.
+  - **Interaksi:** gosok kursor bolak-balik buat ngelus, klik dua kali buat buka notch, klik kanan buat menu (kasih minum, ajak main bola, tidur).
+  - **Hidup bareng lu:** balon omongan pendek, ikat kepala pas timer fokus, laptop mini pas Claude kerja, joget pas musik, tidur siang kalau dicuekin.
+  - **Papan Live:** nenteng info widget Live; kalau penting, lari ke notch sambil ngacungin papannya.
+  - Semua bisa diatur di Pengaturan › Pip desktop. Lepas di area notch buat masukin lagi.
 - **Hidup sendiri.** Ngedip di waktu acak, lirik kanan-kiri, ngulet, mainin titiknya sendiri, dan nguap kalau lama didiemin.
 - **Ekspresi per keadaan.** Santai, nyapa, mikir (titiknya muter), kerja, ngasih tahu, senang pas tugas beres, nunggu file, goyang ngikutin ketukan pas musik diputer, error, dan tidur.
 
@@ -83,7 +89,8 @@ src-tauri/src/            Rust (backend)
 ├── hook_relay.rs         `pointify.exe --hook`: oper kejadian hook ke PoinTify
 ├── claude_hooks.rs       Pasang/copot hooks di ~/.claude/settings.json
 ├── feed.rs               Pantau ~/.pointify/feed buat progres chat Claude
-├── pet.rs                Jendela Pip di desktop: seret, jalan-jalan, mampir ke notch
+├── pet.rs                Pip desktop: fisika (gravitasi, lemparan, nangkring di jendela), gerak, mampir notch
+├── geo.rs                Lokasi PC dari layanan lokasi Windows (cuaca & jadwal sholat)
 ├── shelf.rs              Rak file (disimpan sebagai JSON)
 ├── sys.rs                CPU, RAM, disk, baterai, internet, volume & mic (API Windows langsung)
 ├── clipboard.rs          Riwayat clipboard di memori (nggak pernah ditulis ke disk)

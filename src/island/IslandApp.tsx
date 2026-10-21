@@ -32,6 +32,7 @@ import { useIslandDrag } from "./useIslandDrag";
 import { CompactBar, type Activity } from "./CompactBar";
 import { ExpandedView } from "./ExpandedView";
 import { PeekCard } from "./PeekCard";
+import { usePetBridge } from "./usePetBridge";
 import { currentPack, editStore, homePanelWidth, setEditing, widgetStore } from "../widgets/layout";
 import { LiveProbes, useTopLive } from "../widgets/live";
 
@@ -396,19 +397,9 @@ export function IslandApp() {
 
   // ---- Pip di desktop: kirim mood, dan panggil dia ke notch pas ada notif ----
   const petMode = settings?.petMode ?? false;
-  const moodRef = useRef(mood);
-  moodRef.current = mood;
-  useEffect(() => {
-    if (petMode) void emitTo("pet", "pip-mood", { mood });
-  }, [mood, petMode]);
-  // Jendela Pip desktop baru kebuka: kasih tahu mood sekarang.
-  useEffect(() => {
-    const un = listen("pet-ready", () => void emitTo("pet", "pip-mood", { mood: moodRef.current }));
-    return () => void un.then((f) => f());
-  }, []);
-
   const alertActive = petMode && (!!request || (island.mode === "peek" && !!island.peek));
   const alertOffset = Math.round(offset + size.w / 2 + 44);
+  usePetBridge({ petMode, mood, live, visitOffset: alertOffset });
   useEffect(() => {
     if (!petMode) return;
     void emitTo("pet", "pet-alert", { active: alertActive, offset: alertOffset });

@@ -49,6 +49,9 @@ type ReactionKind =
   | "hop";
 type ParticleKind = "heart" | "sparkle" | "z" | "note" | "bang" | "question" | "sweat" | "rain";
 
+/** Barang yang lagi dipakai/dipegang Pip (Pip desktop). */
+export type PipProp = "headband" | "laptop" | null;
+
 /** Keadaan sekitar yang bikin Pip bereaksi pas lagi santai. */
 export type PipConditions = { hot?: boolean; tired?: boolean; rain?: boolean };
 
@@ -238,6 +241,8 @@ export class PipEngine {
   private skipped = 0;
   private settleUntil = 0;
   private cond: PipConditions = {};
+  private leanDeg = 0;
+  private prop: PipProp = null;
   private lastCond = 0;
 
   constructor(svg: SVGSVGElement, opts: PipOptions = {}) {
@@ -447,12 +452,84 @@ export class PipEngine {
     this.sx.kick(1.0 * power);
   }
 
-  /** Mendarat abis diseret: gepeng sebentar terus mantul. */
-  land() {
+  /** Mendarat (abis diseret, jatuh, atau dilempar): gepeng sesuai kerasnya. */
+  land(power = 1) {
     this.interact();
-    this.sy.kick(-3.6);
-    this.sx.kick(3.2);
-    this.tilt.kick(rand(-90, 90));
+    const p = clamp(power, 0.3, 2.6);
+    this.sy.kick(-3.6 * p);
+    this.sx.kick(3.2 * p);
+    this.tilt.kick(rand(-90, 90) * p);
+    if (p > 1.6) this.spawn("bang", 0);
+  }
+
+  /** Miring terus (condong pas lari, nempel pas manjat). Derajat, + = ke kanan. */
+  setLean(deg: number) {
+    if (deg === this.leanDeg) return;
+    this.leanDeg = deg;
+    this.wake();
+  }
+
+  /** Nabrak pinggir layar. `dir` arah nabraknya. */
+  bonk(dir: number, power = 1) {
+    this.interact();
+    const p = clamp(power, 0.3, 3);
+    this.tilt.kick(-dir * 160 * p);
+    this.sx.kick(-2.4 * p);
+    this.sy.kick(1.6 * p);
+    this.spawn("bang", 0);
+    if (p > 2.2) this.dizzy();
+    else this.react("surprised", 0.6);
+  }
+
+  /** Dielus: merem keenakan, keluar hati. */
+  pet() {
+    this.interact();
+    this.react("love", 1.6);
+    this.sy.kick(-1.2);
+    this.spawn("heart");
+  }
+
+  /** Barang yang dipakai: ikat kepala (fokus) atau laptop mini (Claude kerja). */
+  setProp(prop: PipProp) {
+    if (prop === this.prop) return;
+    this.prop = prop;
+    this.drawProp();
+    this.wake();
+  }
+
+  private drawProp() {
+    const g = this.els.props;
+    if (!g) return;
+    g.replaceChildren();
+    if (this.prop === "headband") {
+      const band = this.make("g", { "clip-path": `url(#pip-shape-${this.uid})` }, g);
+      this.make("rect", { x: 20, y: 35, width: 90, height: 9, fill: "#FF5C5C" }, band);
+      this.make("rect", { x: 20, y: 37, width: 90, height: 2, fill: "#FF8A8A", opacity: 0.7 }, band);
+      // Ujung ikat kepala yang berkibar.
+      const tail = this.make("path", { d: "M87 37l17-7-2 8zM87 41l16 6-6 3z", fill: "#FF5C5C" }, g);
+      const flap = this.make("animateTransform", {
+        attributeName: "transform",
+        type: "rotate",
+        values: "0 88 40;-8 88 40;0 88 40",
+        dur: "0.9s",
+        repeatCount: "indefinite",
+      }, tail);
+      void flap;
+    } else if (this.prop === "laptop") {
+      const lap = this.make("g", {}, g);
+      this.make("rect", { x: 16, y: 96, width: 76, height: 36, rx: 4, fill: "#2B2E3A", stroke: "#C9CCD6", "stroke-width": 2.4 }, lap);
+      this.make("rect", { x: 21, y: 101, width: 66, height: 26, rx: 2, fill: "#1B2A44" }, lap);
+      [0, 1, 2].forEach((i) => {
+        const line = this.make("rect", { x: 25, y: 105 + i * 7, width: 30 + i * 8, height: 3, rx: 1.5, fill: i === 1 ? "#8B7CFF" : "#4DA3FF", opacity: 0.85 }, lap);
+        this.make("animate", {
+          attributeName: "width",
+          values: `${8 + i * 4};${34 + i * 10};${8 + i * 4}`,
+          dur: `${1.1 + i * 0.35}s`,
+          repeatCount: "indefinite",
+        }, line);
+      });
+      this.make("rect", { x: 6, y: 131, width: 96, height: 7, rx: 3, fill: "#C9CCD6" }, lap);
+    }
   }
 
   surprise() {
@@ -484,6 +561,9 @@ export class PipEngine {
       const cp = this.make("clipPath", { id: `pip-lid-${this.uid}-${i}` }, defs);
       this.clipRects.push(this.make("rect", { x: -20, y: 0, width: 60, height: 40 }, cp));
     });
+
+    const shape = this.make("clipPath", { id: `pip-shape-${this.uid}` }, defs);
+    this.make("path", { d: P_PATH }, shape);
 
     const root = this.make("g", {});
     const body = (this.els.body = this.make("g", {}, root));
@@ -528,6 +608,8 @@ export class PipEngine {
     // Mulut
     this.els.mouth = this.make("path", { ...stroke, d: "" }, body);
     this.els.mouthO = this.make("ellipse", { cx: FACE.x, cy: 80, rx: 3, ry: 3.4, fill: "#15131C" }, body);
+    this.els.props = this.make("g", {}, body);
+    this.drawProp();
 
     // Titik "point"
     this.els.dotGroup = this.make("g", {}, root);
@@ -898,7 +980,7 @@ export class PipEngine {
     this.sx.target = scaleX;
     this.sy.target = scaleY;
     // Badannya ikut condong dikit ke arah yang dilirik.
-    this.tilt.target = tiltTarget + clamp(lookTarget.x, -1, 1) * 3;
+    this.tilt.target = tiltTarget + this.leanDeg + clamp(lookTarget.x, -1, 1) * 3;
     this.lookX.target = lookTarget.x;
     this.lookY.target = lookTarget.y;
     this.lid.target = lidOpen;

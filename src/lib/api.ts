@@ -28,6 +28,9 @@ export type ShelfItem = {
 
 export type Project = { name: string; path: string };
 
+export type Box = { x: number; y: number; w: number; h: number };
+export type PetMove = "walk" | "run" | "hop" | "climb" | "jump" | "jumpdown";
+
 export type Settings = {
   openOnHover: boolean;
   hoverDelayMs: number;
@@ -58,6 +61,14 @@ export type Settings = {
   petMode: boolean;
   petWander: boolean;
   petPos: [number, number] | null;
+  /** Seberapa sering Pip desktop gerak sendiri. */
+  petActivity: "calm" | "normal" | "hyper";
+  /** Pip ngomong tiap sekian menit (0 = diem). */
+  petTalkMinutes: number;
+  petPerch: boolean;
+  petFollow: boolean;
+  petLiveSign: boolean;
+  petNap: boolean;
   /** Kanvas widget Beranda (bentuknya diatur src/widgets/layout.ts). */
   widgets: unknown;
 };
@@ -210,8 +221,9 @@ export const api = {
   petCarry: (grabX: number, grabY: number) => invoke<CarryResult>("pet_carry", { grabX, grabY }),
   petDrop: () => invoke("pet_drop"),
   petHome: () => invoke("pet_home"),
-  petSetHit: (rect: { x: number; y: number; w: number; h: number }) => invoke("pet_set_hit", { rect }),
-  petWander: () => invoke<number>("pet_wander"),
+  petSetHit: (rect: Box, extra: Box[] = []) => invoke("pet_set_hit", { rect, extra }),
+  /** Minta Pip gerak: walk | run | hop | climb | jump | jumpdown. */
+  petDo: (kind: PetMove) => invoke("pet_do", { kind }),
   petVisit: (offset: number) => invoke("pet_visit", { offset }),
   petReturn: () => invoke("pet_return"),
 
