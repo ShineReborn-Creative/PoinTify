@@ -31,6 +31,11 @@ function useLaunchIcon(target: string): string | null {
     if (!p) {
       p = api.launchIcon(target).catch(() => null);
       iconCache.set(target, p);
+      // Gagal: jangan diinget, biar dicoba lagi pas widget muncul lagi.
+      const mine = p;
+      void p.then((s) => {
+        if (!s && iconCache.get(target) === mine) iconCache.delete(target);
+      });
     }
     void p.then((s) => alive && setSrc(s));
     return () => {

@@ -152,12 +152,26 @@ mod imp {
 
     /// Mic default Windows: baca atau ganti status bisu. Balikin status sekarang.
     pub fn mic(toggle: bool) -> Result<bool, String> {
+        use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_MULTITHREADED};
+        // COM dinyalain di thread sendiri biar thread bawaan Tokio nggak
+        // kebawa mode MTA (ambil ikon peluncur butuh STA).
+        let run = std::thread::spawn(move || unsafe {
+            let init = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let result = mic_inner(toggle);
+            if init.is_ok() {
+                CoUninitialize();
+            }
+            result
+        });
+        run.join().map_err(|_| "Audio Windows error".to_string())?
+    }
+
+    unsafe fn mic_inner(toggle: bool) -> Result<bool, String> {
         use windows::Win32::{
             Media::Audio::{eCapture, eConsole, Endpoints::IAudioEndpointVolume, IMMDeviceEnumerator, MMDeviceEnumerator},
-            System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED},
+            System::Com::{CoCreateInstance, CLSCTX_ALL},
         };
         unsafe {
-            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
             let enumerator: IMMDeviceEnumerator =
                 CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).map_err(|e| format!("Audio Windows nggak kebuka: {e}"))?;
             let device = enumerator

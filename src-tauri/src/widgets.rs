@@ -61,6 +61,7 @@ use std::{collections::HashMap, sync::Mutex};
 
 static ICONS: Mutex<Option<HashMap<String, Option<String>>>> = Mutex::new(None);
 
+
 fn data_url(mime: &str, bytes: &[u8]) -> String {
     format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))
 }
@@ -124,7 +125,10 @@ pub async fn launch_icon(target: String) -> Result<Option<String>, String> {
             .await
             .map_err(|e| e.to_string())?
     };
-    ICONS.lock().unwrap().get_or_insert_with(HashMap::new).insert(t, icon.clone());
+    // Yang gagal nggak disimpen, biar dicoba lagi lain kali.
+    if icon.is_some() {
+        ICONS.lock().unwrap().get_or_insert_with(HashMap::new).insert(t, icon.clone());
+    }
     Ok(icon)
 }
 
@@ -136,11 +140,11 @@ mod shell {
         Win32::{
             Graphics::Gdi::{DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HGDIOBJ},
             Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES,
-            System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED},
+            System::Com::{CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED},
             UI::{
                 Controls::{IImageList, ILD_TRANSPARENT},
-                Shell::{SHGetFileInfoW, SHGetImageList, SHFILEINFOW, SHGFI_SYSICONINDEX, SHIL_EXTRALARGE},
-                WindowsAndMessaging::{DestroyIcon, GetIconInfo, HICON, ICONINFO},
+                Shell::{SHGetFileInfoW, SHGetImageList, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON, SHGFI_SYSICONINDEX, SHIL_EXTRALARGE},
+                WindowsAndMessaging::{DestroyIcon, GetIconInfo, PrivateExtractIconsW, HICON, ICONINFO},
             },
         },
     };
@@ -219,36 +223,114 @@ mod shell {
         Some((w, h, px))
     }
 
-    pub fn icon_png(path: &str) -> Option<Vec<u8>> {
-        unsafe {
-            let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
-            let wide: Vec<u16> = path.encode_utf16().chain(Some(0)).collect();
-            let mut info = SHFILEINFOW::default();
-            let ok = SHGetFileInfoW(
+    fn encode(w: u32, h: u32, px: &[u8]) -> Option<Vec<u8>> {
+        let mut out = Vec::new();
+        {
+            let mut enc = png::Encoder::new(&mut out, w, h);
+            enc.set_color(png::ColorType::Rgba);
+            enc.set_depth(png::BitDepth::Eight);
+            let mut writer = enc.write_header().ok()?;
+            writer.write_image_data(px).ok()?;
+        }
+        Some(out)
+    }
+
+    /// HICON -> PNG, lalu ikonnya dihancurin.
+    unsafe fn take(icon: HICON) -> Option<Vec<u8>> {
+        if icon.is_invalid() {
+            return None;
+        }
+        let rgba = unsafe { to_rgba(icon) };
+        let _ = unsafe { DestroyIcon(icon) };
+        let (w, h, px) = rgba?;
+        // Ikon yang semua pikselnya tembus pandang = gagal dibaca.
+        if px.chunks_exact(4).all(|p| p[3] == 0) {
+            return None;
+        }
+        encode(w, h, &px)
+    }
+
+    /// Langsung dari file exe/dll/ico, ukuran 48px (paling tajem buat app).
+    unsafe fn from_resource(wide: &[u16]) -> Option<Vec<u8>> {
+        if wide.len() > 260 {
+            return None;
+        }
+        let mut name = [0u16; 260];
+        name[..wide.len()].copy_from_slice(wide);
+        let mut icons = [HICON::default()];
+        let n = unsafe { PrivateExtractIconsW(&name, 0, 48, 48, Some(&mut icons), None, 0) };
+        if n == 0 || n == u32::MAX {
+            return None;
+        }
+        unsafe { take(icons[0]) }
+    }
+
+    /// Ikon versi Explorer (48px), termasuk folder, shortcut, dan file biasa.
+    unsafe fn from_image_list(wide: &[u16]) -> Option<Vec<u8>> {
+        let mut info = SHFILEINFOW::default();
+        let ok = unsafe {
+            SHGetFileInfoW(PCWSTR(wide.as_ptr()), FILE_FLAGS_AND_ATTRIBUTES(0), Some(&mut info), size_of::<SHFILEINFOW>() as u32, SHGFI_SYSICONINDEX)
+        };
+        if ok == 0 {
+            return None;
+        }
+        let list: IImageList = unsafe { SHGetImageList(SHIL_EXTRALARGE as i32) }.ok()?;
+        let icon = unsafe { list.GetIcon(info.iIcon, ILD_TRANSPARENT.0) }.ok()?;
+        unsafe { take(icon) }
+    }
+
+    /// Cadangan terakhir: ikon 32px biasa dari Explorer.
+    unsafe fn from_file_info(wide: &[u16]) -> Option<Vec<u8>> {
+        let mut info = SHFILEINFOW::default();
+        let ok = unsafe {
+            SHGetFileInfoW(
                 PCWSTR(wide.as_ptr()),
                 FILE_FLAGS_AND_ATTRIBUTES(0),
                 Some(&mut info),
                 size_of::<SHFILEINFOW>() as u32,
-                SHGFI_SYSICONINDEX,
-            );
-            if ok == 0 {
-                return None;
-            }
-            let list: IImageList = SHGetImageList(SHIL_EXTRALARGE as i32).ok()?;
-            let icon = list.GetIcon(info.iIcon, ILD_TRANSPARENT.0).ok()?;
-            let rgba = to_rgba(icon);
-            let _ = DestroyIcon(icon);
-            let (w, h, px) = rgba?;
-            let mut out = Vec::new();
-            {
-                let mut enc = png::Encoder::new(&mut out, w, h);
-                enc.set_color(png::ColorType::Rgba);
-                enc.set_depth(png::BitDepth::Eight);
-                let mut writer = enc.write_header().ok()?;
-                writer.write_image_data(&px).ok()?;
-            }
-            Some(out)
+                SHGFI_ICON | SHGFI_LARGEICON,
+            )
+        };
+        if ok == 0 {
+            return None;
         }
+        unsafe { take(info.hIcon) }
+    }
+
+    fn extract(path: &str) -> Option<Vec<u8>> {
+        let wide: Vec<u16> = path.encode_utf16().chain(Some(0)).collect();
+        let lower = path.to_ascii_lowercase();
+        let resource = [".exe", ".dll", ".ico"].iter().any(|e| lower.ends_with(e));
+        unsafe {
+            if resource {
+                if let Some(png) = from_resource(&wide) {
+                    return Some(png);
+                }
+            }
+            if let Some(png) = from_image_list(&wide) {
+                return Some(png);
+            }
+            from_file_info(&wide)
+        }
+    }
+
+    /// Ikon shell butuh COM mode STA. Thread bawaan Tokio bisa aja udah
+    /// kepakai mode MTA (kontrol media, mic), jadi tiap ambil ikon dibikinin
+    /// thread baru sendiri.
+    pub fn icon_png(path: &str) -> Option<Vec<u8>> {
+        let path = path.to_string();
+        let handle = std::thread::spawn(move || {
+            let init = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+            let png = extract(&path);
+            if init.is_ok() {
+                unsafe { CoUninitialize() };
+            }
+            if png.is_none() {
+                eprintln!("[pointify] ikon nggak kebaca: {path}");
+            }
+            png
+        });
+        handle.join().ok().flatten()
     }
 }
 
