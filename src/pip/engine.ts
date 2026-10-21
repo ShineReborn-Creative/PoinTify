@@ -19,7 +19,8 @@ export type PipMood =
   | "sleep"
   | "listening"
   | "error"
-  | "music";
+  | "music"
+  | "watching";
 
 export const MOOD_COLOR: Record<PipMood, string> = {
   idle: "#8B7CFF",
@@ -32,6 +33,7 @@ export const MOOD_COLOR: Record<PipMood, string> = {
   listening: "#8B7CFF",
   error: "#FF5C5C",
   music: "#B98CFF",
+  watching: "#FFB547",
 };
 
 type EyeMode = "open" | "happy" | "sleep" | "x" | "spiral" | "heart";
@@ -46,7 +48,8 @@ type ReactionKind =
   | "glance"
   | "play"
   | "stretch"
-  | "hop";
+  | "hop"
+  | "laugh";
 type ParticleKind = "heart" | "sparkle" | "z" | "note" | "bang" | "question" | "sweat" | "rain";
 
 /** Barang yang lagi dipakai/dipegang Pip (Pip desktop). */
@@ -248,6 +251,10 @@ export class PipEngine {
   private leanDeg = 0;
   private prop: PipProp = null;
   private lastCond = 0;
+  // Nonton: nyemil popcorn + reaksi ke filmnya.
+  private nextSnack = 0;
+  private snackAt = -10;
+  private nextScene = 0;
 
   constructor(svg: SVGSVGElement, opts: PipOptions = {}) {
     this.svg = svg;
@@ -329,6 +336,13 @@ export class PipEngine {
     }
     if (mood === "listening") this.sy.kick(2);
     if (mood === "wave") this.hop.kick(-90);
+    if (mood === "watching") {
+      // Pasang kacamata 3D: kebanting dikit ke bawah, terus langsung nyemil.
+      this.sy.kick(-1.6);
+      this.nextSnack = this.t + 1.2;
+      this.nextScene = this.t + rand(7, 12);
+    }
+    this.els.movie?.setAttribute("display", mood === "watching" ? "inline" : "none");
     if (prev === "sleep" && mood !== "sleep") {
       this.sy.kick(3);
       this.spawn("question", 0);
@@ -665,6 +679,7 @@ export class PipEngine {
     this.els.mouthO = this.make("ellipse", { cx: FACE.x, cy: 80, rx: 3, ry: 3.4, fill: "#15131C" }, body);
     this.els.props = this.make("g", {}, body);
     this.drawProp();
+    this.buildMovie(defs, body);
 
     // Titik "point"
     this.els.dotGroup = this.make("g", {}, root);
@@ -677,6 +692,47 @@ export class PipEngine {
     );
 
     this.els.particles = this.make("g", {}, root);
+  }
+
+  /** Perlengkapan nonton: cahaya layar, kacamata 3D, dan ember popcorn. */
+  private buildMovie(defs: SVGDefsElement, body: SVGElement) {
+    const movie = (this.els.movie = this.make("g", { display: this.mood === "watching" ? "inline" : "none" }, body));
+
+    // Cahaya layar yang kedip-kedip di muka Pip.
+    this.els.screenGlow = this.make(
+      "ellipse",
+      { cx: 63, cy: 62, rx: 36, ry: 34, fill: "#9CC8FF", opacity: 0.08, "clip-path": `url(#pip-shape-${this.uid})` },
+      movie,
+    );
+
+    // Ember popcorn di samping badan.
+    const bucket = this.make("g", {}, movie);
+    const cup = this.make("clipPath", { id: `pip-cup-${this.uid}` }, defs);
+    const CUP = "M65 112h30l-4 28H69z";
+    this.make("path", { d: CUP }, cup);
+    this.make("path", { d: CUP, fill: "#FFFDF7" }, bucket);
+    const stripes = this.make("g", { "clip-path": `url(#pip-cup-${this.uid})`, fill: "#E8413C" }, bucket);
+    [66, 75.5, 85].forEach((x) => this.make("path", { d: `M${x} 110h5l-1.2 32h-5z` }, stripes));
+    this.make("path", { d: CUP, fill: "none", stroke: "#15131C", "stroke-width": 1.6, "stroke-linejoin": "round", opacity: 0.35 }, bucket);
+    const kernels: [number, number, number][] = [
+      [68, 110, 4.2], [74, 108, 4.8], [81, 107.5, 5], [88, 108.5, 4.6], [93, 111, 3.8], [71, 105, 3.6], [78.5, 103.5, 4.2], [86, 104, 3.8], [82, 100.5, 3.2],
+    ];
+    kernels.forEach(([cx, cy, r]) => this.make("circle", { cx, cy, r, fill: "#FFF4CC", stroke: "#E7BE5A", "stroke-width": 1.1 }, bucket));
+    this.make("rect", { x: 64, y: 111, width: 32, height: 4, rx: 2, fill: "#C9302C" }, bucket);
+    // Sebutir popcorn yang lagi dibawa ke mulut.
+    this.els.kernel = this.make("circle", { cx: 82, cy: 101, r: 3.4, fill: "#FFF4CC", stroke: "#E7BE5A", "stroke-width": 1, opacity: 0 }, movie);
+
+    // Kacamata 3D (merah-biru), ikut geser sama wajah.
+    const g = (this.els.glasses = this.make("g", {}, movie));
+    const frame = { fill: "none", stroke: "#1E1B26", "stroke-width": 2.6, "stroke-linejoin": "round", "stroke-linecap": "round" };
+    this.make("path", { ...frame, d: "M41 58.5h-8.5M85 58.5h8.5" }, g);
+    this.make("rect", { x: 41, y: 54, width: 21, height: 15.5, rx: 4, fill: "#FF4D5E", opacity: 0.78 }, g);
+    this.make("rect", { x: 64, y: 54, width: 21, height: 15.5, rx: 4, fill: "#2FD0F0", opacity: 0.78 }, g);
+    this.make("rect", { x: 41, y: 54, width: 21, height: 15.5, rx: 4, ...frame }, g);
+    this.make("rect", { x: 64, y: 54, width: 21, height: 15.5, rx: 4, ...frame }, g);
+    this.make("path", { ...frame, d: "M62 58.5q1-1.6 2 0" }, g);
+    // Kilap di lensa.
+    this.make("path", { d: "M45 57.5l4-2.2M68 57.5l4-2.2", stroke: "#fff", "stroke-width": 1.6, "stroke-linecap": "round", opacity: 0.55 }, g);
   }
 
   // ---------------- Logika ----------------
@@ -904,6 +960,54 @@ export class PipEngine {
         }
         break;
       }
+      case "watching": {
+        // Mata nempel ke layar, sesekali geser dikit ngikutin adegan.
+        lookTarget = { x: Math.sin(t * 0.45) * 0.25 + Math.sin(t * 1.7) * 0.06, y: 0.35 };
+        eyeScale = 1.08;
+        blush = 0.6;
+        dot = { x: DOT_REST.x + Math.sin(t * 0.8) * 2, y: DOT_REST.y + 4 };
+        dotR = 7.5;
+        // Cahaya layar.
+        const flicker = 0.07 + 0.05 * (Math.sin(t * 2.3) * 0.5 + Math.sin(t * 5.1 + 1) * 0.3 + Math.sin(t * 0.7) * 0.2);
+        this.els.screenGlow?.setAttribute("opacity", flicker.toFixed(3));
+        // Nyemil popcorn: ambil, masukin mulut, kunyah.
+        if (!this.opts.still && t >= this.nextSnack && !r) {
+          this.snackAt = t;
+          this.nextSnack = t + rand(3.2, 6.5);
+        }
+        const sp = t - this.snackAt;
+        const kernel = this.els.kernel;
+        if (sp >= 0 && sp < 0.5) {
+          const k = sp / 0.5;
+          const e = k * k * (3 - 2 * k);
+          kernel?.setAttribute("cx", (82 + (63 - 82) * e).toFixed(2));
+          kernel?.setAttribute("cy", (101 + (80 - 101) * e - Math.sin(Math.PI * k) * 16).toFixed(2));
+          kernel?.setAttribute("opacity", "1");
+          mouth = k > 0.35 ? "o" : "none";
+          lookTarget = { x: 0.35 - k * 0.35, y: 0.6 - k * 0.3 };
+        } else {
+          kernel?.setAttribute("opacity", "0");
+          if (sp >= 0.5 && sp < 1.5) {
+            // Kunyah: mulut buka-tutup, pipi ngembang.
+            mouth = Math.floor(sp * 9) % 2 ? "flat" : "smile";
+            scaleX = 1.02;
+            blush = 0.85;
+            if (Math.floor(sp * 9) !== Math.floor((sp - dt) * 9)) this.sy.kick(-0.25);
+          }
+        }
+        // Adegan seru: kaget atau ketawa.
+        if (!this.opts.still && t >= this.nextScene && !r && (sp < 0 || sp > 1.6)) {
+          this.nextScene = t + rand(9, 18);
+          if (Math.random() < 0.5) {
+            this.react("surprised", 1.1);
+            this.sy.kick(3);
+            this.spawn("bang", 0);
+          } else {
+            this.react("laugh", 1.4);
+          }
+        }
+        break;
+      }
       default:
         break;
     }
@@ -999,6 +1103,13 @@ export class PipEngine {
           break;
         case "hop":
           break;
+        case "laugh":
+          eyeMode = "happy";
+          mouth = "smile";
+          blush = 1;
+          tiltTarget = Math.sin(t * 16) * 3;
+          if (Math.floor(t * 6) !== Math.floor((t - dt) * 6)) this.sy.kick(-0.9);
+          break;
       }
     }
 
@@ -1091,6 +1202,8 @@ export class PipEngine {
       "transform",
       `translate(${lx.toFixed(2)} ${ly.toFixed(2)}) translate(${FACE.x} ${FACE.y}) scale(${es.toFixed(3)}) translate(${-FACE.x} ${-FACE.y})`,
     );
+
+    if (this.mood === "watching") this.els.glasses?.setAttribute("transform", `translate(${lx.toFixed(2)} ${ly.toFixed(2)})`);
 
     // Kelopak mata
     const open = clamp(this.lid.x * (1 - blinkClose), 0, 1.2);

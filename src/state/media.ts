@@ -53,6 +53,8 @@ export async function initMedia() {
     if (!m || !key) return;
     if (lyricsStore.get().key === key) return;
     if (settingsStore.get()?.showLyrics === false) return;
+    // Film/video nggak punya lirik, nggak usah dicari.
+    if (m.kind === "video") return;
     void loadLyrics(m);
   });
   mediaStore.set(await api.mediaGet());

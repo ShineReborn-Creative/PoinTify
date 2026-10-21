@@ -132,12 +132,18 @@ function MusicActivity() {
   return (
     <span className="compact-music">
       {media.thumbnail && <img src={media.thumbnail} alt="" />}
-      <span className="bars playing" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-        <i />
-      </span>
+      {media.kind === "video" ? (
+        <span className="compact-popcorn" role="img" aria-label="Lagi nonton">
+          🍿
+        </span>
+      ) : (
+        <span className="bars playing" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+      )}
     </span>
   );
 }

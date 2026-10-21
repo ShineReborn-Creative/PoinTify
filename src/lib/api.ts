@@ -12,6 +12,8 @@ export type MediaInfo = {
   positionMs: number;
   positionAtMs: number;
   durationMs: number;
+  /** Lagu atau tontonan (film, series, video). */
+  kind?: "music" | "video";
 };
 
 export type LyricLine = { timeMs: number; text: string };

@@ -633,3 +633,6 @@ html, body, #root {
   to { opacity: 1; transform: none; filter: none; }
 }
 @media (prefers-reduced-motion: reduce) { .compact-lyric-line { animation: none; } }
+.compact-popcorn { font-size: 14px; line-height: 1; display: inline-block; animation: popcorn-bob 1.6s ease-in-out infinite; }
+@keyframes popcorn-bob { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-1.5px) rotate(4deg); } }
+@media (prefers-reduced-motion: reduce) { .compact-popcorn { animation: none; } }

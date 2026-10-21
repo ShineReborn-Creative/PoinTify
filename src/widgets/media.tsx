@@ -75,7 +75,7 @@ export function MusicWidget({ size, mood }: Props) {
         <div className="music-meta">
           <strong className="ellipsis">{media.title}</strong>
           <span className="muted ellipsis">
-            {media.artist || "Tanpa artis"} · {appName(media.appId)}
+            {media.artist ? `${media.artist} · ${appName(media.appId)}` : appName(media.appId)}
           </span>
         </div>
         {size === "xl" && controls}
@@ -87,7 +87,7 @@ export function MusicWidget({ size, mood }: Props) {
             ref={barRef}
             className="progress"
             role="slider"
-            aria-label="Posisi lagu"
+            aria-label={media.kind === "video" ? "Posisi video" : "Posisi lagu"}
             aria-valuemin={0}
             aria-valuemax={Math.round(media.durationMs / 1000)}
             aria-valuenow={Math.round(pos / 1000)}
@@ -99,7 +99,11 @@ export function MusicWidget({ size, mood }: Props) {
         </div>
       )}
       {size === "l" && <div className="w-music-l-controls">{controls}</div>}
-      {settings?.showLyrics !== false && (
+      {media.kind === "video" ? (
+        <div className="lyrics">
+          <div className="lyric-status muted">Lagi nonton. Pip udah siap popcorn 🍿</div>
+        </div>
+      ) : settings?.showLyrics !== false && (
         <div className="lyrics">
           {current !== null ? (
             <>

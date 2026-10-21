@@ -355,8 +355,19 @@ export function PetApp() {
   const follow = settings?.petFollow !== false;
   const busyTyping = follow && typing && !carried && !sleeping;
   useEffect(() => {
-    engine.current?.setProp(follow ? (ctx.focus ? "headband" : ctx.claude || busyTyping ? "laptop" : null) : null);
-  }, [follow, ctx.focus, ctx.claude, busyTyping]);
+    // Lagi nonton: laptopnya disimpen dulu, gantian megang popcorn.
+    const laptop = (ctx.claude || busyTyping) && mood !== "watching";
+    engine.current?.setProp(follow ? (ctx.focus ? "headband" : laptop ? "laptop" : null) : null);
+  }, [follow, ctx.focus, ctx.claude, busyTyping, mood]);
+
+  // Mulai nonton: Pip duduk anteng, pasang kacamata, ambil popcorn.
+  useEffect(() => {
+    if (mood !== "watching") return;
+    stopGait();
+    engine.current?.setLean(0);
+    sayEvent("watch", 0.8);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mood, sayEvent]);
   // Mulai ngetik: Pip berhenti jalan dan ikut ngetik.
   useEffect(() => {
     if (!busyTyping) return;

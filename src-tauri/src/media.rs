@@ -17,6 +17,9 @@ pub struct MediaInfo {
     pub position_ms: u64,
     pub position_at_ms: u64,
     pub duration_ms: u64,
+    /// "music" atau "video" (film, series, YouTube biasa). Dipakai biar Pip
+    /// ikut nonton pakai kacamata + popcorn, bukan joget.
+    pub kind: &'static str,
 }
 
 #[derive(Default)]
@@ -33,6 +36,159 @@ use fallback as platform;
 use imp as platform;
 
 pub use platform::start_watcher;
+
+const BROWSERS: &[&str] = &["chrome", "msedge", "firefox", "opera", "brave", "vivaldi", "arc", "zen", "yandex", "browser"];
+const VIDEO_APPS: &[&str] = &[
+    "vlc",
+    "mpc-hc",
+    "mpc-be",
+    "potplayer",
+    "mpv",
+    "kmplayer",
+    "gom",
+    "zunevideo",
+    "netflix",
+    "disney",
+    "primevideo",
+    "amazon video",
+    "plex",
+    "stremio",
+    "jellyfin",
+    "kodi",
+    "iqiyi",
+    "viu",
+    "vidio",
+    "wetv",
+    "hotstar",
+    "hbo",
+    "crunchyroll",
+    "twitch",
+];
+const MUSIC_APPS: &[&str] = &[
+    "spotify",
+    "applemusic",
+    "apple music",
+    "deezer",
+    "tidal",
+    "youtube music",
+    "foobar",
+    "musicbee",
+    "aimp",
+    "winamp",
+    "joox",
+    "resso",
+    "soundcloud",
+];
+const VIDEO_WORDS: &[&str] = &[
+    "episode",
+    "episod",
+    "eps ",
+    "eps.",
+    " ep ",
+    " ep.",
+    "season",
+    "trailer",
+    "full movie",
+    "movie",
+    "film",
+    "netflix",
+    "prime video",
+    "disney+",
+    "sub indo",
+    "subtitle",
+    "nonton",
+    "anime",
+    "drama",
+    "vlog",
+    "podcast",
+    "| vidio",
+    "crunchyroll",
+];
+const MUSIC_WORDS: &[&str] = &[
+    "official music video",
+    "music video",
+    "official video",
+    "official audio",
+    "lyric",
+    "lirik",
+    "(audio)",
+    "[audio]",
+    " mv",
+    "(mv)",
+    "[mv]",
+    "live performance",
+    "cover",
+    "remix",
+    "acoustic",
+    "karaoke",
+];
+
+/// Tebak yang diputer itu lagu atau tontonan. `video_hint`: app-nya sendiri
+/// bilang video ke Windows (browser selalu ngaku "musik", jadi diabaikan).
+pub(crate) fn classify(app_id: &str, title: &str, artist: &str, duration_ms: u64, video_hint: Option<bool>) -> &'static str {
+    let app = app_id.to_lowercase();
+    let title_l = format!(" {} ", title.to_lowercase());
+    let has = |list: &[&str], hay: &str| list.iter().any(|w| hay.contains(w));
+
+    if has(VIDEO_APPS, &app) {
+        return "video";
+    }
+    if has(MUSIC_APPS, &app) {
+        return if video_hint == Some(true) { "video" } else { "music" };
+    }
+    if !has(BROWSERS, &app) {
+        return if video_hint == Some(true) { "video" } else { "music" };
+    }
+
+    // Browser: tebak dari judul, artis (nama channel), dan durasi.
+    if has(MUSIC_WORDS, &title_l) || artist.trim_end().to_lowercase().ends_with("- topic") {
+        return "music";
+    }
+    if has(VIDEO_WORDS, &title_l) || episode_code(&title_l) {
+        return "video";
+    }
+    if artist.trim().is_empty() || duration_ms >= 20 * 60_000 {
+        return "video";
+    }
+    "music"
+}
+
+/// Kode episode kayak "S2E22", "s01e05", atau "2x05".
+fn episode_code(title: &str) -> bool {
+    let b = title.as_bytes();
+    (0..b.len()).any(|i| {
+        let digits = |from: usize| b[from..].iter().take_while(|c| c.is_ascii_digit()).count();
+        if b[i] == b's' && (i == 0 || !b[i - 1].is_ascii_alphabetic()) {
+            let n = digits(i + 1);
+            n > 0 && b.get(i + 1 + n) == Some(&b'e') && digits(i + 2 + n) > 0
+        } else if b[i].is_ascii_digit() && (i == 0 || !b[i - 1].is_ascii_alphanumeric()) {
+            let n = digits(i);
+            n <= 2 && b.get(i + n) == Some(&b'x') && (1..=3).contains(&digits(i + n + 1))
+        } else {
+            false
+        }
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::classify;
+
+    #[test]
+    fn tebak_jenis_media() {
+        let chrome = "Chrome";
+        assert_eq!(classify(chrome, "The Mentalist S2E22: Red Letters", "", 2_563_000, Some(false)), "video");
+        assert_eq!(classify(chrome, "Hindia - Evaluasi (Official Music Video)", "Hindia", 240_000, None), "music");
+        assert_eq!(classify(chrome, "Evaluasi", "Hindia - Topic", 240_000, None), "music");
+        assert_eq!(classify(chrome, "Ngoding seharian", "Windah Basudara", 3_600_000, None), "video");
+        assert_eq!(classify(chrome, "Bohemian Rhapsody", "Queen Official", 360_000, None), "music");
+        assert_eq!(classify("Spotify.exe", "Podcast Seru", "Someone", 3_600_000, None), "music");
+        assert_eq!(classify("VideoLAN.VLC", "movie.mkv", "", 0, None), "video");
+        assert_eq!(classify("Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic", "clip", "", 0, Some(true)), "video");
+        assert_eq!(classify(chrome, "Lagu Santai 2x05 remix", "DJ", 200_000, None), "music");
+        assert_eq!(classify(chrome, "Friends 2x05", "Channel", 1_300_000, None), "video");
+    }
+}
 
 #[tauri::command]
 pub async fn media_control(action: String) -> Result<(), String> {
@@ -56,6 +212,7 @@ mod imp {
             GlobalSystemMediaTransportControlsSessionMediaProperties as MediaProperties,
             GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus,
         },
+        Media::MediaPlaybackType,
         Storage::Streams::DataReader,
     };
 
@@ -87,7 +244,9 @@ mod imp {
         }
         let artist = props.Artist().ok()?.to_string();
         let album = props.AlbumTitle().map(|a| a.to_string()).unwrap_or_default();
-        let is_playing = session.GetPlaybackInfo().ok()?.PlaybackStatus().ok()? == PlaybackStatus::Playing;
+        let playback = session.GetPlaybackInfo().ok()?;
+        let is_playing = playback.PlaybackStatus().ok()? == PlaybackStatus::Playing;
+        let video_hint = playback.PlaybackType().ok().and_then(|t| t.Value().ok()).map(|t| t == MediaPlaybackType::Video);
         let app_id = session.SourceAppUserModelId().ok()?.to_string();
 
         let (position_ms, duration_ms, position_at_ms) = session
@@ -108,7 +267,19 @@ mod imp {
             *thumbnail = read_thumbnail(&props);
         }
 
-        Some(MediaInfo { title, artist, album, is_playing, app_id, thumbnail: thumbnail.clone(), position_ms, position_at_ms, duration_ms })
+        let kind = super::classify(&app_id, &title, &artist, duration_ms, video_hint);
+        Some(MediaInfo {
+            title,
+            artist,
+            album,
+            is_playing,
+            app_id,
+            thumbnail: thumbnail.clone(),
+            position_ms,
+            position_at_ms,
+            duration_ms,
+            kind,
+        })
     }
 
     pub fn start_watcher(app: AppHandle) {

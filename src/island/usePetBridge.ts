@@ -37,7 +37,7 @@ export function usePetBridge({ petMode, mood, live, visitOffset }: Args) {
 
   const agent = activeSession(agents);
   const ctx: PetContext = {
-    music: media?.isPlaying ? { title: media.title, artist: media.artist } : null,
+    music: media?.isPlaying ? { title: media.title, artist: media.artist, video: media.kind === "video" } : null,
     claude: chat.running || agent?.status === "working",
     focus: timer.running && timer.phase === "focus",
     waterDue: waterDue(now),

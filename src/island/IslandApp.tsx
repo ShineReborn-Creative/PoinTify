@@ -333,6 +333,7 @@ export function IslandApp() {
   const lyricBar =
     (activity === "music" || activity === "timer") &&
     !!media?.isPlaying &&
+    media.kind !== "video" &&
     settings?.showLyrics !== false &&
     settings?.compactLyrics !== false &&
     lyrics.status === "ready" &&
@@ -386,7 +387,9 @@ export function IslandApp() {
                 ? "working"
                 : "thinking"
               : media?.isPlaying
-            ? "music"
+            ? media.kind === "video"
+              ? "watching"
+              : "music"
             : idleLong
               ? "sleep"
               : "idle";

@@ -2,7 +2,7 @@ import type { LiveInfo } from "../widgets/data";
 
 /** Yang lagi kejadian di notch, dikirim jendela utama ke Pip desktop. */
 export type PetContext = {
-  music: { title: string; artist: string } | null;
+  music: { title: string; artist: string; video?: boolean } | null;
   /** Claude (chat atau terminal) lagi kerja. */
   claude: boolean;
   /** Timer fokus lagi jalan di fase fokus. */
@@ -48,6 +48,9 @@ export function chatter(ctx: PetContext, cond: PetCond, live: PetLive["info"]): 
   if (live && live.priority >= 3) return `${live.label}: ${live.value}`;
   const r = Math.random();
   if (ctx.claude && r < 0.6) return pick(["Claude lagi ngerjain, sabar ya", "Gue bantuin ngetik 💻", "Kerjaannya jalan nih"]);
+  if (ctx.music?.video && r < 0.6) {
+    return pick([`Seru nih "${ctx.music.title}" 🍿`, "Ssst, lagi seru-serunya", "Popcorn-nya tinggal dikit nih", "Jangan di-skip ya!", "Abis ini satu episode lagi? 👀"]);
+  }
   if (ctx.music && r < 0.6) {
     return pick([`"${ctx.music.title}" enak nih 🎶`, "Lagunya mantep", "Joget dulu ah 🕺"]);
   }
@@ -77,6 +80,7 @@ export const EVENT_LINES = {
   chaseStart: ["Kejar-kejaran! 🏃", "Siap-siap ya!"],
   chaseEnd: ["Hah… hah… seru!", "Capek, udahan dulu ya", "Lagi kapan-kapan!"],
   touch: ["Kena!", "Dapet!", "Hehe"],
+  watch: ["Nonton? Gue ambil popcorn dulu 🍿", "Ikutan nonton dong", "Kacamata siap, popcorn siap 🍿"],
   smell: ["Nyam? Itu buat gue?", "Wah, makanan?"],
 } as const;
 
