@@ -464,10 +464,17 @@ input.w-input[type="datetime-local"] { color-scheme: dark; }
 .w-sys-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 11px; }
 .w-sys-label { font-weight: 600; color: var(--muted); }
 .w-sys-val { font-size: 10.5px; min-width: 62px; text-align: right; }
-.w-sys-s { display: flex; align-items: center; gap: 9px; }
-.w-ring-num { font-size: 13px; font-weight: 700; }
-.w-sys-s-text { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--muted); }
-.w-sys-s-text b { color: var(--text); font-weight: 600; }
+.w-sys-s { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.w-ring-num { font-size: 15px; font-weight: 700; color: var(--text); }
+.w-ring-num small { font-size: 9px; font-weight: 600; color: var(--muted); margin-left: 1px; }
+.w-sys-s-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 10.5px; }
+.w-sys-s-text b { color: var(--text); font-size: 13.5px; font-weight: 650; }
+.w-sys-s-text .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-sys-swap { animation: w-sys-swap 0.35s var(--ease) both; }
+@keyframes w-sys-swap { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+.w-sys-dots { display: flex; gap: 3px; margin-top: 4px; }
+.w-sys-dots i { width: 4px; height: 4px; border-radius: 2px; background: var(--line-strong); transition: width 0.25s var(--ease), background 0.25s ease; }
+.w-sys-dots i.on { width: 12px; background: var(--muted); }
 
 .w-net-rows { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
 .w-net-rows span { display: flex; align-items: center; gap: 6px; font-size: 14px; }

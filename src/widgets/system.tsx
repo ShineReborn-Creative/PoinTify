@@ -9,33 +9,88 @@ import { bytes, setLive, speed, useSysStats } from "./data";
 
 const pct = (a: number, b: number) => (b > 0 ? a / b : 0);
 
+type Slide = { key: string; label: string; value: number; text: string; sub: string; color: string };
+
+const ROTATE_MS = 3500;
+
+/** Mode kecil: satu angka gede yang gantian CPU → RAM → Baterai. Klik buat lompat. */
+function SystemSmall({ data }: { data: SysStats }) {
+  const slides: Slide[] = [
+    {
+      key: "cpu",
+      label: "CPU",
+      value: data.cpu / 100,
+      text: `${Math.round(data.cpu)}`,
+      sub: data.cpu >= 85 ? "Panas" : data.cpu >= 50 ? "Sibuk" : "Santai",
+      color: data.cpu >= 85 ? "var(--red)" : "var(--accent)",
+    },
+    {
+      key: "ram",
+      label: "RAM",
+      value: pct(data.memUsed, data.memTotal),
+      text: `${Math.round(pct(data.memUsed, data.memTotal) * 100)}`,
+      sub: `${Math.round(data.memUsed / 1e9)}/${Math.round(data.memTotal / 1e9)} GB`,
+      color: pct(data.memUsed, data.memTotal) >= 0.9 ? "var(--red)" : "var(--blue)",
+    },
+  ];
+  if (data.battery) {
+    const b = data.battery;
+    slides.push({
+      key: "bat",
+      label: "Baterai",
+      value: b.percent / 100,
+      text: `${b.percent}`,
+      sub: b.charging ? "Ngecas" : b.percent <= 15 ? "Mau habis" : "Aman",
+      color: b.charging ? "var(--green)" : b.percent <= 15 ? "var(--red)" : b.percent <= 30 ? "var(--amber)" : "var(--green)",
+    });
+  }
+  const [i, setI] = useState(0);
+  const [hold, setHold] = useState(false);
+  useEffect(() => {
+    if (hold) return;
+    const t = window.setInterval(() => setI((x) => x + 1), ROTATE_MS);
+    return () => window.clearInterval(t);
+  }, [hold, slides.length]);
+  const idx = i % slides.length;
+  const cur = slides[idx];
+  return (
+    <div
+      className="w-sys-s"
+      role="button"
+      title="Klik buat ganti"
+      onMouseEnter={() => setHold(true)}
+      onMouseLeave={() => setHold(false)}
+      onClick={() => setI((x) => x + 1)}
+    >
+      <Ring size={52} stroke={5} progress={cur.value} color={cur.color}>
+        <span key={cur.key} className="w-ring-num tabular w-sys-swap">
+          {cur.text}
+          <small>%</small>
+        </span>
+      </Ring>
+      <div className="w-sys-s-text">
+        <b key={cur.key} className="w-sys-swap">
+          {cur.label}
+        </b>
+        <span key={`${cur.key}-sub`} className="muted w-sys-swap">
+          {cur.sub}
+        </span>
+        <span className="w-sys-dots" aria-hidden="true">
+          {slides.map((sl, n) => (
+            <i key={sl.key} className={n === idx ? "on" : ""} />
+          ))}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function SystemWidget({ size }: WidgetProps) {
   const { data, error } = useSysStats();
   if (!data) return <WState error={!!error}>{error ? "Data sistem nggak kebaca" : "Ngecek sistem…"}</WState>;
   const ram = pct(data.memUsed, data.memTotal);
   const disk = 1 - pct(data.diskFree, data.diskTotal);
-  if (size === "s") {
-    return (
-      <div className="w-sys-s">
-        <Ring size={50} stroke={5} progress={data.cpu / 100} color={data.cpu > 85 ? "var(--red)" : "var(--accent)"}>
-          <span className="w-ring-num tabular">{Math.round(data.cpu)}</span>
-        </Ring>
-        <div className="w-sys-s-text">
-          <span>
-            <b>CPU</b> {Math.round(data.cpu)}%
-          </span>
-          <span>
-            <b>RAM</b> {Math.round(ram * 100)}%
-          </span>
-          {data.battery && (
-            <span>
-              <b>Baterai</b> {data.battery.percent}%
-            </span>
-          )}
-        </div>
-      </div>
-    );
-  }
+  if (size === "s") return <SystemSmall data={data} />;
   const rows: [string, number, string][] = [
     ["CPU", data.cpu / 100, `${Math.round(data.cpu)}%`],
     ["RAM", ram, `${bytes(data.memUsed)} / ${bytes(data.memTotal)}`],
