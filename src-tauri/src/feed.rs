@@ -50,7 +50,10 @@ struct FeedFile {
     project: String,
     title: String,
     request: String,
+    /// `status` juga diterima, biar file yang salah nama kolom nggak bikin sesi nyangkut di "lagi kerja".
+    #[serde(alias = "status")]
     state: String,
+    #[serde(alias = "stage")]
     note: String,
     message: String,
     steps: Vec<FeedStep>,
