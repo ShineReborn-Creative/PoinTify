@@ -11,6 +11,8 @@ export type TimerState = {
   endsAt: number | null;
   /** Sisa waktu pas timer dijeda. */
   remainingMs: number;
+  /** Durasi penuh fase ini pas dimulai (buat tahu timer udah pernah jalan atau belum). */
+  fullMs?: number;
   /** Sesi fokus yang udah beres di siklus ini (buat nentuin istirahat panjang). */
   cycleCount: number;
   todaySessions: number;
@@ -98,7 +100,7 @@ export function pauseTimer() {
 }
 
 export function resetTimer() {
-  timerStore.set((s) => ({ ...s, running: false, endsAt: null, remainingMs: phaseDuration(s.phase) }));
+  timerStore.set((s) => ({ ...s, running: false, endsAt: null, remainingMs: phaseDuration(s.phase), fullMs: phaseDuration(s.phase) }));
 }
 
 function nextPhase(s: TimerState, countFinished: boolean): { phase: Phase; cycleCount: number } {
@@ -112,12 +114,12 @@ function nextPhase(s: TimerState, countFinished: boolean): { phase: Phase; cycle
 export function skipPhase() {
   timerStore.set((s) => {
     const { phase, cycleCount } = nextPhase(s, false);
-    return { ...s, phase, cycleCount, running: false, endsAt: null, remainingMs: phaseDuration(phase) };
+    return { ...s, phase, cycleCount, running: false, endsAt: null, remainingMs: phaseDuration(phase), fullMs: phaseDuration(phase) };
   });
 }
 
 export function setPhase(phase: Phase) {
-  timerStore.set((s) => ({ ...s, phase, running: false, endsAt: null, remainingMs: phaseDuration(phase) }));
+  timerStore.set((s) => ({ ...s, phase, running: false, endsAt: null, remainingMs: phaseDuration(phase), fullMs: phaseDuration(phase) }));
 }
 
 /** Dipanggil tiap detik dari jendela notch. */
@@ -140,14 +142,32 @@ export function tickTimer(now: number) {
     running: autoStart,
     endsAt: autoStart ? now + duration : null,
     remainingMs: duration,
+    fullMs: duration,
     todaySessions: s.todaySessions + (finished === "focus" ? 1 : 0),
     todayFocusMs: s.todayFocusMs + (finished === "focus" ? phaseDuration("focus") : 0),
   });
   completeHandlers.forEach((fn) => fn(finished, phase));
 }
 
-/** Kalau durasi di pengaturan berubah dan timer lagi diam, samain sisa waktunya. */
+/** Timer belum pernah dijalanin di fase ini (bukan lagi dijeda di tengah). */
+export function isFresh(s: TimerState): boolean {
+  if (s.running) return false;
+  // Data lama tanpa fullMs: anggap baru kalau sisanya pas menit bulat.
+  return s.fullMs !== undefined ? s.remainingMs === s.fullMs : s.remainingMs % 60_000 === 0;
+}
+
+/** Durasi penuh fase yang lagi jalan. */
+export function fullDuration(s: TimerState): number {
+  return s.fullMs ?? phaseDuration(s.phase);
+}
+
+/**
+ * Kalau durasi di pengaturan berubah dan timer belum dimulai, samain sisa
+ * waktunya. Timer yang lagi dijeda di tengah jangan di-reset.
+ */
 export function syncTimerWithSettings() {
   const s = timerStore.get();
-  if (!s.running) timerStore.set({ ...s, remainingMs: phaseDuration(s.phase) });
+  if (!isFresh(s)) return;
+  const full = phaseDuration(s.phase);
+  if (s.remainingMs !== full || s.fullMs !== full) timerStore.set({ ...s, remainingMs: full, fullMs: full });
 }

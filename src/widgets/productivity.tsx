@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
-import { Ring } from "../components/Ring";
 import { api } from "../lib/api";
 import { mmss, uid } from "../lib/format";
 import { useNow } from "../lib/hooks";
 import { useStore } from "../lib/store";
 import { setTab } from "../state/island";
 import { settingsStore } from "../state/settings";
-import { PHASE_LABEL, pauseTimer, phaseDuration, remaining, startTimer, timerStore } from "../state/timer";
+import { fullDuration, isFresh, pauseTimer, remaining, resetTimer, skipPhase, startTimer, timerStore } from "../state/timer";
 import { drink, undoDrink, waterStore } from "../state/water";
 import { str, WLabel, WState, type WidgetProps } from "./common";
 import { clipStore, initClipboard } from "./data";
@@ -163,31 +162,100 @@ export function ClipboardWidget({ size }: WidgetProps) {
 // Timer fokus & minum (dari Beranda lama)
 // ---------------------------------------------------------------------------
 
+const PHASE_SHORT: Record<string, string> = { focus: "Fokus", short: "Istirahat", long: "Istirahat panjang" };
+
+function focusTime(ms: number) {
+  const m = Math.round(ms / 60_000);
+  return m >= 60 ? `${Math.floor(m / 60)}j ${m % 60}m` : `${m}m`;
+}
+
+/**
+ * Timer fokus: angka gede, isi warna yang nyapu pelan dari kiri ke kanan
+ * sesuai waktu yang udah lewat, dan pil sesi yang nunjukin udah fokus berapa
+ * kali sebelum istirahat panjang.
+ */
 export function TimerWidget({ size }: WidgetProps) {
   const timer = useStore(timerStore);
+  const settings = useStore(settingsStore);
   const now = useNow(1000, timer.running);
   const left = remaining(timer, now);
-  const total = phaseDuration(timer.phase);
+  const total = fullDuration(timer);
+  const progress = total > 0 ? Math.max(0, Math.min(1, 1 - left / total)) : 0;
+  const every = Math.max(2, settings?.sessionsBeforeLongBreak ?? 4);
+  const focus = timer.phase === "focus";
+  const fresh = isFresh(timer);
+  const state = timer.running ? "running" : fresh ? "idle" : "paused";
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (timer.running) pauseTimer();
+    else startTimer();
+  };
   return (
-    <div className={`w-mini size-${size}`} onClick={() => setTab("timer")} role="button" aria-label="Buka timer fokus">
-      <Ring size={size === "s" ? 40 : 46} stroke={4} progress={1 - left / total} color={timer.phase === "focus" ? "var(--accent)" : "var(--green)"}>
-        <Icon name="timer" size={15} />
-      </Ring>
-      <div className="mini-text">
-        <strong className="tabular">{mmss(left)}</strong>
-        <span className="muted">{PHASE_LABEL[timer.phase]}</span>
+    <div
+      className={`w-timer size-${size} phase-${timer.phase} ${state}`}
+      style={{ ["--p" as string]: progress }}
+      onClick={() => setTab("timer")}
+      role="button"
+      aria-label="Buka timer fokus"
+    >
+      <span className="w-timer-fill" aria-hidden="true" />
+      <div className="w-timer-top">
+        <span className="w-timer-chip">
+          <i />
+          {state === "paused" ? "Dijeda" : PHASE_SHORT[timer.phase]}
+        </span>
+        <div className="w-timer-btns">
+          {size !== "s" && (
+            <>
+              <button
+                className="w-timer-btn ghost"
+                aria-label="Ulang dari awal"
+                title="Ulang dari awal"
+                disabled={fresh}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  resetTimer();
+                }}
+              >
+                <Icon name="reset" size={13} />
+              </button>
+              <button
+                className="w-timer-btn ghost"
+                aria-label="Lewati ke fase berikutnya"
+                title="Lewati"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  skipPhase();
+                }}
+              >
+                <Icon name="skip" size={13} />
+              </button>
+            </>
+          )}
+          <button className="w-timer-btn main" aria-label={timer.running ? "Jeda timer" : "Mulai timer"} onClick={toggle}>
+            <Icon name={timer.running ? "pause" : "play"} size={13} />
+          </button>
+        </div>
       </div>
-      <button
-        className="icon-btn solid"
-        aria-label={timer.running ? "Jeda timer" : "Mulai timer"}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (timer.running) pauseTimer();
-          else startTimer();
-        }}
-      >
-        <Icon name={timer.running ? "pause" : "play"} size={15} />
-      </button>
+      <strong className="w-timer-time tabular">{mmss(left)}</strong>
+      <div className="w-timer-foot">
+        <span className="w-timer-pips" aria-label={`Sesi ${Math.min(timer.cycleCount + 1, every)} dari ${every}`}>
+          {Array.from({ length: every }, (_, i) => {
+            const done = i < timer.cycleCount || (!focus && i === timer.cycleCount - 1);
+            const current = focus && i === timer.cycleCount;
+            return (
+              <i key={i} className={done ? "done" : current ? "current" : ""}>
+                {current && <b style={{ width: `${progress * 100}%` }} />}
+              </i>
+            );
+          })}
+        </span>
+        {size !== "s" && (
+          <span className="muted w-timer-today">
+            Hari ini {timer.todaySessions} sesi · {focusTime(timer.todayFocusMs)}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

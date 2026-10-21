@@ -10,7 +10,7 @@ import { toolLabel } from "../lib/tools";
 import { activeSession, agentsStore } from "../state/agents";
 import { chatStore } from "../state/chat";
 import { activeLyricIndex, lyricsStore, mediaStore, positionAt } from "../state/media";
-import { phaseDuration, remaining, timerStore } from "../state/timer";
+import { fullDuration, remaining, timerStore } from "../state/timer";
 import type { LiveInfo } from "../widgets/data";
 import { LiveActivity } from "../widgets/live";
 
@@ -94,7 +94,7 @@ function TimerActivity() {
   const timer = useStore(timerStore);
   const now = useNow(1000);
   const left = remaining(timer, now);
-  const total = phaseDuration(timer.phase);
+  const total = fullDuration(timer);
   return (
     <span className="compact-timer">
       <Ring

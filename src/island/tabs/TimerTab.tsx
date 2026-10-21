@@ -7,7 +7,7 @@ import { settingsStore } from "../../state/settings";
 import {
   PHASE_LABEL,
   pauseTimer,
-  phaseDuration,
+  fullDuration,
   remaining,
   resetTimer,
   setPhase,
@@ -24,7 +24,7 @@ export function TimerTab() {
   const settings = useStore(settingsStore);
   const now = useNow(1000, timer.running);
   const left = remaining(timer, now);
-  const total = phaseDuration(timer.phase);
+  const total = fullDuration(timer);
   const every = Math.max(2, settings?.sessionsBeforeLongBreak ?? 4);
   const focusMinutesToday = Math.round(timer.todayFocusMs / 60_000);
   const color = timer.phase === "focus" ? "var(--accent)" : "var(--green)";
