@@ -37,6 +37,8 @@ windows = { version = "0.62", features = [
   "Foundation",
   "Media_Control",
   "Storage_Streams",
+  # Widget cuaca & sholat: lokasi PC dari layanan lokasi Windows
+  "Devices_Geolocation",
   # Deteksi app fullscreen, biar notch sembunyi pas nonton atau main game
   "Win32_Foundation",
   "Win32_Graphics_Gdi",

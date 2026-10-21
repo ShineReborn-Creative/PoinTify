@@ -3,7 +3,7 @@ import { Icon, type IconName } from "../components/Icon";
 import { api } from "../lib/api";
 import { useNow } from "../lib/hooks";
 import { duration, str, WLabel, WState, type WidgetProps } from "./common";
-import { geocode, pipConditionStore, setLive, usePolled } from "./data";
+import { pipConditionStore, placeKey, resolvePlace, setLive, usePolled } from "./data";
 
 // ---------------------------------------------------------------------------
 // Cuaca (Open-Meteo, gratis tanpa API key)
@@ -11,11 +11,23 @@ import { geocode, pipConditionStore, setLive, usePolled } from "./data";
 
 type Forecast = {
   place: string;
-  current: { temperature_2m: number; weather_code: number; is_day: number };
+  auto: boolean;
+  note?: string;
+  current: {
+    temperature_2m: number;
+    apparent_temperature: number;
+    weather_code: number;
+    is_day: number;
+    precipitation: number;
+    cloud_cover: number;
+    relative_humidity_2m: number;
+  };
   daily: { time: string[]; temperature_2m_max: number[]; temperature_2m_min: number[]; weather_code: number[] };
 };
 
-function weatherInfo(code: number, day = true): { label: string; icon: IconName; rain: boolean } {
+type WInfo = { label: string; icon: IconName; rain: boolean };
+
+function weatherInfo(code: number, day = true): WInfo {
   if (code === 0) return { label: "Cerah", icon: day ? "sun" : "moon", rain: false };
   if (code <= 2) return { label: "Cerah berawan", icon: day ? "sun" : "moon", rain: false };
   if (code === 3) return { label: "Berawan", icon: "cloud", rain: false };
@@ -27,26 +39,57 @@ function weatherInfo(code: number, day = true): { label: string; icon: IconName;
   return { label: "Berawan", icon: "cloud", rain: false };
 }
 
-export function useWeather(city: string) {
+/**
+ * Keadaan sekarang. Kode cuaca dari model sering bilang gerimis padahal
+ * nggak ada air yang turun, jadi hujan cuma dipercaya kalau curah hujannya
+ * beneran ada; selain itu dibaca dari tutupan awan.
+ */
+function nowInfo(c: Forecast["current"]): WInfo {
+  const day = c.is_day === 1;
+  const base = weatherInfo(c.weather_code, day);
+  if (!base.rain || c.precipitation >= 0.1) return base;
+  if (c.cloud_cover < 25) return { label: "Cerah", icon: day ? "sun" : "moon", rain: false };
+  if (c.cloud_cover < 65) return { label: "Cerah berawan", icon: day ? "sun" : "moon", rain: false };
+  return { label: "Berawan", icon: "cloud", rain: false };
+}
+
+/** "terasa 36°" kalau beda jauh sama suhu asli (lembap/angin). */
+function feels(c: Forecast["current"]) {
+  const t = Math.round(c.temperature_2m);
+  const a = Math.round(c.apparent_temperature);
+  if (Math.abs(a - t) < 2) return "";
+  return `terasa ${a}°`;
+}
+
+export function useWeather(cfg: Record<string, unknown>) {
   return usePolled<Forecast>(
-    city ? `weather:${city.toLowerCase()}` : null,
+    `weather:${placeKey(cfg)}`,
     async () => {
-      const p = await geocode(city);
-      const f = await api.httpGetJson<Omit<Forecast, "place">>(
-        `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=3`,
+      const p = await resolvePlace(cfg);
+      const f = await api.httpGetJson<Omit<Forecast, "place" | "auto" | "note">>(
+        `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}` +
+          `&current=temperature_2m,apparent_temperature,weather_code,is_day,precipitation,cloud_cover,relative_humidity_2m` +
+          `&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&forecast_days=3`,
       );
-      return { ...f, place: p.name };
+      return { ...f, place: p.name, auto: !!p.auto, note: p.note };
     },
-    15 * 60_000,
+    10 * 60_000,
   );
 }
 
 const DAY = (iso: string) => new Date(iso).toLocaleDateString("id-ID", { weekday: "short" });
 
+function PlaceLabel({ data }: { data: Forecast }) {
+  return (
+    <WLabel icon={data.auto ? "location" : "cloud"} right={data.note ? <span title={data.note}>⚠</span> : undefined}>
+      {data.place}
+    </WLabel>
+  );
+}
+
 export function WeatherWidget({ item, size }: WidgetProps) {
-  const city = str(item.cfg.city, "Nabire");
-  const { data, error } = useWeather(city);
-  const info = data ? weatherInfo(data.current.weather_code, data.current.is_day === 1) : null;
+  const { data, error } = useWeather(item.cfg);
+  const info = data ? nowInfo(data.current) : null;
   useEffect(() => {
     pipConditionStore.set((c) => (c.rain === !!info?.rain ? c : { ...c, rain: !!info?.rain }));
   }, [info?.rain]);
@@ -55,25 +98,28 @@ export function WeatherWidget({ item, size }: WidgetProps) {
   if (size === "s") {
     return (
       <div className="w-weather-s">
-        <WLabel icon="cloud">{data.place}</WLabel>
+        <PlaceLabel data={data} />
         <div className="w-weather-now">
           <Icon name={info.icon} size={26} />
           <strong className="tabular">{temp}°</strong>
         </div>
-        <span className="muted ellipsis">{info.label}</span>
+        <span className="muted ellipsis" title={info.label}>
+          {feels(data.current) ? `T${feels(data.current).slice(1)}` : info.label}
+        </span>
       </div>
     );
   }
   return (
     <div className="w-weather">
       <div className="w-weather-left">
-        <WLabel icon="cloud">{data.place}</WLabel>
+        <PlaceLabel data={data} />
         <div className="w-weather-now">
           <Icon name={info.icon} size={28} />
           <strong className="tabular">{temp}°</strong>
         </div>
         <span className="muted ellipsis">
-          {info.label} · {Math.round(data.daily.temperature_2m_min[0])}°/{Math.round(data.daily.temperature_2m_max[0])}°
+          {info.label} ·{" "}
+          {feels(data.current) || `${Math.round(data.daily.temperature_2m_min[0])}°/${Math.round(data.daily.temperature_2m_max[0])}°`}
         </span>
       </div>
       <div className="w-weather-days">
@@ -110,13 +156,14 @@ function dateKey(d = new Date()) {
   return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
 }
 
-function usePrayer(city: string) {
+function usePrayer(cfg: Record<string, unknown>) {
   const day = dateKey();
-  return usePolled<Timings>(
-    city ? `prayer:${city.toLowerCase()}:${day}` : null,
+  return usePolled<Timings & { place: string }>(
+    `prayer:${placeKey(cfg)}:${day}`,
     async () => {
-      const p = await geocode(city);
-      return api.httpGetJson<Timings>(`https://api.aladhan.com/v1/timings/${day}?latitude=${p.lat}&longitude=${p.lon}&method=20`);
+      const p = await resolvePlace(cfg);
+      const t = await api.httpGetJson<Timings>(`https://api.aladhan.com/v1/timings/${day}?latitude=${p.lat}&longitude=${p.lon}&method=20`);
+      return { ...t, place: p.name };
     },
     60 * 60_000,
   );
@@ -136,9 +183,8 @@ function prayerTimes(t: Timings | undefined, now: number) {
 }
 
 export function PrayerWidget({ item, size }: WidgetProps) {
-  const city = str(item.cfg.city, "Nabire");
   const now = useNow(1000);
-  const { data, error } = usePrayer(city);
+  const { data, error } = usePrayer(item.cfg);
   const p = prayerTimes(data, now);
   if (!p) return <WState error={!!error}>{error ?? "Ngambil jadwal sholat…"}</WState>;
   if (size === "s") {
@@ -153,7 +199,7 @@ export function PrayerWidget({ item, size }: WidgetProps) {
   return (
     <div className="w-prayer">
       <WLabel icon="moon" right={<span className="tabular">{p.current ? `Waktunya ${p.current.name}` : `${p.next.name} ${duration(p.next.at - now)} lagi`}</span>}>
-        {city}
+        {data?.place ?? ""}
       </WLabel>
       <div className="w-prayer-row">
         {p.list.map((x) => (
@@ -168,9 +214,8 @@ export function PrayerWidget({ item, size }: WidgetProps) {
 }
 
 export function PrayerLive({ item }: WidgetProps) {
-  const city = str(item.cfg.city, "Nabire");
   const now = useNow(1000);
-  const { data } = usePrayer(city);
+  const { data } = usePrayer(item.cfg);
   const p = prayerTimes(data, now);
   const soon = p && p.next.at - now <= 15 * 60_000 ? p.next : null;
   const key = p?.current ? `now:${p.current.key}` : soon ? `soon:${soon.key}:${Math.floor((soon.at - now) / 1000)}` : "";

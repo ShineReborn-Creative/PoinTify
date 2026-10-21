@@ -104,7 +104,7 @@ export function useJson<T>(url: string | null, interval: number) {
   return usePolled<T>(url, () => api.httpGetJson<T>(url as string), interval);
 }
 
-type Place = { name: string; lat: number; lon: number; tz: string };
+export type Place = { name: string; lat: number; lon: number; tz: string; auto?: boolean; note?: string };
 const GEO_KEY = "pointify.geocode.v1";
 
 function geoCache(): Record<string, Place> {
@@ -133,6 +133,78 @@ export async function geocode(city: string): Promise<Place> {
     // Nggak kesimpen, nanti nanya lagi aja.
   }
   return place;
+}
+
+// ---------------------------------------------------------------------------
+// Lokasi PC (layanan lokasi Windows), dipakai cuaca & jadwal sholat.
+// ---------------------------------------------------------------------------
+
+const HERE_KEY = "pointify.here.v1";
+const HERE_TTL = 20 * 60_000;
+let hereJob: Promise<Place> | null = null;
+
+async function placeName(lat: number, lon: number): Promise<string> {
+  type Rev = { locality?: string; city?: string; principalSubdivision?: string };
+  try {
+    const r = await api.httpGetJson<Rev>(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=id`,
+    );
+    return r.locality || r.city || r.principalSubdivision || "Lokasi lu";
+  } catch {
+    return "Lokasi lu";
+  }
+}
+
+/** Posisi PC sekarang (disimpen 20 menit biar nggak nanya Windows terus). */
+export function locateHere(): Promise<Place> {
+  try {
+    const c = JSON.parse(localStorage.getItem(HERE_KEY) || "null") as (Place & { at: number }) | null;
+    if (c && Date.now() - c.at < HERE_TTL) return Promise.resolve(c);
+  } catch {
+    // cache rusak, ambil ulang
+  }
+  hereJob ??= (async () => {
+    try {
+      const fix = await api.geoLocate();
+      const lat = Math.round(fix.lat * 1000) / 1000;
+      const lon = Math.round(fix.lon * 1000) / 1000;
+      const place: Place = {
+        name: await placeName(lat, lon),
+        lat,
+        lon,
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        auto: true,
+      };
+      try {
+        localStorage.setItem(HERE_KEY, JSON.stringify({ ...place, at: Date.now() }));
+      } catch {
+        // nggak kesimpen, nggak apa-apa
+      }
+      return place;
+    } finally {
+      hereJob = null;
+    }
+  })();
+  return hereJob;
+}
+
+/**
+ * Tempat buat widget: lokasi PC kalau `loc` otomatis (bawaan), atau kota yang
+ * diketik. Kalau lokasi Windows mati, pakai kota sebagai cadangan plus catatan.
+ */
+export async function resolvePlace(cfg: Record<string, unknown>): Promise<Place> {
+  const city = typeof cfg.city === "string" && cfg.city.trim() ? cfg.city : "Nabire";
+  if (cfg.loc === "city") return geocode(city);
+  try {
+    return await locateHere();
+  } catch (e) {
+    const p = await geocode(city);
+    return { ...p, note: String(e).replace(/^Error:\s*/, "") };
+  }
+}
+
+export function placeKey(cfg: Record<string, unknown>) {
+  return cfg.loc === "city" ? `city:${String(cfg.city ?? "Nabire").toLowerCase()}` : `here:${String(cfg.city ?? "Nabire").toLowerCase()}`;
 }
 
 /** Ambil nilai dari JSON pakai jalur titik, misal `data.items.0.price`. */

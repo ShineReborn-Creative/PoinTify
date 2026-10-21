@@ -46,6 +46,16 @@ export type WidgetDef = {
   single?: boolean;
 };
 
+const LOC: Field = {
+  key: "loc",
+  label: "Lokasi",
+  kind: "select",
+  options: [
+    ["auto", "Lokasi PC (otomatis)"],
+    ["city", "Kota yang gue ketik"],
+  ],
+  hint: "Otomatis pakai layanan lokasi Windows. Kalau lokasinya mati, pakai kota di bawah.",
+};
 const CITY: Field = { key: "city", label: "Kota", kind: "text", placeholder: "Nabire" };
 
 export const WIDGETS: WidgetDef[] = [
@@ -274,7 +284,7 @@ export const WIDGETS: WidgetDef[] = [
     sizes: ["s", "w", "l"],
     defaultSize: "s",
     defaultCfg: { city: "Nabire" },
-    fields: [CITY],
+    fields: [LOC, CITY],
     Component: WeatherWidget,
   },
   {
@@ -286,7 +296,7 @@ export const WIDGETS: WidgetDef[] = [
     sizes: ["s", "w"],
     defaultSize: "w",
     defaultCfg: { city: "Nabire" },
-    fields: [CITY],
+    fields: [LOC, CITY],
     Component: PrayerWidget,
     Live: PrayerLive,
     liveHint: "Nongol di notch 15 menit sebelum waktu sholat.",

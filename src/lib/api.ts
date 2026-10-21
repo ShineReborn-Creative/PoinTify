@@ -224,5 +224,7 @@ export const api = {
   httpGetJson: <T = unknown>(url: string) => invoke<T>("http_get_json", { url }),
   launchOpen: (target: string) => invoke("launch_open", { target }),
   /** Ikon asli app/file/folder/situs (data URL), null kalau nggak ada. */
+  /** Lokasi PC dari layanan lokasi Windows. */
+  geoLocate: () => invoke<{ lat: number; lon: number; accuracy: number }>("geo_locate"),
   launchIcon: (target: string) => invoke<string | null>("launch_icon", { target }),
 };

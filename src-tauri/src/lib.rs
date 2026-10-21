@@ -4,6 +4,7 @@ mod clipboard;
 mod claude_hooks;
 mod drop_catcher;
 mod feed;
+mod geo;
 mod hook_relay;
 mod island;
 mod lyrics;
@@ -120,6 +121,7 @@ pub fn run() {
             widgets::http_get_json,
             widgets::launch_open,
             widgets::launch_icon,
+            geo::geo_locate,
         ])
         .run(tauri::generate_context!())
         .expect("PoinTify gagal dijalankan");
