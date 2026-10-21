@@ -1,5 +1,5 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon, type IconName } from "../components/Icon";
 import { api } from "../lib/api";
 import { uid } from "../lib/format";
@@ -20,6 +20,36 @@ function kind(target: string): IconName {
   return "folder";
 }
 
+// Ikon diambil sekali per shortcut, dibagi ke semua widget.
+const iconCache = new Map<string, Promise<string | null>>();
+
+function useLaunchIcon(target: string): string | null {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    let p = iconCache.get(target);
+    if (!p) {
+      p = api.launchIcon(target).catch(() => null);
+      iconCache.set(target, p);
+    }
+    void p.then((s) => alive && setSrc(s));
+    return () => {
+      alive = false;
+    };
+  }, [target]);
+  return src;
+}
+
+/** Ikon asli app/situs; selama belum ada (atau gagal) pakai ikon bawaan. */
+function ShortcutIcon({ target, size }: { target: string; size: number }) {
+  const src = useLaunchIcon(target);
+  const [broken, setBroken] = useState(false);
+  if (src && !broken) {
+    return <img className="w-launch-icon" src={src} alt="" width={size} height={size} draggable={false} onError={() => setBroken(true)} />;
+  }
+  return <Icon name={kind(target)} size={size} />;
+}
+
 export function LauncherWidget({ item, size }: WidgetProps) {
   const list = shortcuts(item).slice(0, size === "s" ? 4 : size === "w" ? 4 : 8);
   const [err, setErr] = useState<string | null>(null);
@@ -33,7 +63,7 @@ export function LauncherWidget({ item, size }: WidgetProps) {
           title={err ?? s.target}
           onClick={() => void api.launchOpen(s.target).catch((e) => setErr(String(e)))}
         >
-          <Icon name={kind(s.target)} size={size === "s" ? 16 : 18} />
+          <ShortcutIcon target={s.target} size={size === "s" ? 22 : 20} />
           {size !== "s" && <span className="ellipsis">{s.label}</span>}
         </button>
       ))}
@@ -63,7 +93,7 @@ export function LauncherConfig({ item }: { item: WidgetItem }) {
     <div className="wc-launcher">
       {list.map((s) => (
         <div className="wc-launch-row" key={s.id}>
-          <Icon name={kind(s.target)} size={14} />
+          <ShortcutIcon target={s.target} size={16} />
           <input
             className="w-input"
             value={s.label}

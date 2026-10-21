@@ -223,4 +223,6 @@ export const api = {
   clipboardClear: () => invoke("clipboard_clear"),
   httpGetJson: <T = unknown>(url: string) => invoke<T>("http_get_json", { url }),
   launchOpen: (target: string) => invoke("launch_open", { target }),
+  /** Ikon asli app/file/folder/situs (data URL), null kalau nggak ada. */
+  launchIcon: (target: string) => invoke<string | null>("launch_icon", { target }),
 };

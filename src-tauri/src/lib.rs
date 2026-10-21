@@ -119,6 +119,7 @@ pub fn run() {
             clipboard::clipboard_clear,
             widgets::http_get_json,
             widgets::launch_open,
+            widgets::launch_icon,
         ])
         .run(tauri::generate_context!())
         .expect("PoinTify gagal dijalankan");

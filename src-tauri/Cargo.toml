@@ -25,6 +25,8 @@ tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 base64 = "0.22"
+# Ikon app di widget Peluncur dikirim ke frontend sebagai PNG
+png = "0.17"
 reqwest = { version = "0.13", default-features = false, features = ["native-tls", "json", "query", "charset", "http2"] }
 
 [target.'cfg(windows)'.dependencies]
@@ -63,6 +65,8 @@ windows = { version = "0.62", features = [
   "Win32_System_Variant",
   "Win32_System_DataExchange",
   "Win32_System_Memory",
+  # Widget Peluncur: ambil ikon asli app/file/folder dari Windows
+  "Win32_UI_Controls",
 ] }
 
 [profile.release]

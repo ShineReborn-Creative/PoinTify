@@ -23,7 +23,7 @@ export function CompactBar({ mood, activity, live, lyrics }: Props) {
   return (
     <div className="compact fade-in">
       <CompactPip mood={mood} />
-      {activity === "music" && lyrics && <CompactLyric />}
+      {lyrics && <CompactLyric />}
       <div className="compact-right">
         {activity === "claude" && <ClaudeActivity />}
         {activity === "agent" && <AgentActivity />}

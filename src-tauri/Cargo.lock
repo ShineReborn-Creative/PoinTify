@@ -2885,6 +2885,7 @@ name = "pointify"
 version = "0.3.0"
 dependencies = [
  "base64 0.22.1",
+ "png 0.17.16",
  "reqwest",
  "serde",
  "serde_json",

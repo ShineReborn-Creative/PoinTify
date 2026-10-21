@@ -560,3 +560,7 @@ input.w-input[type="datetime-local"] { color-scheme: dark; }
 .w-music-empty-w > svg { color: var(--muted); flex-shrink: 0; }
 .w-pip.away { flex-direction: column; gap: 8px; text-align: center; font-size: 11px; }
 .w-pip-away-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: var(--card-2); color: var(--muted); flex-shrink: 0; }
+
+/* Ikon asli di Peluncur */
+.w-launch-icon { flex-shrink: 0; object-fit: contain; image-rendering: auto; border-radius: 4px; }
+.wc-launch-row .w-launch-icon { border-radius: 3px; }

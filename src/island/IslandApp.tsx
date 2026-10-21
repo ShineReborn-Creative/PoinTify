@@ -328,8 +328,10 @@ export function IslandApp() {
               : null;
 
   // Lagu yang lagi diputer punya lirik sinkron: lirik jalan di tengah notch kecil.
+  // Timer fokus yang jalan bareng lagu tetap di kanan, liriknya tetap di tengah.
   const lyricBar =
-    activity === "music" &&
+    (activity === "music" || activity === "timer") &&
+    !!media?.isPlaying &&
     settings?.showLyrics !== false &&
     settings?.compactLyrics !== false &&
     lyrics.status === "ready" &&
