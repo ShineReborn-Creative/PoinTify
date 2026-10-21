@@ -26,6 +26,8 @@ pub struct Settings {
     pub sounds: bool,
     // Musik
     pub show_lyrics: bool,
+    /// Baris lirik jalan di tengah notch kecil pas lagu diputer.
+    pub compact_lyrics: bool,
     pub lyric_offset_ms: i32,
     // Fokus
     pub focus_minutes: u32,
@@ -65,6 +67,7 @@ impl Default for Settings {
             shortcut: "Ctrl+Alt+P".into(),
             sounds: true,
             show_lyrics: true,
+            compact_lyrics: true,
             lyric_offset_ms: 0,
             focus_minutes: 25,
             short_break_minutes: 5,

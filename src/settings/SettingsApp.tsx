@@ -105,12 +105,13 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
   );
 }
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <button
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       className={`toggle${checked ? " on" : ""}`}
       onClick={() => onChange(!checked)}
     >
@@ -247,6 +248,14 @@ function MusicSection({ s }: { s: Settings }) {
       <div className="group">
         <Row label="Tampilkan lirik" hint="Lirik sinkron diambil dari LRCLIB.">
           <Toggle label="Tampilkan lirik" checked={s.showLyrics} onChange={(v) => updateSettings({ showLyrics: v })} />
+        </Row>
+        <Row label="Lirik di notch kecil" hint="Baris yang lagi dinyanyiin jalan di tengah notch, tanpa perlu dibuka.">
+          <Toggle
+            label="Lirik di notch kecil"
+            checked={s.compactLyrics !== false}
+            disabled={!s.showLyrics}
+            onChange={(v) => updateSettings({ compactLyrics: v })}
+          />
         </Row>
         <Row label="Geser waktu lirik" hint="Tambah kalau lirik kerasa telat, kurangi kalau kecepetan.">
           <Stepper label="geser lirik" value={s.lyricOffsetMs} min={-3000} max={3000} step={100} suffix="ms" onChange={(v) => updateSettings({ lyricOffsetMs: v })} />

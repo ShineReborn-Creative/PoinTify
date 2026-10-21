@@ -36,6 +36,8 @@ export type Settings = {
   shortcut: string;
   sounds: boolean;
   showLyrics: boolean;
+  /** Lirik jalan di tengah notch kecil. */
+  compactLyrics: boolean;
   lyricOffsetMs: number;
   focusMinutes: number;
   shortBreakMinutes: number;

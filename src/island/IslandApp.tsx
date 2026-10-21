@@ -21,7 +21,7 @@ import {
   showPeek,
   SIZES,
 } from "../state/island";
-import { mediaStore } from "../state/media";
+import { lyricsStore, mediaStore, trackKey } from "../state/media";
 import { petDrag } from "../state/pet";
 import { settingsStore } from "../state/settings";
 import { addToShelf } from "../state/shelf";
@@ -46,6 +46,7 @@ export function IslandApp() {
   const widgets = useStore(widgetStore);
   const edit = useStore(editStore);
   const live = useTopLive();
+  const lyrics = useStore(lyricsStore);
 
   const [flash, setFlash] = useState<PipMood | null>("wave");
   const [lastActive, setLastActive] = useState(() => Date.now());
@@ -326,6 +327,15 @@ export function IslandApp() {
               ? "live"
               : null;
 
+  // Lagu yang lagi diputer punya lirik sinkron: lirik jalan di tengah notch kecil.
+  const lyricBar =
+    activity === "music" &&
+    settings?.showLyrics !== false &&
+    settings?.compactLyrics !== false &&
+    lyrics.status === "ready" &&
+    lyrics.lines.length > 0 &&
+    lyrics.key === trackKey(media);
+
   // Beranda melebar ngikutin jumlah kolom widget.
   const homeCols = useMemo(() => currentPack(widgets, edit.editing).cols, [widgets, edit.editing]);
   const homeW = homePanelWidth(homeCols);
@@ -341,8 +351,9 @@ export function IslandApp() {
       return island.tab === "home" ? { ...SIZES.expanded.home, w: homeW } : SIZES.expanded[island.tab];
     }
     if (island.mode === "peek") return SIZES.peek;
+    if (lyricBar) return SIZES.compactLyrics;
     return activity ? SIZES.compactWide : SIZES.compactBase;
-  }, [island.mode, island.tab, activity, request, homeW]);
+  }, [island.mode, island.tab, activity, request, homeW, lyricBar]);
 
   // Kebuka penuh selalu di tengah; selain itu di tempat terakhir notch digeser.
   const offset = island.mode === "expanded" && !request ? 0 : clampOffset(island.offset, size.w);
@@ -425,7 +436,7 @@ export function IslandApp() {
             <ApprovalCard key={request.id} request={request} more={agents.pending.length - 1} />
           ) : (
             <>
-              {island.mode === "compact" && <CompactBar mood={mood} activity={activity} live={live} />}
+              {island.mode === "compact" && <CompactBar mood={mood} activity={activity} live={live} lyrics={lyricBar} />}
               {island.mode === "peek" && island.peek && <PeekCard peek={island.peek} mood={mood} />}
               {island.mode === "expanded" && <ExpandedView mood={mood} />}
             </>

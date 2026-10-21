@@ -603,3 +603,31 @@ html, body, #root {
 .header-pip-away { display: grid; place-items: center; width: 22px; height: 30px; flex-shrink: 0; border-radius: 8px; }
 .header-pip-away i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: 0.7; transition: transform 0.15s ease, opacity 0.15s ease; }
 .header-pip-away:hover i { transform: scale(1.5); opacity: 1; }
+
+/* Lirik di notch kecil */
+.compact-lyric {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  margin: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.compact-lyric-line {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  animation: compact-lyric-in 0.38s var(--ease) both;
+}
+.compact-lyric-line.rest { color: var(--faint); font-weight: 500; letter-spacing: 0.2em; }
+@keyframes compact-lyric-in {
+  from { opacity: 0; transform: translateY(9px); filter: blur(2px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@media (prefers-reduced-motion: reduce) { .compact-lyric-line { animation: none; } }

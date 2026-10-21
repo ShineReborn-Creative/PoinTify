@@ -9,20 +9,21 @@ import { useStore } from "../lib/store";
 import { toolLabel } from "../lib/tools";
 import { activeSession, agentsStore } from "../state/agents";
 import { chatStore } from "../state/chat";
-import { mediaStore } from "../state/media";
+import { activeLyricIndex, lyricsStore, mediaStore, positionAt } from "../state/media";
 import { phaseDuration, remaining, timerStore } from "../state/timer";
 import type { LiveInfo } from "../widgets/data";
 import { LiveActivity } from "../widgets/live";
 
 export type Activity = "claude" | "agent" | "live" | "timer" | "music" | null;
 
-type Props = { mood: PipMood; activity: Activity; live?: LiveInfo | null };
+type Props = { mood: PipMood; activity: Activity; live?: LiveInfo | null; lyrics?: boolean };
 
 /** Notch dalam keadaan kecil: Pip di kiri, kegiatan yang lagi jalan di kanan. */
-export function CompactBar({ mood, activity, live }: Props) {
+export function CompactBar({ mood, activity, live, lyrics }: Props) {
   return (
     <div className="compact fade-in">
       <CompactPip mood={mood} />
+      {activity === "music" && lyrics && <CompactLyric />}
       <div className="compact-right">
         {activity === "claude" && <ClaudeActivity />}
         {activity === "agent" && <AgentActivity />}
@@ -104,6 +105,24 @@ function TimerActivity() {
       />
       <span className="tabular">{mmss(left)}</span>
     </span>
+  );
+}
+
+/** Baris lirik yang lagi dinyanyiin, di tengah pil. Ganti baris = geser naik pelan. */
+function CompactLyric() {
+  const media = useStore(mediaStore);
+  const lyrics = useStore(lyricsStore);
+  const settings = useStore(settingsStore);
+  const now = useNow(200, !!media?.isPlaying);
+  if (!media) return null;
+  const idx = activeLyricIndex(lyrics.lines, positionAt(media, now) + (settings?.lyricOffsetMs ?? 0));
+  const text = idx >= 0 ? lyrics.lines[idx].text.trim() : "";
+  return (
+    <div className="compact-lyric" aria-live="off">
+      <span key={idx} className={`compact-lyric-line${text ? "" : " rest"}`} title={text || undefined}>
+        {text || "♪"}
+      </span>
+    </div>
   );
 }
 

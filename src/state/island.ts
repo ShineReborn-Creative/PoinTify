@@ -100,6 +100,8 @@ export function guardBlur(ms: number) {
 export const SIZES = {
   compactBase: { w: 196, h: 34 },
   compactWide: { w: 304, h: 34 },
+  /** Lagi muter lagu yang ada liriknya: lirik jalan di tengah. */
+  compactLyrics: { w: 460, h: 34 },
   peek: { w: 392, h: 96 },
   expanded: {
     home: { w: 620, h: 262 },
