@@ -64,6 +64,8 @@ pub struct Settings {
     pub pet_live_sign: bool,
     /// Tidur siang kalau lama dicuekin.
     pub pet_nap: bool,
+    /// Main sama kursor: nyamperin, nerkam, menghindar.
+    pub pet_cursor: bool,
     // Kanvas widget di Beranda: susunan, ukuran, dan isi tiap widget.
     // Bentuknya diatur frontend, Rust cuma nyimpen.
     pub widgets: serde_json::Value,
@@ -106,6 +108,7 @@ impl Default for Settings {
             pet_follow: true,
             pet_live_sign: true,
             pet_nap: true,
+            pet_cursor: true,
             widgets: serde_json::Value::Null,
         }
     }

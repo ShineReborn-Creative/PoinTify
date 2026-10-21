@@ -8,6 +8,7 @@ import { activeSession, agentsStore } from "../state/agents";
 import { chatStore } from "../state/chat";
 import { expand } from "../state/island";
 import { mediaStore } from "../state/media";
+import { addToShelf } from "../state/shelf";
 import { timerStore } from "../state/timer";
 import { drink, waterDue, waterStore } from "../state/water";
 import { pipConditionStore, type LiveInfo } from "../widgets/data";
@@ -79,6 +80,10 @@ export function usePetBridge({ petMode, mood, live, visitOffset }: Args) {
       listen("pet-open", () => expand()),
       listen("pet-open-live", () => expand("home")),
       listen("pet-drink", () => drink()),
+      // File yang "dimakan" Pip dicatet ke Rak tanpa buka notch.
+      listen<{ paths: string[] }>("pet-ate", (e) => {
+        if (e.payload.paths.length) void addToShelf(e.payload.paths);
+      }),
     ];
     return () => subs.forEach((p) => void p.then((f) => f()));
   }, []);

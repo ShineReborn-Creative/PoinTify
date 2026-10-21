@@ -1,7 +1,8 @@
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef, useState } from "react";
-import { fileIcon, Icon } from "../../components/Icon";
+import { FileIcon } from "../../components/FileIcon";
+import { Icon } from "../../components/Icon";
 import { Pip, type PipMood } from "../../components/Pip";
 import { api, type ShelfItem } from "../../lib/api";
 import { fileSize } from "../../lib/format";
@@ -145,7 +146,7 @@ function ShelfCard({ item }: { item: ShelfItem }) {
       onDoubleClick={() => void api.shelfOpen(item.id)}
     >
       <div className="shelf-icon">
-        <Icon name={fileIcon(item.ext, item.isDir)} size={26} />
+        <FileIcon ext={item.ext} isDir={item.isDir} size={46} />
       </div>
       <span className="shelf-name">{item.name}</span>
       <span className="shelf-size muted">{item.isDir ? "Folder" : fileSize(item.size)}</span>

@@ -69,6 +69,8 @@ export type Settings = {
   petFollow: boolean;
   petLiveSign: boolean;
   petNap: boolean;
+  /** Main sama kursor: nyamperin, nerkam, menghindar. */
+  petCursor: boolean;
   /** Kanvas widget Beranda (bentuknya diatur src/widgets/layout.ts). */
   widgets: unknown;
 };
@@ -224,6 +226,10 @@ export const api = {
   petSetHit: (rect: Box, extra: Box[] = []) => invoke("pet_set_hit", { rect, extra }),
   /** Minta Pip gerak: walk | run | hop | climb | jump | jumpdown. */
   petDo: (kind: PetMove) => invoke("pet_do", { kind }),
+  /** Pip lagi santai, boleh main sama kursor (nyamperin, nerkam, menghindar). */
+  petPlay: (ok: boolean) => invoke("pet_play", { ok }),
+  /** Kejar-kejaran selama sekian detik (0 = udahan). */
+  petChase: (seconds: number) => invoke("pet_chase", { seconds }),
   petVisit: (offset: number) => invoke("pet_visit", { offset }),
   petReturn: () => invoke("pet_return"),
 

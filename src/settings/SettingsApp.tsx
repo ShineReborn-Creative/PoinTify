@@ -286,13 +286,16 @@ function PipSection({ s }: { s: Settings }) {
         <Row label="Papan info Live" hint="Pip megang papan info widget Live. Kalau penting, dia lari ke notch.">
           <Toggle label="Papan Live" checked={s.petLiveSign !== false} onChange={(v) => updateSettings({ petLiveSign: v })} />
         </Row>
+        <Row label="Main sama kursor" hint="Kursor diem di deket Pip, dia nyamperin. Digoyang-goyang, dia nerkam. Dilempar ke arahnya, dia menghindar.">
+          <Toggle label="Main sama kursor" checked={s.petCursor !== false} onChange={(v) => updateSettings({ petCursor: v })} />
+        </Row>
         <Row label="Tidur siang" hint="Lama nggak diperhatiin, Pip tidur. Deketin kursor buat bangunin.">
           <Toggle label="Tidur siang" checked={s.petNap !== false} onChange={(v) => updateSettings({ petNap: v })} />
         </Row>
       </div>
       <p className="note">
         Cara main: seret dan lempar Pip, gosok kursor bolak-balik di atasnya buat ngelus, klik dua kali buat buka notch,
-        klik kanan buat menu (minum, main bola, tidur).
+        klik kanan buat menu (minum, main bola, kejar-kejaran, tidur). Seret file ke Pip buat ngasih makan; filenya dicatet diem-diem ke Rak tanpa buka notch.
       </p>
     </>
   );

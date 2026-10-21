@@ -42,7 +42,8 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
 - **Bisa keluar dari notch.** Seret Pip ke bawah, dia jadi pet desktop beneran:
   - **Fisika:** ada gravitasi, bisa dilempar (mantul di pinggir layar, pusing kalau kekencengan), dan nangkring di pinggir atas jendela lain. Jendelanya digeser, Pip ikut; ditutup, dia jatuh.
   - **Gerak sendiri:** jalan, lari, loncat-loncat, manjat pinggir layar terus nempel di sana.
-  - **Interaksi:** gosok kursor bolak-balik buat ngelus, klik dua kali buat buka notch, klik kanan buat menu (kasih minum, ajak main bola, tidur).
+  - **Interaksi:** gosok kursor bolak-balik buat ngelus, klik dua kali buat buka notch, klik kanan buat menu (kasih minum, main bola, kejar-kejaran, tidur). Seret file dari Explorer atau desktop: Pip mangap nunggu, dan kalau dilepas di atasnya dia ngunyah sambil komentar sesuai jenis filenya. Filenya dicatet diem-diem ke Rak (notch nggak ikut kebuka, file aslinya tetap di tempat).
+  - **Main sama kursor:** kursor diem di deket Pip, dia nyamperin dan ngeliatin; digoyang-goyang, dia ngeringkuk terus nerkam; dilempar cepet ke arahnya, dia loncat ngehindar.
   - **Hidup bareng lu:** balon omongan pendek, ikat kepala pas timer fokus, laptop mini pas Claude kerja, joget pas musik, tidur siang kalau dicuekin.
   - **Papan Live:** nenteng info widget Live; kalau penting, lari ke notch sambil ngacungin papannya.
   - Semua bisa diatur di Pengaturan › Pip desktop. Lepas di area notch buat masukin lagi.

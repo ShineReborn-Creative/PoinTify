@@ -110,6 +110,8 @@ pub fn run() {
             pet::pet_home,
             pet::pet_set_hit,
             pet::pet_do,
+            pet::pet_play,
+            pet::pet_chase,
             pet::pet_visit,
             pet::pet_return,
             sys::sys_stats,

@@ -95,13 +95,3 @@ export function Icon({ name, size = 18, className }: { name: IconName; size?: nu
     </svg>
   );
 }
-
-/** Ikon sesuai jenis file. */
-export function fileIcon(ext: string, isDir: boolean): IconName {
-  if (isDir) return "folder";
-  if (["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "heic"].includes(ext)) return "image";
-  if (["mp3", "wav", "flac", "m4a", "ogg", "aac"].includes(ext)) return "music";
-  if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return "zip";
-  if (["ts", "tsx", "js", "jsx", "rs", "py", "go", "java", "c", "cpp", "cs", "php", "html", "css", "json", "toml", "yml", "yaml", "md", "sql", "sh"].includes(ext)) return "code";
-  return "file";
-}

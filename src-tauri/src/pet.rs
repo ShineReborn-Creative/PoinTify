@@ -53,6 +53,10 @@ pub struct PetState {
     moving: AtomicBool,
     watching: AtomicBool,
     thinking: AtomicBool,
+    /// Pip lagi santai dan boleh main sama kursor (ditentuin frontend).
+    play_ok: AtomicBool,
+    /// Main kejar-kejaran sampai jam segini.
+    chase_until: Mutex<Option<Instant>>,
     /// Posisi asal waktu Pip lagi mampir ke notch buat notif.
     away_from: Mutex<Option<(i32, i32)>>,
     /// Kecepatan pas dilepas abis dipegang (px fisik/detik).
@@ -557,6 +561,8 @@ enum Mode {
     Walk { on: Surface, dir: f64, left: f64, gait: Gait },
     Climb { side: f64, until_y: f64 },
     Cling { side: f64, until: Instant },
+    /// Ngeringkuk siap nerkam kursor.
+    Crouch { until: Instant, tx: f64, ty: f64 },
 }
 
 struct Brain {
@@ -573,6 +579,102 @@ struct Brain {
     cfg_at: Instant,
     settled_at: Option<Instant>,
     saved: (i32, i32),
+    play: Play,
+}
+
+/// Ingatan soal kursor buat main-mainan.
+struct Play {
+    hist: std::collections::VecDeque<(Instant, f64, f64)>,
+    still_at: (f64, f64),
+    still_since: Instant,
+    approached: bool,
+    last_dodge: Instant,
+    last_pounce: Instant,
+    last_touch: Instant,
+    /// Lagi nerkam: Some(kena?).
+    pounce: Option<bool>,
+    chasing: bool,
+    chase_dir: f64,
+    retarget: Instant,
+}
+
+impl Play {
+    fn new() -> Self {
+        let past = Instant::now() - Duration::from_secs(30);
+        Self {
+            hist: Default::default(),
+            still_at: (f64::NAN, f64::NAN),
+            still_since: Instant::now(),
+            approached: true,
+            last_dodge: past,
+            last_pounce: past,
+            last_touch: past,
+            pounce: None,
+            chasing: false,
+            chase_dir: 0.0,
+            retarget: past,
+        }
+    }
+
+    fn sample(&mut self, now: Instant, c: (f64, f64), scale: f64) {
+        self.hist.push_back((now, c.0, c.1));
+        while self.hist.front().is_some_and(|(t, _, _)| now.duration_since(*t) > Duration::from_millis(1500)) {
+            self.hist.pop_front();
+        }
+        if self.still_at.0.is_nan() || (c.0 - self.still_at.0).hypot(c.1 - self.still_at.1) > 10.0 * scale {
+            self.still_at = c;
+            self.still_since = now;
+            self.approached = false;
+        }
+    }
+
+    /// Kecepatan kursor paling kenceng (px/detik) di 150 ms terakhir.
+    fn velocity(&self, now: Instant) -> (f64, f64) {
+        let recent: Vec<_> = self.hist.iter().filter(|(t, _, _)| now.duration_since(*t) <= Duration::from_millis(150)).collect();
+        let mut best = (0.0, 0.0);
+        for w in recent.windows(2) {
+            let dt = w[1].0.duration_since(w[0].0).as_secs_f64().max(0.012);
+            let v = ((w[1].1 - w[0].1) / dt, (w[1].2 - w[0].2) / dt);
+            if v.0.hypot(v.1) > f64::hypot(best.0, best.1) {
+                best = v;
+            }
+        }
+        best
+    }
+
+    /// Berapa kali kursor bolak-balik (kiri-kanan atau atas-bawah) dalam 1,1 detik terakhir.
+    fn wiggles(&self, now: Instant, scale: f64) -> usize {
+        let pts: Vec<_> = self.hist.iter().filter(|(t, _, _)| now.duration_since(*t) < Duration::from_millis(1100)).collect();
+        let mut count = 0;
+        for axis in 0..2 {
+            let mut last_dir = 0.0;
+            let mut acc = 0.0;
+            for w in pts.windows(2) {
+                let d = if axis == 0 { w[1].1 - w[0].1 } else { w[1].2 - w[0].2 };
+                acc += d;
+                if acc.abs() < 12.0 * scale {
+                    continue;
+                }
+                let dir = acc.signum();
+                if last_dir != 0.0 && dir != last_dir {
+                    count += 1;
+                }
+                last_dir = dir;
+                acc = 0.0;
+            }
+        }
+        count
+    }
+}
+
+/// Kecepatan buat loncat dari titik (x0, y0) ke (x1, y1) kena gravitasi.
+fn ballistic(x0: f64, y0: f64, x1: f64, y1: f64, scale: f64) -> (f64, f64) {
+    let dx = x1 - x0;
+    let dy = y1 - y0;
+    let t = (0.32 + dx.abs() / (2000.0 * scale) + (-dy).max(0.0) / (2600.0 * scale)).clamp(0.32, 0.75);
+    let vx = dx / t;
+    let vy = ((dy - 0.5 * GRAVITY * scale * t * t) / t).clamp(-2300.0 * scale, 600.0 * scale);
+    (vx, vy)
 }
 
 impl Brain {
@@ -599,6 +701,7 @@ fn start_brain(app: AppHandle) {
             cfg_at: Instant::now() - Duration::from_secs(5),
             settled_at: None,
             saved: (i32::MIN, i32::MIN),
+            play: Play::new(),
         };
         let mut last = Instant::now();
         loop {
@@ -658,6 +761,12 @@ fn start_brain(app: AppHandle) {
             // Perintah dari frontend cuma dijalanin pas lagi napak.
             let order = state.order.lock().unwrap().take();
 
+            // Main sama kursor: nyamperin, nerkam, menghindar, kejar-kejaran.
+            if let Ok(c) = app.cursor_position() {
+                b.play.sample(now, (c.x, c.y), scale);
+                cursor_play(&app, &mut b, &state, now, (c.x, c.y), body, scale, (al, at, ar, ab));
+            }
+
             let mut fast = false;
             match b.mode {
                 Mode::Paused => {}
@@ -675,6 +784,14 @@ fn start_brain(app: AppHandle) {
                     let nfeet = ny + body.feet;
                     b.x = nx;
                     b.y = ny;
+                    if b.play.pounce == Some(false) {
+                        if let Ok(c) = app.cursor_position() {
+                            let bcy = ny + (body.top + body.feet) / 2.0;
+                            if (c.x - ncx).hypot(c.y - bcy) < 58.0 * scale {
+                                b.play.pounce = Some(true);
+                            }
+                        }
+                    }
 
                     // Pinggir kiri/kanan layar: mantul, kecuali ada layar lain di sebelahnya.
                     if ncx - body.half < al && vx < 0.0 && !has_screen_at(&app, al - 4.0, feet - 4.0) {
@@ -718,6 +835,9 @@ fn start_brain(app: AppHandle) {
                             b.mode = Mode::Air { vx, vy };
                         } else {
                             emit_motion(&app, if matches!(on, Surface::Win(..)) { "perch" } else { "land" }, vx, impact / 1000.0);
+                            if let Some(hit) = b.play.pounce.take() {
+                                emit_motion(&app, if hit { "pounce-hit" } else { "pounce-miss" }, vx, 0.0);
+                            }
                             b.mode = Mode::Ground { on };
                             b.settled_at = Some(now);
                             if b.hops_left > 0 {
@@ -848,6 +968,24 @@ fn start_brain(app: AppHandle) {
                     }
                     b.place(&win);
                 }
+                Mode::Crouch { until, tx, ty } => {
+                    if now >= until {
+                        // Nerkam ke posisi kursor sekarang (kalau masih deket), atau ke tempat tadi.
+                        let (mut gx, mut gy) = (tx, ty);
+                        if let Ok(c) = app.cursor_position() {
+                            if (c.x - cx).hypot(c.y - feet) < 420.0 * scale {
+                                gx = c.x;
+                                gy = c.y;
+                            }
+                        }
+                        let bcy = b.y + (body.top + body.feet) / 2.0;
+                        let (vx, vy) = ballistic(cx, bcy, gx, gy, scale);
+                        b.play.pounce = Some(false);
+                        b.play.last_pounce = now;
+                        emit_motion(&app, "pounce", vx, 1.0);
+                        b.mode = Mode::Air { vx, vy };
+                    }
+                }
                 Mode::Cling { side, until } => {
                     if now >= until || order.is_some() {
                         emit_motion(&app, "jump", -side, 0.9);
@@ -855,10 +993,132 @@ fn start_brain(app: AppHandle) {
                     }
                 }
             }
-            thread::sleep(if fast { Duration::from_millis(16) } else { Duration::from_millis(60) });
+            // Kursor lagi deket: cek lebih sering biar reaksinya sigap.
+            let near = state.play_ok.load(Ordering::Relaxed)
+                && b.play.hist.back().is_some_and(|&(_, x, y)| (x - (b.x + body.cx)).hypot(y - (b.y + body.feet)) < 500.0 * scale);
+            thread::sleep(if fast || near { Duration::from_millis(16) } else { Duration::from_millis(60) });
         }
         app.state::<PetState>().thinking.store(false, Ordering::Relaxed);
     });
+}
+
+/// Main-main sama kursor. Cuma ngubah mode kalau Pip lagi napak (diem atau jalan).
+#[allow(clippy::too_many_arguments)]
+fn cursor_play(
+    app: &AppHandle,
+    b: &mut Brain,
+    state: &PetState,
+    now: Instant,
+    c: (f64, f64),
+    body: Body,
+    scale: f64,
+    (al, at, ar, ab): (f64, f64, f64, f64),
+) {
+    let grounded = matches!(b.mode, Mode::Ground { .. } | Mode::Walk { .. });
+    let on = match b.mode {
+        Mode::Ground { on } | Mode::Walk { on, .. } => Some(on),
+        _ => None,
+    };
+    let cx = b.x + body.cx;
+    let top = b.y + body.top;
+    let feet = b.y + body.feet;
+    let bcy = (top + feet) / 2.0;
+    let dx = c.0 - cx;
+    let dy = c.1 - bcy;
+
+    // ---- Kejar-kejaran ----
+    let chase = state.chase_until.lock().unwrap().is_some_and(|t| now < t);
+    if chase {
+        if !b.play.chasing {
+            b.play.chasing = true;
+            b.play.chase_dir = 0.0;
+        }
+        // Kesentuh: kursor masuk badan Pip.
+        if c.0 > cx - body.half && c.0 < cx + body.half && c.1 > top && c.1 < feet && now.duration_since(b.play.last_touch) > Duration::from_millis(900) {
+            b.play.last_touch = now;
+            emit_motion(app, "touch", dx, 1.0);
+        }
+        let Some(on) = on else { return };
+        if dy < -90.0 * scale && dx.abs() < 240.0 * scale && now.duration_since(b.play.last_pounce) > Duration::from_millis(900) {
+            let (vx, vy) = ballistic(cx, bcy, c.0, c.1, scale);
+            b.play.pounce = Some(false);
+            b.play.last_pounce = now;
+            b.play.chase_dir = 0.0;
+            emit_motion(app, "pounce", vx, 0.6);
+            b.mode = Mode::Air { vx, vy };
+        } else if dx.abs() > 28.0 * scale {
+            let dir = dx.signum();
+            if dir != b.play.chase_dir || now.duration_since(b.play.retarget) > Duration::from_millis(250) {
+                b.play.retarget = now;
+                if dir != b.play.chase_dir {
+                    emit_motion(app, "run", dir, 0.0);
+                }
+                b.play.chase_dir = dir;
+                b.mode = Mode::Walk { on, dir, left: dx.abs() - 12.0 * scale, gait: Gait::Run };
+            }
+        } else if matches!(b.mode, Mode::Walk { .. }) {
+            b.play.chase_dir = 0.0;
+            emit_motion(app, "idle", dx, 0.0);
+            b.mode = Mode::Ground { on };
+        }
+        return;
+    }
+    if b.play.chasing {
+        b.play.chasing = false;
+        *state.chase_until.lock().unwrap() = None;
+        emit_motion(app, "chase-end", 0.0, 0.0);
+    }
+
+    if !grounded || !state.play_ok.load(Ordering::Relaxed) {
+        return;
+    }
+    let Some(on) = on else { return };
+    let dist = dx.hypot(dy);
+
+    // ---- Menghindar: kursor dilempar cepet ke arah Pip ----
+    let (vx, vy) = b.play.velocity(now);
+    let speed = vx.hypot(vy);
+    let toward = if dist > 0.0 { (vx * -dx + vy * -dy) / dist } else { 0.0 };
+    if dist < 240.0 * scale && speed > 1900.0 * scale && toward > 0.7 * speed && now.duration_since(b.play.last_dodge) > Duration::from_secs(3) {
+        b.play.last_dodge = now;
+        let away = if dx > 0.0 { -1.0 } else { 1.0 };
+        emit_motion(app, "dodge", away, 1.0);
+        b.mode = Mode::Air { vx: away * 330.0 * scale, vy: -640.0 * scale };
+        return;
+    }
+
+    // ---- Nerkam: kursor digoyang-goyang di deket Pip ----
+    if matches!(b.mode, Mode::Ground { .. })
+        && dist < 320.0 * scale
+        && c.1 < feet + 10.0 * scale
+        && now.duration_since(b.play.last_pounce) > Duration::from_secs(5)
+        && b.play.wiggles(now, scale) >= 4
+    {
+        b.play.last_pounce = now;
+        emit_motion(app, "crouch", dx, 0.0);
+        b.mode = Mode::Crouch { until: now + Duration::from_millis(520), tx: c.0, ty: c.1 };
+        return;
+    }
+
+    // ---- Nyamperin: kursor diem lama di deket Pip ----
+    let still = now.duration_since(b.play.still_since) > Duration::from_secs(4);
+    if matches!(b.mode, Mode::Ground { .. })
+        && still
+        && !b.play.approached
+        && dx.abs() > 55.0 * scale
+        && dx.abs() < 460.0 * scale
+        && c.1 < feet + 20.0 * scale
+        && c.1 > at
+        && (feet - c.1) < 520.0 * scale
+        && c.0 > al
+        && c.0 < ar
+        && feet <= ab + 2.0
+    {
+        b.play.approached = true;
+        let dir = dx.signum();
+        emit_motion(app, "approach", dir, 0.0);
+        b.mode = Mode::Walk { on, dir, left: dx.abs() - 34.0 * scale, gait: Gait::Walk };
+    }
 }
 
 /// Mulai gerakan yang diminta frontend.
@@ -943,6 +1203,32 @@ impl TypingGuess {
     }
 }
 
+/// Mouse ditekan di Explorer atau desktop? Kalau iya dan kursornya kegeser,
+/// kemungkinan besar lu lagi nyeret file/folder (Pip mangap nunggu makanan).
+#[cfg(windows)]
+fn press_on_files(x: f64, y: f64) -> bool {
+    use windows::Win32::{
+        Foundation::POINT,
+        UI::WindowsAndMessaging::{GetAncestor, GetClassNameW, WindowFromPoint, GA_ROOT},
+    };
+    unsafe {
+        let h = WindowFromPoint(POINT { x: x as i32, y: y as i32 });
+        if h.is_invalid() {
+            return false;
+        }
+        let root = GetAncestor(h, GA_ROOT);
+        let mut buf = [0u16; 64];
+        let n = GetClassNameW(root, &mut buf) as usize;
+        let class = String::from_utf16_lossy(&buf[..n.min(64)]);
+        matches!(class.as_str(), "CabinetWClass" | "ExploreWClass" | "Progman" | "WorkerW")
+    }
+}
+
+#[cfg(not(windows))]
+fn press_on_files(_x: f64, _y: f64) -> bool {
+    false
+}
+
 /// (ada tombol ketik yang lagi ditahan, ada yang kepencet sejak cek terakhir).
 #[cfg(windows)]
 fn typing_keys() -> (bool, bool) {
@@ -989,6 +1275,10 @@ fn start_watcher(app: AppHandle) {
     thread::spawn(move || {
         let mut over = false;
         let mut typing = TypingGuess::new();
+        let mut was_down = false;
+        let mut pressed_outside = false;
+        let mut press_at: Option<(f64, f64)> = None;
+        let mut file_near = false;
         let mut hidden = false;
         let mut last_slow = Instant::now() - Duration::from_secs(10);
         let mut last_cursor = (f64::NAN, f64::NAN);
@@ -1009,6 +1299,7 @@ fn start_watcher(app: AppHandle) {
                 }
             }
             if hidden {
+                crate::drop_catcher::place_pet(None);
                 thread::sleep(Duration::from_millis(250));
                 continue;
             }
@@ -1030,7 +1321,8 @@ fn start_watcher(app: AppHandle) {
             {
                 last_cursor = rel;
                 last_sent = Instant::now();
-                let _ = app.emit_to(LABEL, "cursor-pos", CursorPos { x: rel.0, y: rel.1 });
+                // Namanya beda sama punya notch, biar mata Pip nggak kebingungan dua sumber.
+                let _ = app.emit_to(LABEL, "pet-cursor", CursorPos { x: rel.0, y: rel.1 });
             }
 
             // Tembus klik di luar badan Pip dan papannya.
@@ -1043,6 +1335,36 @@ fn start_watcher(app: AppHandle) {
                 let _ = win.set_ignore_cursor_events(!over);
                 let _ = app.emit_to(LABEL, "pet-hover", over && inside(&body, rel.0, rel.1, 4.0));
             }
+
+            // File diseret dari luar (Explorer, desktop) ke atas Pip: pasang
+            // penangkap file native di atas badannya, biar bisa "dimakan".
+            let down = crate::drop_catcher::left_button_down();
+            if down && !was_down {
+                pressed_outside = !inside(&body, rel.0, rel.1, 4.0);
+                press_at = (pressed_outside && press_on_files(cursor.x, cursor.y)).then_some((cursor.x, cursor.y));
+            }
+            if !down {
+                pressed_outside = false;
+                press_at = None;
+            }
+            was_down = down;
+            // Lagi nyeret sesuatu dari Explorer/desktop: Pip mangap.
+            let dragging_files = press_at.is_some_and(|(px, py)| (cursor.x - px).hypot(cursor.y - py) > 24.0 * scale);
+            if dragging_files != file_near {
+                file_near = dragging_files;
+                let _ = app.emit_to(LABEL, "pet-file-near", file_near);
+            }
+            let catch = (down && pressed_outside && !state.carrying.load(Ordering::Relaxed) && inside(&body, rel.0, rel.1, 18.0))
+                .then(|| {
+                    let pad = 18.0;
+                    (
+                        (pos.x as f64 + (body.x - pad) * scale) as i32,
+                        (pos.y as f64 + (body.y - pad) * scale) as i32,
+                        ((body.w + pad * 2.0) * scale) as i32,
+                        ((body.h + pad * 2.0) * scale) as i32,
+                    )
+                });
+            crate::drop_catcher::place_pet(catch);
             thread::sleep(POLL);
         }
         app.state::<PetState>().watching.store(false, Ordering::Relaxed);
@@ -1172,4 +1494,16 @@ pub async fn pet_return(app: AppHandle) -> Result<(), String> {
     })
     .await
     .map_err(|e| e.to_string())
+}
+
+/// Pip lagi santai (boleh nyamperin, nerkam, dan menghindar kursor) atau nggak.
+#[tauri::command]
+pub fn pet_play(state: State<PetState>, ok: bool) {
+    state.play_ok.store(ok, Ordering::Relaxed);
+}
+
+/// Main kejar-kejaran selama `seconds` detik (0 = udahan).
+#[tauri::command]
+pub fn pet_chase(state: State<PetState>, seconds: f64) {
+    *state.chase_until.lock().unwrap() = (seconds > 0.0).then(|| Instant::now() + Duration::from_secs_f64(seconds.min(120.0)));
 }

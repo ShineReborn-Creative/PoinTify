@@ -8,7 +8,7 @@ import type { PipEngine } from "../pip/engine";
 import { IS_WINDOWS } from "../state/pet";
 import { settingsStore } from "../state/settings";
 import { pipConditionStore } from "../widgets/data";
-import { chatter, EMPTY_CONTEXT, eventLine, type PetCond, type PetContext, type PetLive, EVENT_LINES } from "./talk";
+import { chatter, EMPTY_CONTEXT, eventLine, fileComment, type PetCond, type PetContext, type PetLive, EVENT_LINES } from "./talk";
 
 const PIP_SIZE = 84;
 /** Jeda antar gerak sendiri (detik) per tingkat aktif. */
@@ -43,6 +43,12 @@ export function PetApp() {
   const [face, setFace] = useState<1 | -1>(1);
   /** Lu lagi ngetik di keyboard (ditebak Rust tanpa baca isi ketikan). */
   const [typing, setTyping] = useState(false);
+  /** Lagi main kejar-kejaran. */
+  const [chasing, setChasing] = useState(false);
+  /** Ada file yang lagi diseret ke atas Pip. */
+  const [smelling, setSmelling] = useState(false);
+  /** Lu lagi nyeret file/folder dari Explorer atau desktop (di mana aja). */
+  const [fileNear, setFileNear] = useState(false);
 
   const engine = useRef<PipEngine | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -56,6 +62,8 @@ export function PetApp() {
   const lastEventLine = useRef(0);
   const dizzyOnLand = useRef(false);
   const perched = useRef(false);
+  const approaching = useRef(false);
+  const chasingRef = useRef(false);
   const visiting = useRef(false);
   const rub = useRef<{ x: number; dir: number; flips: number[] }>({ x: 0, dir: 0, flips: [] });
 
@@ -157,6 +165,31 @@ export function PetApp() {
       listen<PetLive>("pet-live", (e) => setLive(e.payload)),
       listen<PetCond>("pet-cond", (e) => pipConditionStore.set(e.payload)),
       listen<boolean>("pet-typing", (e) => setTyping(e.payload)),
+      listen<boolean>("pet-file-near", (e) => setFileNear(e.payload)),
+      listen<{ kind: string; paths: string[] }>("pet-file-drag", (e) => {
+        const { kind, paths } = e.payload;
+        if (kind === "enter") {
+          touch();
+          setSmelling(true);
+          engine.current?.surprise();
+          sayEvent("smell", 0.8);
+        } else if (kind === "leave") {
+          setSmelling(false);
+        } else if (kind === "drop") {
+          setSmelling(false);
+          setFileNear(false);
+          if (!paths.length) return;
+          // Dicatet ke Rak diem-diem (notch nggak kebuka), filenya tetap di tempat asal.
+          void emitTo("main", "pet-ate", { paths });
+          // Nyam nyam nyam.
+          engine.current?.chomp(3);
+          window.setTimeout(() => flashMood("happy", 2000), 650);
+          if (talkOn()) {
+            lastEventLine.current = Date.now();
+            window.setTimeout(() => say(fileComment(paths)), 450);
+          }
+        }
+      }),
       listen<boolean>("pet-carry", (e) => {
         setCarried(e.payload);
         if (e.payload) {
@@ -170,7 +203,7 @@ export function PetApp() {
         engine.current?.hover(e.payload);
         if (e.payload) touch();
       }),
-      listen<{ x: number; y: number }>("cursor-pos", (e) => {
+      listen<{ x: number; y: number }>("pet-cursor", (e) => {
         // Kursor deket Pip = lagi diperhatiin.
         const b = bodyRef.current?.getBoundingClientRect();
         if (!b) return;
@@ -254,6 +287,53 @@ export function PetApp() {
           case "idle":
             stopGait();
             eng?.setLean(0);
+            if (approaching.current) {
+              approaching.current = false;
+              eng?.lookAt(0, -1);
+              sayEvent("lookup", 0.5);
+            }
+            break;
+          case "approach":
+            approaching.current = true;
+            eng?.lookAt(dir, -0.4);
+            eng?.setLean(dir * 3);
+            startGait(360, 0.3);
+            break;
+          case "crouch":
+            stopGait();
+            eng?.crouch(dir);
+            break;
+          case "pounce":
+            stopGait();
+            eng?.setLean(dir * 12);
+            eng?.jump(1.6);
+            break;
+          case "pounce-hit":
+            eng?.cheer();
+            flashMood("happy", 1600);
+            sayEvent("pounceHit", 0.6);
+            break;
+          case "pounce-miss":
+            eng?.sulk();
+            sayEvent("pounceMiss", 0.5);
+            break;
+          case "dodge":
+            stopGait();
+            eng?.surprise();
+            eng?.setLean(dir * 10);
+            sayEvent("dodge", 0.5);
+            break;
+          case "touch":
+            eng?.cheer();
+            sayEvent("touch", 0.25);
+            break;
+          case "chase-end":
+            setChasing(false);
+            stopGait();
+            eng?.setLean(0);
+            flashMood("happy", 2000);
+            lastEventLine.current = 0;
+            sayEvent("chaseEnd");
             break;
         }
       }),
@@ -285,6 +365,13 @@ export function PetApp() {
     nextMove.current = Math.max(nextMove.current, Date.now() + 8000);
   }, [busyTyping]);
 
+  // Boleh main sama kursor cuma pas santai.
+  const calmNow = (mood === "idle" || mood === "music") && !busyTyping && !sleeping && !carried && !playing && !ctx.focus && !ctx.claude;
+  const playOk = settings?.petCursor !== false && calmNow;
+  useEffect(() => {
+    void api.petPlay(playOk);
+  }, [playOk]);
+
   // Otak kecil: gerak sendiri, ngomong, tidur siang. Dicek tiap detik.
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -292,7 +379,7 @@ export function PetApp() {
       const cfg = c.settings;
       const now = Date.now();
       const calmMood = (c.mood === "idle" || c.mood === "music") && !(c.typing && c.settings?.petFollow !== false);
-      const free = !c.carried && !c.hover && !c.sleeping && !c.playing && !visiting.current;
+      const free = !c.carried && !c.hover && !c.sleeping && !c.playing && !visiting.current && !chasingRef.current;
 
       // Tidur siang kalau lama dicuekin (malem lebih cepet ngantuk).
       const h = new Date().getHours();
@@ -390,6 +477,19 @@ export function PetApp() {
     say(eventLine("drink"));
   };
 
+  const chase = () => {
+    touch();
+    setChasing(true);
+    chasingRef.current = true;
+    lastEventLine.current = 0;
+    sayEvent("chaseStart");
+    flashMood("happy", 20_000);
+    void api.petChase(20);
+    window.setTimeout(() => {
+      chasingRef.current = false;
+    }, 20_500);
+  };
+
   const play = () => {
     touch();
     setPlaying(true);
@@ -413,7 +513,10 @@ export function PetApp() {
       const menu = await Menu.new({
         items: [
           { id: "drink", text: "Kasih minum 💧", action: drinkWater },
-          { id: "play", text: "Ajak main ⚽", action: play },
+          { id: "play", text: "Ajak main bola ⚽", action: play },
+          chasing
+            ? { id: "chase", text: "Udahan kejar-kejaran", action: () => void api.petChase(0) }
+            : { id: "chase", text: "Main kejar-kejaran 🏃", action: chase },
           {
             id: "nap",
             text: s.current.sleeping ? "Bangun ☀️" : "Tidur 💤",
@@ -436,7 +539,14 @@ export function PetApp() {
     }
   };
 
-  const shown: PipMood = carried
+  // Mangap lebar selama ada file yang lagi diseret.
+  const hungry = (fileNear || smelling) && !carried;
+  useEffect(() => {
+    engine.current?.setHungry(hungry);
+    if (hungry) touch();
+  }, [hungry, touch]);
+
+  const shown: PipMood = carried || hungry
     ? "listening"
     : sleeping
       ? "sleep"

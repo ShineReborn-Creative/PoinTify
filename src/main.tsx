@@ -25,7 +25,7 @@ async function boot() {
   // dan (khusus notch) dari Rust kalau kursornya di mana pun di layar.
   window.addEventListener("pointermove", (e) => setPointer(e.clientX, e.clientY), { passive: true });
   if (label !== "settings") {
-    void listen<{ x: number; y: number }>("cursor-pos", (e) => setPointer(e.payload.x, e.payload.y));
+    void listen<{ x: number; y: number }>(label === "pet" ? "pet-cursor" : "cursor-pos", (e) => setPointer(e.payload.x, e.payload.y));
   }
 
   if (label === "settings") {

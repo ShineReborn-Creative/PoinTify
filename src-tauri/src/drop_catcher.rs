@@ -25,8 +25,8 @@ mod imp {
     use std::{
         ptr,
         sync::{
-            atomic::{AtomicBool, AtomicIsize, Ordering},
-            OnceLock,
+            atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering},
+            Mutex, OnceLock,
         },
         thread,
     };
@@ -60,11 +60,19 @@ mod imp {
     static APP: OnceLock<AppHandle> = OnceLock::new();
     static HWND_RAW: AtomicIsize = AtomicIsize::new(0);
     static SHOWN: AtomicBool = AtomicBool::new(false);
+    /// Penangkapnya lagi dipakai siapa: 0 = notch, 1 = Pip desktop.
+    static OWNER: AtomicUsize = AtomicUsize::new(0);
+    /// Kotak yang diminta masing-masing (notch, Pip).
+    static SLOTS: Mutex<[Option<(i32, i32, i32, i32)>; 2]> = Mutex::new([None, None]);
 
     fn emit(kind: &str, paths: Vec<String>) {
         if let Some(app) = APP.get() {
-            eprintln!("[pointify] penangkap file: {kind} ({} item)", paths.len());
-            let _ = app.emit_to("main", "native-file-drag", NativeDrag { kind: kind.into(), paths });
+            // Nama event-nya beda per jendela: `listen()` global di JS nerima
+            // event buat jendela mana pun, jadi notch nggak boleh ikut ngerespon
+            // file yang dikasih ke Pip (dan sebaliknya).
+            let (to, event) = if OWNER.load(Ordering::Relaxed) == 1 { ("pet", "pet-file-drag") } else { ("main", "native-file-drag") };
+            eprintln!("[pointify] penangkap file ({to}): {kind} ({} item)", paths.len());
+            let _ = app.emit_to(to, event, NativeDrag { kind: kind.into(), paths });
         }
     }
 
@@ -188,8 +196,37 @@ mod imp {
         unsafe { (GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0 }
     }
 
-    /// Taruh penangkap di kotak ini (piksel fisik layar), atau sembunyiin kalau None.
+    /// Notch minta penangkap di kotak ini (piksel fisik layar), atau None.
     pub fn place(rect: Option<(i32, i32, i32, i32)>) {
+        place_for(0, rect);
+    }
+
+    /// Pip desktop minta penangkap di atas badannya, atau None.
+    pub fn place_pet(rect: Option<(i32, i32, i32, i32)>) {
+        place_for(1, rect);
+    }
+
+    fn place_for(owner: usize, rect: Option<(i32, i32, i32, i32)>) {
+        let chosen = {
+            let mut slots = SLOTS.lock().unwrap();
+            slots[owner] = rect;
+            // Pip didahulukan (kotaknya kecil dan cuma muncul pas file diseret ke atasnya).
+            if let Some(r) = slots[1] {
+                Some((1, r))
+            } else {
+                slots[0].map(|r| (0, r))
+            }
+        };
+        // Pemilik cuma ganti pas penangkap lagi nggak dipakai nyeret, biar file nggak salah alamat.
+        if let Some((o, _)) = chosen {
+            if !SHOWN.load(Ordering::Relaxed) || o == 1 {
+                OWNER.store(o, Ordering::Relaxed);
+            }
+        }
+        show(chosen.map(|(_, r)| r));
+    }
+
+    fn show(rect: Option<(i32, i32, i32, i32)>) {
         let raw = HWND_RAW.load(Ordering::Relaxed);
         if raw == 0 {
             return;
@@ -218,6 +255,7 @@ mod imp {
         false
     }
     pub fn place(_rect: Option<(i32, i32, i32, i32)>) {}
+    pub fn place_pet(_rect: Option<(i32, i32, i32, i32)>) {}
 }
 
-pub use imp::{left_button_down, place, start};
+pub use imp::{left_button_down, place, place_pet, start};

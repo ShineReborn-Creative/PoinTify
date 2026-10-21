@@ -215,6 +215,10 @@ export class PipEngine {
   private dotR = new Spring(8.5, 300, 14);
   private blush = new Spring(0.5, 60, 14);
   private yawn = new Spring(0, 120, 18);
+  /** Mulut nganga (pas ada file mau dikasih), 0..1. */
+  private gape = new Spring(0, 260, 16);
+  private hungry = false;
+  private chewOpen = false;
 
   // Waktu
   private t = 0;
@@ -479,6 +483,57 @@ export class PipEngine {
     this.spawn("bang", 0);
     if (p > 2.2) this.dizzy();
     else this.react("surprised", 0.6);
+  }
+
+  /** Ngeringkuk siap nerkam ke arah `dir`. */
+  crouch(dir: number) {
+    this.interact();
+    this.sy.kick(-4.2);
+    this.sx.kick(3.4);
+    this.tilt.kick(dir * 90);
+    this.localLook = { x: clamp(dir, -1, 1), y: -0.6, at: this.t };
+    this.react("surprised", 0.5);
+  }
+
+  /** Berhasil (nangkep kursor): loncat kecil + bintang. */
+  cheer() {
+    this.interact();
+    this.hop.kick(-120);
+    this.react("wave", 0.9);
+    for (let i = 0; i < 3; i++) this.spawn("sparkle");
+  }
+
+  /** Gagal: manyun sebentar. */
+  sulk() {
+    this.interact();
+    this.react("annoyed", 1.1);
+    this.sy.kick(1.4);
+  }
+
+  /** Mulut nganga lebar (ada file yang lagi diseret, siap dimakan). */
+  setHungry(on: boolean) {
+    if (on === this.hungry) return;
+    this.hungry = on;
+    this.interact();
+    this.wake();
+  }
+
+  /** Ngunyah: mangap-mingkem beberapa kali. */
+  chomp(times = 3) {
+    this.interact();
+    this.hungry = false;
+    for (let i = 0; i < times; i++) {
+      window.setTimeout(() => {
+        this.chewOpen = true;
+        this.sy.kick(1.2);
+      }, i * 280);
+      window.setTimeout(() => {
+        this.chewOpen = false;
+        this.sy.kick(-1.8);
+        this.sx.kick(1.5);
+      }, i * 280 + 150);
+    }
+    this.wake();
   }
 
   /** Dielus: merem keenakan, keluar hati. */
@@ -985,13 +1040,14 @@ export class PipEngine {
     this.lookY.target = lookTarget.y;
     this.lid.target = lidOpen;
     this.lidAngle.target = lidAngle;
-    this.eyeScale.target = eyeScale;
+    this.eyeScale.target = this.hungry ? Math.max(eyeScale, 1.18) : eyeScale;
+    this.gape.target = this.hungry ? 1 : this.chewOpen ? 0.85 : 0;
     this.dotX.target = dot.x;
     this.dotY.target = dot.y;
     this.dotR.target = dotR;
     this.blush.target = blush;
     this.yawn.target = mouth === "yawn" ? 1 : 0;
-    for (const s of [this.sx, this.sy, this.tilt, this.hop, this.lookX, this.lookY, this.lid, this.lidAngle, this.eyeScale, this.dotX, this.dotY, this.dotR, this.blush, this.yawn]) {
+    for (const s of [this.sx, this.sy, this.tilt, this.hop, this.lookX, this.lookY, this.lid, this.lidAngle, this.eyeScale, this.dotX, this.dotY, this.dotR, this.blush, this.yawn, this.gape]) {
       s.step(dt);
     }
     // Lompatan nggak boleh tembus lantai.
@@ -1078,7 +1134,15 @@ export class PipEngine {
     };
     m.setAttribute("d", mouthPaths[mouth]);
     const o = this.els.mouthO;
-    if (mouth === "o" || yawn > 0.05) {
+    const gape = clamp(this.gape.x, 0, 1.25);
+    if (gape > 0.04) {
+      // Nganga lebar nunggu makanan.
+      m.setAttribute("d", "");
+      o.setAttribute("opacity", "1");
+      o.setAttribute("rx", (3 + gape * 6.5).toFixed(2));
+      o.setAttribute("ry", (3.4 + gape * 8.5).toFixed(2));
+      o.setAttribute("cy", (80 + gape * 4).toFixed(2));
+    } else if (mouth === "o" || yawn > 0.05) {
       o.setAttribute("opacity", "1");
       o.setAttribute("rx", (mouth === "o" ? 3 : 3 + yawn * 2).toFixed(2));
       o.setAttribute("ry", (mouth === "o" ? 3.4 : 2 + yawn * 4.5).toFixed(2));
