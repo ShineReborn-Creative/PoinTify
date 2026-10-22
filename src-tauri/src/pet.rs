@@ -55,6 +55,9 @@ pub struct PetState {
     thinking: AtomicBool,
     /// Jendela Pip lagi disembunyiin (app fullscreen / PoinTify dijeda).
     hidden: AtomicBool,
+    /// Pip lagi nemenin app fullscreen (game, film): keliatan, tapi tembus klik,
+    /// nggak ngejar kursor, dan nggak mampir ke notch (notch-nya lagi sembunyi).
+    fullscreen: AtomicBool,
     /// Posisi jendela terakhir yang dipasang PoinTify sendiri (px fisik).
     pos: Mutex<Option<(i32, i32)>>,
     /// Pip lagi santai dan boleh main sama kursor (ditentuin frontend).
@@ -853,7 +856,7 @@ fn start_brain(app: AppHandle) {
             let order = state.order.lock().unwrap().take();
 
             // Main sama kursor: nyamperin, nerkam, menghindar, kejar-kejaran.
-            if let Some(c) = cursor(&app) {
+            if let Some(c) = cursor(&app).filter(|_| !state.fullscreen.load(Ordering::Relaxed)) {
                 b.play.sample(now, c, scale);
                 cursor_play(&app, &mut b, &state, now, c, body, scale, (al, at, ar, ab));
             }
@@ -1395,11 +1398,22 @@ fn start_watcher(app: AppHandle) {
                 last_slow = Instant::now();
                 let settings = crate::settings::current(&app);
                 let own = crate::island::window_handle(&win);
-                let hide = crate::island::is_paused(&app) || (settings.hide_in_fullscreen && crate::island::foreground_is_fullscreen(own));
+                let fullscreen = settings.hide_in_fullscreen && crate::island::foreground_is_fullscreen(own);
+                let hide = crate::island::is_paused(&app) || (fullscreen && !settings.pet_over_fullscreen);
                 if hide != hidden {
                     hidden = hide;
                     state.hidden.store(hide, Ordering::Relaxed);
                     let _ = if hide { win.hide() } else { win.show() };
+                }
+                // Nemenin app fullscreen: jangan sampai klik di game/film ketangkep Pip.
+                let watching_fs = fullscreen && !hide;
+                if watching_fs != state.fullscreen.swap(watching_fs, Ordering::Relaxed) && watching_fs && over {
+                    over = false;
+                    let _ = win.set_ignore_cursor_events(true);
+                    let _ = app.emit_to(LABEL, "pet-hover", false);
+                }
+                if watching_fs {
+                    crate::island::keep_on_top(own);
                 }
             }
             if hidden {
@@ -1440,11 +1454,13 @@ fn start_watcher(app: AppHandle) {
                 let _ = app.emit_to(LABEL, "pet-cursor", CursorPos { x: rel.0, y: rel.1 });
             }
 
-            // Tembus klik di luar badan Pip dan papannya.
+            // Tembus klik di luar badan Pip dan papannya (dan di mana-mana pas
+            // lagi ada app fullscreen).
             let body = *state.hit.lock().unwrap();
+            let interactive = !state.fullscreen.load(Ordering::Relaxed);
             let now_inside = state.carrying.load(Ordering::Relaxed)
-                || inside(&body, rel.0, rel.1, 4.0)
-                || state.extra.lock().unwrap().iter().any(|r| inside(r, rel.0, rel.1, 2.0));
+                || (interactive
+                    && (inside(&body, rel.0, rel.1, 4.0) || state.extra.lock().unwrap().iter().any(|r| inside(r, rel.0, rel.1, 2.0))));
             if now_inside != over {
                 over = now_inside;
                 let _ = win.set_ignore_cursor_events(!over);
@@ -1470,15 +1486,16 @@ fn start_watcher(app: AppHandle) {
                 let _ = app.emit_to(LABEL, "pet-file-near", file_near);
             }
             let catch =
-                (down && pressed_outside && !state.carrying.load(Ordering::Relaxed) && inside(&body, rel.0, rel.1, 18.0)).then(|| {
-                    let pad = 18.0;
-                    (
-                        (pos.x as f64 + (body.x - pad) * scale) as i32,
-                        (pos.y as f64 + (body.y - pad) * scale) as i32,
-                        ((body.w + pad * 2.0) * scale) as i32,
-                        ((body.h + pad * 2.0) * scale) as i32,
-                    )
-                });
+                (interactive && down && pressed_outside && !state.carrying.load(Ordering::Relaxed) && inside(&body, rel.0, rel.1, 18.0))
+                    .then(|| {
+                        let pad = 18.0;
+                        (
+                            (pos.x as f64 + (body.x - pad) * scale) as i32,
+                            (pos.y as f64 + (body.y - pad) * scale) as i32,
+                            ((body.w + pad * 2.0) * scale) as i32,
+                            ((body.h + pad * 2.0) * scale) as i32,
+                        )
+                    });
             crate::drop_catcher::place_pet(catch);
             thread::sleep(POLL);
         }
@@ -1568,7 +1585,8 @@ pub async fn pet_visit(app: AppHandle, offset: i32) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<PetState>();
         let Some(win) = window(&app) else { return };
-        if state.carrying.load(Ordering::Relaxed) {
+        // Lagi ada app fullscreen: notch-nya sembunyi, nggak ada yang perlu disamperin.
+        if state.carrying.load(Ordering::Relaxed) || state.fullscreen.load(Ordering::Relaxed) {
             return;
         }
         let mut away = state.away_from.lock().unwrap();

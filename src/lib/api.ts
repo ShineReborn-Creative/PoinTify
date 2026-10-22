@@ -70,6 +70,8 @@ export type Settings = {
   petPerch: boolean;
   petFollow: boolean;
   petLiveSign: boolean;
+  /** Pip desktop tetap keliatan pas app fullscreen. */
+  petOverFullscreen: boolean;
   petNap: boolean;
   /** Main sama kursor: nyamperin, nerkam, menghindar. */
   petCursor: boolean;

@@ -363,3 +363,29 @@ pub(crate) fn foreground_is_fullscreen(own: isize) -> bool {
 pub(crate) fn foreground_is_fullscreen(_own: isize) -> bool {
     false
 }
+
+/// Taruh jendela ini lagi di paling atas (tanpa ngerebut fokus). Dipakai Pip
+/// pas nemenin app fullscreen: ada game yang naruh dirinya "selalu di atas"
+/// juga, jadi urutannya perlu dipertegas sesekali.
+#[cfg(windows)]
+pub(crate) fn keep_on_top(own: isize) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, SetWindowPos};
+    if own == 0 {
+        return;
+    }
+    unsafe {
+        let _ = SetWindowPos(
+            HWND(own as *mut std::ffi::c_void),
+            Some(HWND_TOPMOST),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_NOOWNERZORDER,
+        );
+    }
+}
+
+#[cfg(not(windows))]
+pub(crate) fn keep_on_top(_own: isize) {}

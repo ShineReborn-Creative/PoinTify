@@ -473,6 +473,19 @@ function PipSection({ s }: { s: Settings }) {
           <Toggle label={tr("Nangkring di jendela", "Perch on windows")} checked={s.petPerch !== false} onChange={(v) => updateSettings({ petPerch: v })} />
         </Row>
         <Row
+          label={tr("Tetap nemenin pas fullscreen", "Stay visible in fullscreen")}
+          hint={tr(
+            "Pas main game atau nonton fullscreen, notch sembunyi tapi Pip tetap nongol. Klik tembus ke app-nya, jadi Pip nggak ganggu.",
+            "While you game or watch in fullscreen, the notch hides but Pip stays. Clicks pass through him, so he never gets in the way.",
+          )}
+        >
+          <Toggle
+            label={tr("Tetap nemenin pas fullscreen", "Stay visible in fullscreen")}
+            checked={s.petOverFullscreen !== false}
+            onChange={(v) => updateSettings({ petOverFullscreen: v })}
+          />
+        </Row>
+        <Row
           label={tr("Ikut kegiatan lu", "Join your activities")}
           hint={tr(
             "Ikat kepala pas fokus, laptop mini pas Claude kerja atau lu ngetik, joget pas musik, popcorn pas nonton.",

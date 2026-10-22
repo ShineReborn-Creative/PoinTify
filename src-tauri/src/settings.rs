@@ -64,6 +64,8 @@ pub struct Settings {
     pub pet_live_sign: bool,
     /// Tidur siang kalau lama dicuekin.
     pub pet_nap: bool,
+    /// Pip desktop tetap keliatan pas ada app fullscreen (notch-nya tetap sembunyi).
+    pub pet_over_fullscreen: bool,
     /// Main sama kursor: nyamperin, nerkam, menghindar.
     pub pet_cursor: bool,
     // Kanvas widget di Beranda: susunan, ukuran, dan isi tiap widget.
@@ -122,6 +124,7 @@ impl Default for Settings {
             pet_follow: true,
             pet_live_sign: true,
             pet_nap: true,
+            pet_over_fullscreen: true,
             pet_cursor: true,
             widgets: serde_json::Value::Null,
             language: "auto".into(),
