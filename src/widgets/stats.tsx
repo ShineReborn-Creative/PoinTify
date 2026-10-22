@@ -4,6 +4,9 @@ import { isEn, locale, tr } from "../i18n";
 import { api } from "../lib/api";
 import { useStore } from "../lib/store";
 import { lastDays, statsStore, type DayStats } from "../state/stats";
+import { isHiddenApp } from "../lib/pill";
+import { settingsStore } from "../state/settings";
+import type { Settings } from "../lib/api";
 import { WLabel, type WidgetProps } from "./common";
 
 type Metric = "focus" | "water" | "screen";
@@ -16,7 +19,9 @@ function hm(ms: number): string {
   return `${h}${isEn() ? "h" : "j"}${m % 60 ? ` ${m % 60}m` : ""}`;
 }
 
-const screenMs = (d?: DayStats) => (d ? Object.values(d.apps).reduce((s, a) => s + a.ms, 0) : 0);
+/** Total waktu layar, tanpa app yang disembunyiin. */
+const screenMs = (d: DayStats | undefined, s: Settings | null) =>
+  d ? Object.entries(d.apps).reduce((sum, [exe, a]) => (isHiddenApp(s, exe) ? sum : sum + a.ms), 0) : 0;
 
 const ICONS = new Map<string, string | null>();
 function AppIcon({ exe }: { exe: string }) {
@@ -41,11 +46,12 @@ function AppIcon({ exe }: { exe: string }) {
 /** Ringkasan 7 hari: fokus, minum, waktu app, lagu & app teratas. Datanya cuma di PC ini. */
 export function StatsWidget({ size }: WidgetProps) {
   const stats = useStore(statsStore);
+  const settings = useStore(settingsStore);
   const [metric, setMetric] = useState<Metric>("focus");
   const days = lastDays(7);
   const week = days.map((d) => stats.days[d.key]);
 
-  const value = (d: DayStats | undefined) => (!d ? 0 : metric === "focus" ? d.focusMs : metric === "water" ? d.water : screenMs(d));
+  const value = (d: DayStats | undefined) => (!d ? 0 : metric === "focus" ? d.focusMs : metric === "water" ? d.water : screenMs(d, settings));
   const values = week.map(value);
   const max = Math.max(1, ...values);
   const total = values.reduce((a, b) => a + b, 0);
@@ -56,7 +62,7 @@ export function StatsWidget({ size }: WidgetProps) {
     const songs: Record<string, { title: string; artist: string; plays: number }> = {};
     for (const d of week) {
       if (!d) continue;
-      for (const [exe, a] of Object.entries(d.apps)) apps[exe] = { name: a.name, ms: (apps[exe]?.ms ?? 0) + a.ms };
+      for (const [exe, a] of Object.entries(d.apps)) if (!isHiddenApp(settings, exe)) apps[exe] = { name: a.name, ms: (apps[exe]?.ms ?? 0) + a.ms };
       for (const [k, s] of Object.entries(d.songs)) songs[k] = { ...s, plays: (songs[k]?.plays ?? 0) + s.plays };
     }
     return {
@@ -68,7 +74,7 @@ export function StatsWidget({ size }: WidgetProps) {
         .slice(0, 3),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stats]);
+  }, [stats, settings?.pillHiddenApps]);
 
   const label = { focus: tr("Fokus", "Focus"), water: tr("Minum", "Water"), screen: tr("Layar", "Screen") };
   const metricSeg = (

@@ -89,6 +89,11 @@ export type Settings = {
   accent: string;
   /** Progres download di notch. */
   downloadWatch: boolean;
+  /** Info yang gantian di pil pas lagi sepi. */
+  pillSlides: ("app" | "cpu" | "ram" | "clock" | "temp" | "live")[];
+  pillRotateSecs: number;
+  /** App yang disembunyiin dari pil dan statistik. */
+  pillHiddenApps: { exe: string; name: string }[];
   /** Shortcut command palette (kosong = mati). */
   paletteShortcut: string;
 };

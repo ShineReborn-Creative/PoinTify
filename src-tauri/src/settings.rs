@@ -14,6 +14,14 @@ pub struct Project {
     pub path: String,
 }
 
+/// App yang nggak mau ditampilin di pil (dan nggak dicatat di statistik).
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct HiddenApp {
+    pub exe: String,
+    pub name: String,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Settings {
@@ -83,6 +91,11 @@ pub struct Settings {
     pub accent: String,
     /// Pantau folder Downloads buat progres download di notch.
     pub download_watch: bool,
+    /// Info yang gantian di pil pas lagi sepi: app, cpu, ram, clock, temp, live.
+    pub pill_slides: Vec<String>,
+    /// Ganti info tiap sekian detik.
+    pub pill_rotate_secs: u32,
+    pub pill_hidden_apps: Vec<HiddenApp>,
     /// Shortcut global buat command palette (kosong = mati).
     pub palette_shortcut: String,
 }
@@ -133,6 +146,9 @@ impl Default for Settings {
             theme: "dark".into(),
             accent: "violet".into(),
             download_watch: true,
+            pill_slides: ["app", "cpu", "ram", "clock", "temp", "live"].map(String::from).to_vec(),
+            pill_rotate_secs: 4,
+            pill_hidden_apps: Vec::new(),
             palette_shortcut: "Alt+Space".into(),
         }
     }

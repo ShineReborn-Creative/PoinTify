@@ -47,6 +47,8 @@ import { usePetBridge } from "./usePetBridge";
 import { currentPack, editStore, homePanelWidth, setEditing, widgetStore } from "../widgets/layout";
 import { LiveProbes, useTopLive } from "../widgets/live";
 import { tr } from "../i18n";
+import { foregroundStore } from "../state/foreground";
+import { isHiddenApp, pillSlides } from "../lib/pill";
 
 export function IslandApp() {
   const island = useStore(islandStore);
@@ -60,6 +62,7 @@ export function IslandApp() {
   const widgets = useStore(widgetStore);
   const edit = useStore(editStore);
   const live = useTopLive();
+  const fg = useStore(foregroundStore);
   const lyrics = useStore(lyricsStore);
 
   const [flash, setFlash] = useState<PipMood | null>("wave");
@@ -405,6 +408,9 @@ export function IslandApp() {
   // Lagu paling utama: selama diputer, pil nggak ganti tampilan. Selain itu,
   // yang penting (Claude, sesi, Live prioritas ≥ 3) nyelak; pas sepi, info gantian.
   // Timer fokus cukup lingkaran kecil di pojok kanan (lihat CompactBar).
+  // Kalau semua info pil dimatiin (atau app-nya disembunyiin), pil balik polos.
+  const pillOn = pillSlides(settings);
+  const ambientAny = pillOn.some((k) => (k === "app" ? !!fg && !isHiddenApp(settings, fg.exe) : k === "live" ? !!live : true));
   const activity: Activity = media?.isPlaying
     ? "music"
     : chat.running
@@ -415,7 +421,9 @@ export function IslandApp() {
           ? "download"
           : live && live.priority >= 3
             ? "live"
-            : "ambient";
+            : ambientAny
+              ? "ambient"
+              : null;
 
   // Lagu yang lagi diputer punya lirik sinkron: lirik jalan di tengah notch kecil.
   // Timer fokus yang jalan bareng lagu tetap di kanan, liriknya tetap di tengah.
@@ -502,7 +510,7 @@ export function IslandApp() {
   }, [size.w, size.h, offset]);
 
   // ---- Suasana hati Pip ----
-  const idleLong = !island.hover && activity === "ambient" && now - lastActive > 3 * 60_000;
+  const idleLong = !island.hover && (activity === "ambient" || activity === null) && now - lastActive > 3 * 60_000;
   const agentTool = !!agent?.steps.some((s) => (s.kind === "tool" || s.kind === "task") && s.ok === null);
   const mood: PipMood = request
     ? "notify"

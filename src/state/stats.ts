@@ -1,6 +1,8 @@
 import { todayKey } from "../lib/format";
 import { createStore } from "../lib/store";
+import { isHiddenApp } from "../lib/pill";
 import { foregroundStore } from "./foreground";
+import { settingsStore } from "./settings";
 import { mediaStore } from "./media";
 import { timerStore } from "./timer";
 import { waterStore } from "./water";
@@ -97,9 +99,10 @@ export function initStats() {
   waterStore.subscribe(syncCounters);
 
   // Waktu layar per app: tiap 15 detik, tambahin ke app yang lagi di depan.
+  // App yang lu sembunyiin dari pil juga nggak dicatat.
   window.setInterval(() => {
     const app = foregroundStore.get();
-    if (!app || document.visibilityState === "hidden") return;
+    if (!app || document.visibilityState === "hidden" || isHiddenApp(settingsStore.get(), app.exe)) return;
     update((d) => {
       const cur = d.apps[app.exe] ?? { name: app.name, ms: 0 };
       d.apps[app.exe] = { name: app.name, ms: cur.ms + APP_TICK_MS };

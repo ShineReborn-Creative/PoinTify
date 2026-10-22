@@ -12,12 +12,14 @@ import { useStore } from "../lib/store";
 import { ACCENTS, type Accent } from "../lib/theme";
 import { settingsStore, updateSettings } from "../state/settings";
 import { OFFSET_KEY } from "../state/island";
+import { exeKey, PILL_SLIDES, pillSlides, type PillSlide } from "../lib/pill";
 import { checkUpdate, installUpdate, updateStore } from "../state/update";
 
-type Section = "umum" | "pip" | "musik" | "fokus" | "minum" | "claude" | "lanjutan" | "tentang";
+type Section = "umum" | "pil" | "pip" | "musik" | "fokus" | "minum" | "claude" | "lanjutan" | "tentang";
 
 const SECTIONS: { id: Section; label: () => string; icon: IconName }[] = [
   { id: "umum", label: () => tr("Umum", "General"), icon: "gear" },
+  { id: "pil", label: () => tr("Pil notch", "Notch pill"), icon: "desktop" },
   { id: "pip", label: () => tr("Pip desktop", "Desktop Pip"), icon: "sparkle" },
   { id: "musik", label: () => tr("Musik & lirik", "Music & lyrics"), icon: "music" },
   { id: "fokus", label: () => tr("Timer fokus", "Focus timer"), icon: "timer" },
@@ -175,6 +177,8 @@ function SectionBody({ id, s }: { id: Section; s: Settings }) {
   switch (id) {
     case "umum":
       return <GeneralSection s={s} />;
+    case "pil":
+      return <PillSection s={s} />;
     case "pip":
       return <PipSection s={s} />;
     case "musik":
@@ -209,11 +213,12 @@ function Highlight({ text }: { text: string }) {
   );
 }
 
-function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+function Row({ label, hint, icon, children }: { label: string; hint?: string; icon?: ReactNode; children: ReactNode }) {
   const q = useContext(SearchCtx);
   if (q.trim() && !matches(`${label} ${hint ?? ""}`, q)) return null;
   return (
     <div className="row">
+      {icon && <span className="row-icon">{icon}</span>}
       <div className="row-text">
         <span className="row-label">
           <Highlight text={label} />
@@ -383,15 +388,6 @@ function GeneralSection({ s }: { s: Settings }) {
         <Row label={tr("Sembunyi pas app fullscreen", "Hide when an app is fullscreen")} hint={tr("Nonton film atau main game tanpa diganggu.", "Watch movies or play games undisturbed.")}>
           <Toggle label={tr("Sembunyi pas fullscreen", "Hide in fullscreen")} checked={s.hideInFullscreen} onChange={(v) => updateSettings({ hideInFullscreen: v })} />
         </Row>
-        <Row
-          label={tr("Progres download di notch", "Download progress in the notch")}
-          hint={tr(
-            "Download dari browser (Chrome, Edge, Firefox) nongol di notch kecil. Cuma baca nama dan ukuran file di folder Downloads.",
-            "Browser downloads (Chrome, Edge, Firefox) show up in the small notch. Only reads file names and sizes in your Downloads folder.",
-          )}
-        >
-          <Toggle label={tr("Progres download", "Download progress")} checked={s.downloadWatch !== false} onChange={(v) => updateSettings({ downloadWatch: v })} />
-        </Row>
         <Row label={tr("Suara", "Sounds")} hint={tr("Bunyi kecil pas notch kebuka, timer selesai, atau Claude beres.", "Small sounds when the notch opens, a timer ends, or Claude finishes.")}>
           <Toggle label={tr("Suara", "Sounds")} checked={s.sounds} onChange={(v) => updateSettings({ sounds: v })} />
         </Row>
@@ -413,6 +409,139 @@ function GeneralSection({ s }: { s: Settings }) {
           </button>
         </Row>
       </div>
+    </>
+  );
+}
+
+const SLIDE_LABEL: Record<PillSlide, () => string> = {
+  app: () => tr("App", "App"),
+  cpu: () => "CPU",
+  ram: () => "RAM",
+  clock: () => tr("Jam", "Clock"),
+  temp: () => tr("Suhu", "Temp"),
+  live: () => tr("Info Live", "Live info"),
+};
+
+/** App yang pernah kecatet (35 hari terakhir), paling lama dipake duluan. */
+function recentApps(): { exe: string; name: string }[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem("pointify.stats.v1") ?? "null") as {
+      days?: Record<string, { apps?: Record<string, { name: string; ms: number }> }>;
+    } | null;
+    const total = new Map<string, { exe: string; name: string; ms: number }>();
+    for (const d of Object.values(raw?.days ?? {})) {
+      for (const [exe, a] of Object.entries(d.apps ?? {})) {
+        const k = exeKey(exe);
+        const cur = total.get(k);
+        total.set(k, { exe, name: a.name, ms: (cur?.ms ?? 0) + a.ms });
+      }
+    }
+    return [...total.values()].sort((a, b) => b.ms - a.ms).slice(0, 14);
+  } catch {
+    return [];
+  }
+}
+
+function AppIcon({ exe }: { exe: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void api
+      .launchIcon(exe)
+      .catch(() => null)
+      .then((v) => alive && setSrc(v));
+    return () => {
+      alive = false;
+    };
+  }, [exe]);
+  return src ? <img src={src} alt="" /> : <Icon name="desktop" size={16} />;
+}
+
+function PillSection({ s }: { s: Settings }) {
+  const on = pillSlides(s);
+  const hidden = s.pillHiddenApps ?? [];
+  const [recent] = useState(recentApps);
+  // Yang disembunyiin tetap ada di daftar biar bisa dinyalain lagi.
+  const apps = [...hidden, ...recent.filter((r) => !hidden.some((h) => exeKey(h.exe) === exeKey(r.exe)))];
+  const toggleSlide = (k: PillSlide) =>
+    updateSettings({ pillSlides: on.includes(k) ? on.filter((x) => x !== k) : PILL_SLIDES.filter((x) => x === k || on.includes(x)) });
+  const setShown = (app: { exe: string; name: string }, shown: boolean) =>
+    updateSettings({
+      pillHiddenApps: shown ? hidden.filter((h) => exeKey(h.exe) !== exeKey(app.exe)) : [...hidden, { exe: app.exe, name: app.name }],
+    });
+  const q = useContext(SearchCtx);
+  const listMatches = !q.trim() || matches(tr("app disembunyiin tampil di pil statistik", "hidden apps show in pill stats"), q);
+
+  return (
+    <>
+      <Heading
+        title={tr("Pil notch", "Notch pill")}
+        desc={tr(
+          "Notch kecil pas lagi sepi: gantian nunjukin app yang lagi kebuka, sistem, jam, dan suhu. Lagu, Claude, sama download selalu nyelak duluan.",
+          "The small notch when nothing's going on: it cycles through the app you're using, system stats, the time, and temperature. Music, Claude, and downloads always take over.",
+        )}
+      />
+      <div className="group">
+        <Row
+          label={tr("Info yang gantian", "What it cycles through")}
+          hint={tr("Matiin semua = pil polos, cuma Pip.", "Turn everything off for a plain pill with just Pip.")}
+        >
+          <div className="chips" role="group" aria-label={tr("Info yang gantian", "What it cycles through")}>
+            {PILL_SLIDES.map((k) => (
+              <button key={k} className={`chip${on.includes(k) ? " on" : ""}`} aria-pressed={on.includes(k)} onClick={() => toggleSlide(k)}>
+                {on.includes(k) && <Icon name="check" size={11} />}
+                {SLIDE_LABEL[k]()}
+              </button>
+            ))}
+          </div>
+        </Row>
+        <Row label={tr("Ganti tiap", "Switch every")} hint={tr("Berapa lama tiap info nongol sebelum ganti.", "How long each item stays before the next one.")}>
+          <Stepper
+            label={tr("Ganti tiap", "Switch every")}
+            value={s.pillRotateSecs ?? 4}
+            min={2}
+            max={15}
+            suffix={tr("detik", "sec")}
+            onChange={(v) => updateSettings({ pillRotateSecs: v })}
+          />
+        </Row>
+        <Row
+          label={tr("Progres download di notch", "Download progress in the notch")}
+          hint={tr(
+            "Download dari browser (Chrome, Edge, Firefox) nongol di notch kecil. Cuma baca nama dan ukuran file di folder Downloads.",
+            "Browser downloads (Chrome, Edge, Firefox) show up in the small notch. Only reads file names and sizes in your Downloads folder.",
+          )}
+        >
+          <Toggle label={tr("Progres download", "Download progress")} checked={s.downloadWatch !== false} onChange={(v) => updateSettings({ downloadWatch: v })} />
+        </Row>
+      </div>
+      {listMatches && (
+        <div className="group app-list">
+          <div className="group-head">
+            <span>{tr("App yang ditampilin", "Apps shown in the pill")}</span>
+          </div>
+          <p className="group-note">
+            {tr(
+              "Matiin app yang nggak mau nongol di pil. App yang disembunyiin juga nggak dicatat di widget Minggu ini.",
+              "Turn off apps you don't want in the pill. Hidden apps aren't recorded in the This week widget either.",
+            )}
+          </p>
+          {apps.length ? (
+            apps.map((a) => {
+              const shown = !hidden.some((h) => exeKey(h.exe) === exeKey(a.exe));
+              return (
+                <Row key={exeKey(a.exe)} label={a.name} hint={exeKey(a.exe)} icon={<AppIcon exe={a.exe} />}>
+                  <Toggle label={tr(`Tampilin ${a.name}`, `Show ${a.name}`)} checked={shown} onChange={(v) => setShown(a, v)} />
+                </Row>
+              );
+            })
+          ) : (
+            <p className="group-note empty">
+              {tr("Belum ada app kecatet. Pake PC kayak biasa, nanti app-nya muncul di sini.", "No apps recorded yet. Use your PC as usual and they'll show up here.")}
+            </p>
+          )}
+        </div>
+      )}
     </>
   );
 }

@@ -15,7 +15,9 @@ import { Icon } from "../components/Icon";
 import { foregroundStore } from "../state/foreground";
 import { fullDuration, PHASE_LABEL, remaining, timerStore } from "../state/timer";
 import { hhmm } from "../widgets/common";
-import { bytes, speed as speedText, useSysStats } from "../widgets/data";
+import { bytes, speed as speedText, usePolled } from "../widgets/data";
+import { api, type SysStats } from "../lib/api";
+import { isHiddenApp, pillRotateMs, pillSlides } from "../lib/pill";
 import { downloadsStore } from "../state/downloads";
 import { nowInfo, useWeather } from "../widgets/info";
 import { widgetStore } from "../widgets/layout";
@@ -137,25 +139,30 @@ function TimerMini() {
   );
 }
 
-const ROTATE_MS = 4000;
 
 /**
  * Pas lagi sepi: info gantian tiap beberapa detik. Logo app yang lagi lu
  * pake, CPU, RAM, jam, suhu (cuaca + CPU kalau kebaca), plus Live santai.
  */
 function Ambient({ live }: { live?: LiveInfo | null }) {
-  const fg = useStore(foregroundStore);
-  const { data: sys } = useSysStats(3000);
+  const settings = useStore(settingsStore);
+  const on = new Set(pillSlides(settings));
+  const rotateMs = pillRotateMs(settings);
+  const fgRaw = useStore(foregroundStore);
+  const fg = fgRaw && on.has("app") && !isHiddenApp(settings, fgRaw.exe) ? fgRaw : null;
+  // Yang dimatiin nggak usah diambil datanya sama sekali.
+  const needSys = on.has("cpu") || on.has("ram") || on.has("temp");
+  const { data: sys } = usePolled<SysStats>(needSys ? "sys" : null, () => api.sysStats(), 3000);
   const layout = useStore(widgetStore);
   const wcfg = useMemo(() => layout.items.find((i) => i.type === "weather")?.cfg ?? {}, [layout]);
-  const { data: weather } = useWeather(wcfg);
-  const now = useNow(1000);
+  const { data: weather } = useWeather(on.has("temp") ? wcfg : null);
+  const now = useNow(1000, on.has("clock"));
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    const id = window.setInterval(() => setTick((t) => t + 1), ROTATE_MS);
+    const id = window.setInterval(() => setTick((t) => t + 1), rotateMs);
     return () => window.clearInterval(id);
-  }, []);
+  }, [rotateMs]);
   // Pindah app: langsung tunjukin logonya.
   useEffect(() => setTick(0), [fg?.exe]);
 
@@ -171,7 +178,7 @@ function Ambient({ live }: { live?: LiveInfo | null }) {
       ),
     });
   }
-  if (sys) {
+  if (sys && on.has("cpu")) {
     slides.push({
       key: "cpu",
       node: (
@@ -182,6 +189,8 @@ function Ambient({ live }: { live?: LiveInfo | null }) {
         </>
       ),
     });
+  }
+  if (sys && on.has("ram")) {
     slides.push({
       key: "ram",
       node: (
@@ -193,17 +202,19 @@ function Ambient({ live }: { live?: LiveInfo | null }) {
       ),
     });
   }
-  slides.push({
-    key: "clock",
-    node: (
-      <>
-        <Icon name="clock" size={13} />
-        <b className="tabular">{hhmm(new Date(now))}</b>
-      </>
-    ),
-  });
+  if (on.has("clock")) {
+    slides.push({
+      key: "clock",
+      node: (
+        <>
+          <Icon name="clock" size={13} />
+          <b className="tabular">{hhmm(new Date(now))}</b>
+        </>
+      ),
+    });
+  }
   const cpuTemp = sys?.cpuTemp != null ? Math.round(sys.cpuTemp) : null;
-  if (weather || cpuTemp != null) {
+  if (on.has("temp") && (weather || cpuTemp != null)) {
     const w = weather ? nowInfo(weather.current) : null;
     slides.push({
       key: "temp",
@@ -216,9 +227,10 @@ function Ambient({ live }: { live?: LiveInfo | null }) {
       ),
     });
   }
-  if (live) slides.push({ key: `live:${live.label}`, node: <LiveActivity info={live} /> });
+  if (live && on.has("live")) slides.push({ key: `live:${live.label}`, node: <LiveActivity info={live} /> });
 
-  const slide = slides[tick % slides.length];
+  const slide = slides.length ? slides[tick % slides.length] : null;
+  if (!slide) return null;
   return (
     <span className="ambient">
       <span key={slide.key} className="ambient-slide">

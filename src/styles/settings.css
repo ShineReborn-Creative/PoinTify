@@ -177,3 +177,27 @@ html, body, #root { background: var(--bg); overflow: hidden; }
 }
 .swatch:hover { transform: scale(1.1); }
 .swatch.on { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--sw); }
+
+/* Pil notch */
+.chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; max-width: 300px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 13px;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(var(--fg), 0.06);
+  box-shadow: inset 0 0 0 1px rgba(var(--fg), 0.08);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.chip:hover { color: var(--text); background: rgba(var(--fg), 0.1); }
+.chip.on { color: var(--text); background: color-mix(in srgb, var(--accent) 24%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent); }
+.group-note { margin: -4px 0 6px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+.group-note.empty { padding: 10px 0 14px; }
+.row-icon { width: 22px; height: 22px; display: grid; place-items: center; flex-shrink: 0; margin-right: -12px; color: var(--muted); }
+.row-icon + .row-text { flex: 1; min-width: 0; }
+.row-icon img { width: 20px; height: 20px; object-fit: contain; border-radius: 4px; }
+.app-list .row:last-child { border-bottom: 0; }

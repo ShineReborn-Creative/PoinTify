@@ -62,11 +62,12 @@ function feels(c: Forecast["current"]) {
   return tr(`terasa ${a}°`, `feels like ${a}°`);
 }
 
-export function useWeather(cfg: Record<string, unknown>) {
+/** `cfg` null = nggak usah ambil (misalnya suhu di pil lagi dimatiin). */
+export function useWeather(cfg: Record<string, unknown> | null) {
   return usePolled<Forecast>(
-    `weather:${placeKey(cfg)}`,
+    cfg ? `weather:${placeKey(cfg)}` : null,
     async () => {
-      const p = await resolvePlace(cfg);
+      const p = await resolvePlace(cfg ?? {});
       const f = await api.httpGetJson<Omit<Forecast, "place" | "auto" | "note">>(
         `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}` +
           `&current=temperature_2m,apparent_temperature,weather_code,is_day,precipitation,cloud_cover,relative_humidity_2m` +
