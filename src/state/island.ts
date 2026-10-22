@@ -124,17 +124,28 @@ function patch(p: Partial<IslandState>) {
   islandStore.set((s) => ({ ...s, ...p }));
 }
 
+/** Tab sebelum command palette dibuka. Palette cuma sekali pakai: pas notch
+ *  nutup, hover berikutnya balik ke tab ini, bukan ke palette lagi. */
+let tabBeforePalette: Tab = "home";
+
 export function expand(tab?: Tab) {
   const s = islandStore.get();
   if (s.mode !== "expanded") play("open");
+  if (tab === "palette" && s.tab !== "palette") tabBeforePalette = s.tab;
   patch({ mode: "expanded", tab: tab ?? s.tab, peek: null });
 }
+
+/** Dipanggil tepat sebelum notch yang kebuka penuh nutup (isinya masih ada). */
+export const beforeCollapse = new Set<() => void>();
 
 export function collapse() {
   const s = islandStore.get();
   if (s.mode === "compact") return;
-  if (s.mode === "expanded") play("close");
-  patch({ mode: "compact", pinned: false, peek: null });
+  if (s.mode === "expanded") {
+    play("close");
+    for (const fn of beforeCollapse) fn();
+  }
+  patch({ mode: "compact", pinned: false, peek: null, tab: s.tab === "palette" ? tabBeforePalette : s.tab });
 }
 
 export function setTab(tab: Tab) {

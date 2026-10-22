@@ -8,6 +8,7 @@ import { useStore } from "../lib/store";
 import { activeSession, agentsStore, onAgentAttention, onAgentFinished } from "../state/agents";
 import { chatStore, onClaudeFinished } from "../state/chat";
 import {
+  beforeCollapse,
   blurGuard,
   clampOffset,
   collapse,
@@ -456,6 +457,42 @@ export function IslandApp() {
     lastSize.current = size;
   }
 
+  // Pas nutup, isi notch (Beranda, chat, palette, apa pun yang lagi kebuka)
+  // nggak langsung ilang: salinannya ditinggal sebentar, ikut kesedot ke pil
+  // sambil memudar. Salinan doang (bukan komponen asli), jadi nggak ada efek
+  // samping kayak timer atau fokus input yang jalan dua kali.
+  const ghostHost = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const leave = () => {
+      const host = ghostHost.current;
+      const live = host?.parentElement?.querySelector<HTMLElement>(":scope > .expanded");
+      if (!host || !live || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const ghost = live.cloneNode(true) as HTMLElement;
+      ghost.className = "expanded island-ghost";
+      ghost.style.width = `${live.offsetWidth}px`;
+      ghost.style.height = `${live.offsetHeight}px`;
+      // cloneNode nggak bawa posisi scroll, jadi disalin manual biar nggak loncat.
+      const from = live.querySelectorAll<HTMLElement>("*");
+      const to = ghost.querySelectorAll<HTMLElement>("*");
+      from.forEach((el, i) => {
+        const { scrollTop, scrollLeft } = el;
+        if (scrollTop || scrollLeft) {
+          const t = to[i];
+          requestAnimationFrame(() => {
+            t.scrollTop = scrollTop;
+            t.scrollLeft = scrollLeft;
+          });
+        }
+      });
+      host.replaceChildren(ghost);
+      window.setTimeout(() => ghost.remove(), 420);
+    };
+    beforeCollapse.add(leave);
+    return () => {
+      beforeCollapse.delete(leave);
+    };
+  }, []);
+
   // Kebuka penuh selalu di tengah; selain itu di tempat terakhir notch digeser.
   const offset = island.mode === "expanded" && !request ? 0 : clampOffset(island.offset, size.w);
   const drag = useIslandDrag(size.w);
@@ -525,6 +562,7 @@ export function IslandApp() {
             if (islandStore.get().mode === "compact") expand();
           }}
         >
+          <div className="island-ghost-host" ref={ghostHost} aria-hidden="true" />
           {request ? (
             <ApprovalCard key={request.id} request={request} more={agents.pending.length - 1} />
           ) : (

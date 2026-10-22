@@ -749,3 +749,18 @@ html, body, #root {
 .pal-title { flex: 1; min-width: 0; font-size: 13px; }
 .pal-sub { font-size: 11px; color: var(--muted); flex-shrink: 0; }
 .pal-enter { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+
+/* Isi notch yang lagi nutup: ikut kesedot ke pil sambil memudar. */
+.island-ghost-host { position: absolute; top: 0; left: 50%; z-index: 3; transform: translateX(-50%); pointer-events: none; }
+.island-ghost-host:empty { display: none; }
+.island-ghost, .island-ghost * { scroll-behavior: auto !important; }
+.island-ghost {
+  background: var(--island);
+  transform-origin: 50% 0;
+  animation: island-ghost-out 0.36s var(--ease) forwards;
+}
+@keyframes island-ghost-out {
+  0% { opacity: 1; transform: none; filter: none; }
+  45% { opacity: 0.85; }
+  100% { opacity: 0; transform: scale(0.94) translateY(-6px); filter: blur(3px); }
+}
