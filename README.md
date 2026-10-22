@@ -74,7 +74,7 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
 | **Sesi Claude Code** | Sesi `claude` yang lu jalanin di terminal mana aja muncul di tab Claude › Sesi: prompt, file yang dibaca dan diedit (+baris −baris), perintah yang dijalanin. Pas Claude minta izin, kartu nyembul dari notch dengan pilihan Izinin, Selalu, Tolak, atau jawab di terminal. Pertanyaan pilihan ganda dari Claude juga bisa dijawab dari notch. Pas sesi beres, Pip lompat senang. |
 | **Progres chat Claude** | Kerjaan yang lagi dikerjain Claude di app Claude (chat yang nyambung ke PC) ikut kepantau: judul tugas, langkah ke berapa, dan notif pas Claude beres atau butuh jawaban. Claude nulis kabar kecil ke `~/.pointify/feed`, PoinTify mantau folder itu. |
 | **Rak file** | Drag file ke notch buat disimpan sementara, drag keluar lagi ke app lain, atau lampirin ke chat Claude. |
-| **Timer fokus** | Pomodoro lengkap: fokus, istirahat pendek, istirahat panjang, statistik harian. Pas jalan, ada cincin kecil di pil; klik buat buka tab Fokus. |
+| **Timer fokus** | Pomodoro lengkap: fokus, istirahat pendek, istirahat panjang, statistik harian. Pas jalan, ada cincin kecil di pil dan tab Fokus nongol sendiri. |
 | **Pengingat minum** | Pip nyembul dari notch tiap sekian menit, ngitung gelas harian, cuma di jam aktif yang lu atur. |
 | **Tour perkenalan** | Pas pertama buka, Pip ngenalin fitur yang nggak keliatan (geser notch, Rak, Pip desktop, cara main). Bisa diulang dari Pengaturan › Umum. |
 | **Bahasa Indonesia & Inggris** | Otomatis ngikutin bahasa Windows, atau pilih sendiri di Pengaturan. Semua teks ikut ganti, termasuk omongan Pip dan menu tray. |

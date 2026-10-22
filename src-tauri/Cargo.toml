@@ -1,6 +1,6 @@
 [package]
 name = "pointify"
-version = "0.4.0"
+version = "0.5.0"
 description = "PoinTify — asisten kecil di atas layar Windows lu"
 authors = ["Ojan"]
 edition = "2024"

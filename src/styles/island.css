@@ -830,4 +830,3 @@ html, body, #root {
 .cover-btn { display: block; flex-shrink: 0; border-radius: 12px; transition: transform 0.15s var(--ease); }
 .cover-btn:hover { transform: scale(1.04); }
 .cover-btn:active { transform: scale(0.97); }
-.compact-timer-mini { cursor: pointer; }
