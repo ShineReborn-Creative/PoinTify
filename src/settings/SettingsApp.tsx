@@ -383,11 +383,29 @@ function GeneralSection({ s }: { s: Settings }) {
         <Row label={tr("Sembunyi pas app fullscreen", "Hide when an app is fullscreen")} hint={tr("Nonton film atau main game tanpa diganggu.", "Watch movies or play games undisturbed.")}>
           <Toggle label={tr("Sembunyi pas fullscreen", "Hide in fullscreen")} checked={s.hideInFullscreen} onChange={(v) => updateSettings({ hideInFullscreen: v })} />
         </Row>
+        <Row
+          label={tr("Progres download di notch", "Download progress in the notch")}
+          hint={tr(
+            "Download dari browser (Chrome, Edge, Firefox) nongol di notch kecil. Cuma baca nama dan ukuran file di folder Downloads.",
+            "Browser downloads (Chrome, Edge, Firefox) show up in the small notch. Only reads file names and sizes in your Downloads folder.",
+          )}
+        >
+          <Toggle label={tr("Progres download", "Download progress")} checked={s.downloadWatch !== false} onChange={(v) => updateSettings({ downloadWatch: v })} />
+        </Row>
         <Row label={tr("Suara", "Sounds")} hint={tr("Bunyi kecil pas notch kebuka, timer selesai, atau Claude beres.", "Small sounds when the notch opens, a timer ends, or Claude finishes.")}>
           <Toggle label={tr("Suara", "Sounds")} checked={s.sounds} onChange={(v) => updateSettings({ sounds: v })} />
         </Row>
         <Row label={tr("Shortcut buka chat", "Chat shortcut")} hint={tr("Klik, lalu tekan kombinasi baru. Backspace buat matiin.", "Click, then press a new combination. Backspace turns it off.")}>
           <ShortcutRecorder value={s.shortcut} onChange={(v) => updateSettings({ shortcut: v })} />
+        </Row>
+        <Row
+          label={tr("Shortcut command palette", "Command palette shortcut")}
+          hint={tr(
+            "Buka app, file terbaru, hitung-hitungan, kurs, atau tanya Claude dari mana aja.",
+            "Open apps and recent files, calculate, convert currency, or ask Claude from anywhere.",
+          )}
+        >
+          <ShortcutRecorder value={s.paletteShortcut ?? "Alt+Space"} onChange={(v) => updateSettings({ paletteShortcut: v })} />
         </Row>
         <Row label={tr("Tour perkenalan", "Welcome tour")} hint={tr("Pip ngenalin fitur-fitur PoinTify satu-satu.", "Pip walks you through PoinTify's features.")}>
           <button className="btn" onClick={replayTour}>

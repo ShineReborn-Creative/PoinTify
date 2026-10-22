@@ -10,12 +10,21 @@ import { toolLabel } from "../lib/tools";
 import { activeSession, agentsStore } from "../state/agents";
 import { chatStore } from "../state/chat";
 import { activeLyricIndex, lyricsStore, mediaStore, positionAt } from "../state/media";
-import { fullDuration, remaining, timerStore } from "../state/timer";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Icon } from "../components/Icon";
+import { foregroundStore } from "../state/foreground";
+import { fullDuration, PHASE_LABEL, remaining, timerStore } from "../state/timer";
+import { hhmm } from "../widgets/common";
+import { bytes, speed as speedText, useSysStats } from "../widgets/data";
+import { downloadsStore } from "../state/downloads";
+import { nowInfo, useWeather } from "../widgets/info";
+import { widgetStore } from "../widgets/layout";
 import type { LiveInfo } from "../widgets/data";
 import { LiveActivity } from "../widgets/live";
 import { tr } from "../i18n";
 
-export type Activity = "claude" | "agent" | "live" | "timer" | "music" | null;
+/** "ambient" = lagi sepi: logo app, CPU, RAM, jam, suhu gantian. */
+export type Activity = "claude" | "agent" | "download" | "live" | "music" | "ambient" | null;
 
 type Props = { mood: PipMood; activity: Activity; live?: LiveInfo | null; lyrics?: boolean };
 
@@ -28,9 +37,11 @@ export function CompactBar({ mood, activity, live, lyrics }: Props) {
       <div className="compact-right">
         {activity === "claude" && <ClaudeActivity />}
         {activity === "agent" && <AgentActivity />}
+        {activity === "download" && <DownloadActivity />}
         {activity === "live" && live && <LiveActivity info={live} />}
-        {activity === "timer" && <TimerActivity />}
         {activity === "music" && <MusicActivity />}
+        {activity === "ambient" && <Ambient live={live} />}
+        <TimerMini />
       </div>
     </div>
   );
@@ -91,20 +102,128 @@ function AgentActivity() {
   );
 }
 
-function TimerActivity() {
+/** Download yang lagi jalan: nama file, ukuran yang udah masuk, kecepatan. */
+function DownloadActivity() {
+  const list = useStore(downloadsStore);
+  if (!list.length) return null;
+  const speed = list.reduce((s, d) => s + d.speed, 0);
+  const one = list.length === 1 ? list[0] : null;
+  const title = list.map((d) => `${d.name} · ${bytes(d.bytes)}`).join("\n");
+  return (
+    <span className="compact-label compact-download" title={title}>
+      <span className="download-arrow" aria-hidden="true">
+        <Icon name="arrowDown" size={13} />
+      </span>
+      <span className="ellipsis">{one ? one.name : tr(`${list.length} download`, `${list.length} downloads`)}</span>
+      <span className="muted tabular">{speed > 0 ? speedText(speed) : bytes(list.reduce((s, d) => s + d.bytes, 0))}</span>
+    </span>
+  );
+}
+
+/** Timer fokus yang lagi jalan: cukup lingkaran kecil di pojok kanan. Arahin kursor buat liat sisa waktunya. */
+function TimerMini() {
   const timer = useStore(timerStore);
-  const now = useNow(1000);
+  const now = useNow(1000, timer.running);
+  if (!timer.running) return null;
   const left = remaining(timer, now);
   const total = fullDuration(timer);
+  const label = `${PHASE_LABEL[timer.phase]} · ${mmss(left)}`;
   return (
-    <span className="compact-timer">
-      <Ring
-        size={18}
-        stroke={2.5}
-        progress={1 - left / total}
-        color={timer.phase === "focus" ? "var(--accent)" : "var(--green)"}
-      />
-      <span className="tabular">{mmss(left)}</span>
+    <span className="compact-timer-mini" title={label} aria-label={label}>
+      <Ring size={17} stroke={2.4} progress={1 - left / total} color={timer.phase === "focus" ? "var(--accent)" : "var(--green)"}>
+        <Icon name="timer" size={9} />
+      </Ring>
+    </span>
+  );
+}
+
+const ROTATE_MS = 4000;
+
+/**
+ * Pas lagi sepi: info gantian tiap beberapa detik. Logo app yang lagi lu
+ * pake, CPU, RAM, jam, suhu (cuaca + CPU kalau kebaca), plus Live santai.
+ */
+function Ambient({ live }: { live?: LiveInfo | null }) {
+  const fg = useStore(foregroundStore);
+  const { data: sys } = useSysStats(3000);
+  const layout = useStore(widgetStore);
+  const wcfg = useMemo(() => layout.items.find((i) => i.type === "weather")?.cfg ?? {}, [layout]);
+  const { data: weather } = useWeather(wcfg);
+  const now = useNow(1000);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), ROTATE_MS);
+    return () => window.clearInterval(id);
+  }, []);
+  // Pindah app: langsung tunjukin logonya.
+  useEffect(() => setTick(0), [fg?.exe]);
+
+  const slides: { key: string; node: ReactNode }[] = [];
+  if (fg) {
+    slides.push({
+      key: `app:${fg.exe}`,
+      node: (
+        <>
+          {fg.icon ? <img className="ambient-app-icon" src={fg.icon} alt="" /> : <Icon name="desktop" size={14} />}
+          <span className="ellipsis">{fg.name}</span>
+        </>
+      ),
+    });
+  }
+  if (sys) {
+    slides.push({
+      key: "cpu",
+      node: (
+        <>
+          <Icon name="cpu" size={13} />
+          <span className="ambient-k">CPU</span>
+          <b className="tabular">{Math.round(sys.cpu)}%</b>
+        </>
+      ),
+    });
+    slides.push({
+      key: "ram",
+      node: (
+        <>
+          <Icon name="grid" size={13} />
+          <span className="ambient-k">RAM</span>
+          <b className="tabular">{Math.round((sys.memUsed / Math.max(1, sys.memTotal)) * 100)}%</b>
+        </>
+      ),
+    });
+  }
+  slides.push({
+    key: "clock",
+    node: (
+      <>
+        <Icon name="clock" size={13} />
+        <b className="tabular">{hhmm(new Date(now))}</b>
+      </>
+    ),
+  });
+  const cpuTemp = sys?.cpuTemp != null ? Math.round(sys.cpuTemp) : null;
+  if (weather || cpuTemp != null) {
+    const w = weather ? nowInfo(weather.current) : null;
+    slides.push({
+      key: "temp",
+      node: (
+        <>
+          <Icon name={w?.icon ?? "cpu"} size={13} />
+          {weather && <b className="tabular">{Math.round(weather.current.temperature_2m)}°</b>}
+          {cpuTemp != null && <span className={weather ? "ambient-k" : ""}>{weather ? `· CPU ${cpuTemp}°` : `CPU ${cpuTemp}°`}</span>}
+        </>
+      ),
+    });
+  }
+  if (live) slides.push({ key: `live:${live.label}`, node: <LiveActivity info={live} /> });
+
+  const slide = slides[tick % slides.length];
+  return (
+    <span className="ambient">
+      <span key={slide.key} className="ambient-slide">
+        {slide.node}
+      </span>
     </span>
   );
 }

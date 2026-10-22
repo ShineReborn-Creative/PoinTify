@@ -11,6 +11,7 @@ import type { WidgetItem, WidgetSize } from "./layout";
 import { MusicWidget, PipWidget } from "./media";
 import { ClipboardWidget, NOTE_COLORS, NoteWidget, TimerWidget, TodoWidget, WaterWidget } from "./productivity";
 import { NetworkWidget, SystemLive, SystemWidget, TogglesWidget } from "./system";
+import { StatsWidget } from "./stats";
 import { CalendarWidget, ClockWidget, CountdownLive, CountdownWidget, TIMEZONES } from "./time";
 import { tr } from "../i18n";
 
@@ -151,6 +152,17 @@ export const WIDGETS: WidgetDef[] = [
     defaultSize: "w",
     fields: [{ key: "color", label: tr("Warna", "Color"), kind: "select", options: NOTE_COLORS }],
     Component: NoteWidget,
+  },
+  {
+    type: "stats",
+    name: tr("Minggu ini", "This week"),
+    desc: tr("Statistik 7 hari: fokus, minum, waktu app, lagu & app teratas.", "7-day stats: focus, water, app time, top songs & apps."),
+    icon: "calendar",
+    group: "Produktif",
+    sizes: ["w", "l", "xl"],
+    defaultSize: "l",
+    single: true,
+    Component: StatsWidget,
   },
   {
     type: "clipboard",

@@ -2,6 +2,7 @@ import { emitTo, listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PipMood } from "../components/Pip";
+import { api } from "../lib/api";
 import { play } from "../lib/sound";
 import { useStore } from "../lib/store";
 import { activeSession, agentsStore, onAgentAttention, onAgentFinished } from "../state/agents";
@@ -14,6 +15,7 @@ import {
   expand,
   islandStore,
   OFFSET_KEY,
+  paletteHeightStore,
   pin,
   reportHit,
   saveOffset,
@@ -35,6 +37,8 @@ import { useIslandDrag } from "./useIslandDrag";
 import { CompactBar, type Activity } from "./CompactBar";
 import { ExpandedView } from "./ExpandedView";
 import { PeekCard } from "./PeekCard";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { downloadsStore, onDownloadDone } from "../state/downloads";
 import { TourCard } from "./TourCard";
 import { startTour } from "./tour";
 import { checkUpdate, installUpdate } from "../state/update";
@@ -46,10 +50,11 @@ import { tr } from "../i18n";
 export function IslandApp() {
   const island = useStore(islandStore);
   const media = useStore(mediaStore);
-  const timer = useStore(timerStore);
   const chat = useStore(chatStore);
   const settings = useStore(settingsStore);
   const agents = useStore(agentsStore);
+  const downloads = useStore(downloadsStore);
+  const paletteH = useStore(paletteHeightStore);
   const request = agents.pending[0] ?? null;
   const widgets = useStore(widgetStore);
   const edit = useStore(editStore);
@@ -148,6 +153,13 @@ export function IslandApp() {
   useEffect(() => {
     const subs = [
       listen<string>("island-open", () => expand("home")),
+      listen("palette-open", () => {
+        const s = islandStore.get();
+        if (s.mode === "expanded" && s.tab === "palette") return collapse();
+        expand("palette");
+        pin(true);
+        void api.focusIsland();
+      }),
       listen("island-reset-offset", () => {
         setOffset(0);
         saveOffset();
@@ -319,6 +331,41 @@ export function IslandApp() {
     [],
   );
 
+  // ---- Download beres: Pip seneng, tawarin buka foldernya atau taruh di Rak ----
+  useEffect(
+    () =>
+      onDownloadDone((d) => {
+        play("done");
+        flashMood("happy", 3000);
+        setLastActive(Date.now());
+        showPeek({
+          kind: "info",
+          title: tr("Download beres", "Download finished"),
+          body: d.name,
+          mood: "happy",
+          timeoutMs: 12000,
+          actions: [
+            {
+              label: tr("Folder", "Folder"),
+              run: () => {
+                void revealItemInDir(d.path);
+                dismissPeek();
+              },
+            },
+            {
+              label: tr("Ke Rak", "To Shelf"),
+              primary: true,
+              run: () => {
+                void addToShelf([d.path]);
+                dismissPeek();
+              },
+            },
+          ],
+        });
+      }),
+    [],
+  );
+
   // ---- Chat Claude nanya sesuatu: jawabnya tetap di chat ----
   useEffect(
     () =>
@@ -354,25 +401,25 @@ export function IslandApp() {
 
   // ---- Ukuran pulau ----
   const agent = activeSession(agents);
-  // Live widget yang penting (prioritas ≥ 3) nyalip timer & musik; yang santai cuma kalau sepi.
-  const activity: Activity = chat.running
-    ? "claude"
-    : agent
-      ? "agent"
-      : live && live.priority >= 3
-        ? "live"
-        : timer.running
-          ? "timer"
-          : media?.isPlaying
-            ? "music"
-            : live
-              ? "live"
-              : null;
+  // Lagu paling utama: selama diputer, pil nggak ganti tampilan. Selain itu,
+  // yang penting (Claude, sesi, Live prioritas ≥ 3) nyelak; pas sepi, info gantian.
+  // Timer fokus cukup lingkaran kecil di pojok kanan (lihat CompactBar).
+  const activity: Activity = media?.isPlaying
+    ? "music"
+    : chat.running
+      ? "claude"
+      : agent
+        ? "agent"
+        : downloads.length
+          ? "download"
+          : live && live.priority >= 3
+            ? "live"
+            : "ambient";
 
   // Lagu yang lagi diputer punya lirik sinkron: lirik jalan di tengah notch kecil.
   // Timer fokus yang jalan bareng lagu tetap di kanan, liriknya tetap di tengah.
   const lyricBar =
-    (activity === "music" || activity === "timer") &&
+    activity === "music" &&
     !!media?.isPlaying &&
     media.kind !== "video" &&
     settings?.showLyrics !== false &&
@@ -393,12 +440,13 @@ export function IslandApp() {
   const size = useMemo(() => {
     if (request) return approvalSize(request);
     if (island.mode === "expanded") {
+      if (island.tab === "palette") return { w: SIZES.expanded.palette.w, h: paletteH };
       return island.tab === "home" ? { ...SIZES.expanded.home, w: homeW } : SIZES.expanded[island.tab];
     }
     if (island.mode === "peek") return island.peek?.kind === "tour" ? SIZES.tour : SIZES.peek;
     if (lyricBar) return SIZES.compactLyrics;
-    return activity ? SIZES.compactWide : SIZES.compactBase;
-  }, [island.mode, island.tab, island.peek?.kind, activity, request, homeW, lyricBar]);
+    return activity === "ambient" ? SIZES.compactAmbient : activity ? SIZES.compactWide : SIZES.compactBase;
+  }, [island.mode, island.tab, island.peek?.kind, activity, request, homeW, lyricBar, paletteH]);
 
   // Lagi melar atau nyusut? Melar pakai pegas yang mantul, nyusut yang kalem.
   const lastSize = useRef(size);
@@ -417,7 +465,7 @@ export function IslandApp() {
   }, [size.w, size.h, offset]);
 
   // ---- Suasana hati Pip ----
-  const idleLong = !island.hover && !activity && now - lastActive > 3 * 60_000;
+  const idleLong = !island.hover && activity === "ambient" && now - lastActive > 3 * 60_000;
   const agentTool = !!agent?.steps.some((s) => (s.kind === "tool" || s.kind === "task") && s.ok === null);
   const mood: PipMood = request
     ? "notify"
@@ -444,7 +492,7 @@ export function IslandApp() {
               : "idle";
 
   useEffect(() => {
-    if (activity) setLastActive(Date.now());
+    if (activity && activity !== "ambient") setLastActive(Date.now());
   }, [activity]);
 
   // ---- Pip di desktop: kirim mood, dan panggil dia ke notch pas ada notif ----

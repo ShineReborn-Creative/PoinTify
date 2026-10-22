@@ -8,6 +8,9 @@ import { PetApp } from "./pet/PetApp";
 import { SettingsApp } from "./settings/SettingsApp";
 import { initAgents } from "./state/agents";
 import { initChat } from "./state/chat";
+import { initDownloads } from "./state/downloads";
+import { initStats } from "./state/stats";
+import { initForeground } from "./state/foreground";
 import { initMedia } from "./state/media";
 import { initSettings, settingsStore } from "./state/settings";
 import { setLanguage, tr } from "./i18n";
@@ -41,10 +44,11 @@ async function boot() {
   } else {
     await import("./styles/island.css");
     await import("./styles/widgets.css");
-    await Promise.all([initMedia(), initShelf(), initAgents()]);
+    await Promise.all([initMedia(), initShelf(), initAgents(), initForeground(), initDownloads()]);
     await initChat();
     initWidgets();
     initClipboard();
+    initStats();
   }
 
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

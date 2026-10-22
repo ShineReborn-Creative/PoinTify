@@ -76,6 +76,8 @@ windows = { version = "0.62", features = [
   "Win32_Graphics_Dwm",
   # Bahasa: ikut bahasa tampilan Windows kalau pengaturannya "otomatis"
   "Win32_Globalization",
+  # Pil notch: suhu CPU dari penghitung kinerja Windows (zona termal)
+  "Win32_System_Performance",
 ] }
 
 [profile.release]

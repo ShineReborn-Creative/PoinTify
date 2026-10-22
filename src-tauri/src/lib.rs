@@ -2,14 +2,17 @@ mod agents;
 mod claude;
 mod claude_hooks;
 mod clipboard;
+mod downloads;
 mod drop_catcher;
 mod feed;
+mod foreground;
 mod geo;
 mod hook_relay;
 mod i18n;
 mod island;
 mod lyrics;
 mod media;
+mod palette;
 mod pet;
 mod settings;
 mod shelf;
@@ -72,6 +75,8 @@ pub fn run() {
             tray::init(&handle)?;
             agents::start(&handle);
             feed::start(&handle);
+            foreground::start(&handle);
+            downloads::start(&handle);
             pet::restore_later(&handle);
             clipboard::start(&handle);
             settings::apply_shortcut(&handle);
@@ -91,6 +96,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             updater_ready,
+            foreground::foreground_get,
+            palette::palette_apps,
+            palette::palette_recent,
             island::island_set_hit,
             island::island_focus,
             media::media_get,

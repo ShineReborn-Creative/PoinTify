@@ -79,6 +79,10 @@ pub struct Settings {
     pub theme: String,
     /// Warna aksen: violet, blue, teal, green, amber, orange, pink, red.
     pub accent: String,
+    /// Pantau folder Downloads buat progres download di notch.
+    pub download_watch: bool,
+    /// Shortcut global buat command palette (kosong = mati).
+    pub palette_shortcut: String,
 }
 
 impl Default for Settings {
@@ -125,6 +129,8 @@ impl Default for Settings {
             auto_update: true,
             theme: "dark".into(),
             accent: "violet".into(),
+            download_watch: true,
+            palette_shortcut: "Alt+Space".into(),
         }
     }
 }
@@ -191,21 +197,32 @@ pub fn update(app: &AppHandle, f: impl FnOnce(&mut Settings)) {
     let _ = app.emit("settings-changed", &next);
 }
 
-/// Daftarin shortcut global (buka chat dari mana aja).
+/// Daftarin shortcut global: buka chat dan command palette dari mana aja.
 pub fn apply_shortcut(app: &AppHandle) {
-    let shortcut = current(app).shortcut;
+    let s = current(app);
     let gs = app.global_shortcut();
     let _ = gs.unregister_all();
-    if shortcut.trim().is_empty() {
-        return;
-    }
-    let result = gs.on_shortcut(shortcut.as_str(), |app, _shortcut, event| {
-        if event.state == ShortcutState::Pressed {
-            crate::island::toggle_chat(app);
+    let chat = s.shortcut.trim().to_string();
+    if !chat.is_empty() {
+        let result = gs.on_shortcut(chat.as_str(), |app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                crate::island::toggle_chat(app);
+            }
+        });
+        if let Err(e) = result {
+            eprintln!("[pointify] shortcut '{chat}' gagal didaftarkan: {e}");
         }
-    });
-    if let Err(e) = result {
-        eprintln!("[pointify] shortcut '{shortcut}' gagal didaftarkan: {e}");
+    }
+    let palette = s.palette_shortcut.trim().to_string();
+    if !palette.is_empty() && !palette.eq_ignore_ascii_case(&chat) {
+        let result = gs.on_shortcut(palette.as_str(), |app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                crate::palette::open(app);
+            }
+        });
+        if let Err(e) = result {
+            eprintln!("[pointify] shortcut palette '{palette}' gagal didaftarkan: {e}");
+        }
     }
 }
 
@@ -253,7 +270,7 @@ pub fn settings_set(app: AppHandle, settings: Settings) -> Result<Settings, Stri
     save(&app, &settings)?;
     *app.state::<SettingsState>().0.lock().unwrap() = settings.clone();
 
-    if previous.shortcut != settings.shortcut {
+    if previous.shortcut != settings.shortcut || previous.palette_shortcut != settings.palette_shortcut {
         apply_shortcut(&app);
     }
     if previous.launch_at_startup != settings.launch_at_startup {

@@ -45,7 +45,7 @@ function weatherInfo(code: number, day = true): WInfo {
  * nggak ada air yang turun, jadi hujan cuma dipercaya kalau curah hujannya
  * beneran ada; selain itu dibaca dari tutupan awan.
  */
-function nowInfo(c: Forecast["current"]): WInfo {
+export function nowInfo(c: Forecast["current"]): WInfo {
   const day = c.is_day === 1;
   const base = weatherInfo(c.weather_code, day);
   if (!base.rain || c.precipitation >= 0.1) return base;

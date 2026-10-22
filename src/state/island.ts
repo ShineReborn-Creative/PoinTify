@@ -5,7 +5,7 @@ import { quietStore } from "./quiet";
 import type { PipMood } from "../components/Pip";
 
 export type Mode = "compact" | "peek" | "expanded";
-export type Tab = "home" | "chat" | "agents" | "shelf" | "timer";
+export type Tab = "home" | "chat" | "agents" | "shelf" | "timer" | "palette";
 
 export type PeekAction = { label: string; primary?: boolean; run: () => void };
 
@@ -97,9 +97,14 @@ export function guardBlur(ms: number) {
   blurGuard.until = Date.now() + ms;
 }
 
+/** Tinggi command palette, ngikutin banyaknya hasil. */
+export const paletteHeightStore = createStore(330);
+
 export const SIZES = {
   compactBase: { w: 196, h: 34 },
   compactWide: { w: 304, h: 34 },
+  /** Lagi sepi: logo app, RAM, CPU, jam, suhu gantian. */
+  compactAmbient: { w: 252, h: 34 },
   /** Lagi muter lagu yang ada liriknya: lirik jalan di tengah. */
   compactLyrics: { w: 460, h: 34 },
   peek: { w: 392, h: 96 },
@@ -111,6 +116,7 @@ export const SIZES = {
     agents: { w: 620, h: 360 },
     shelf: { w: 620, h: 262 },
     timer: { w: 620, h: 262 },
+    palette: { w: 600, h: 330 },
   } satisfies Record<Tab, { w: number; h: number }>,
 };
 

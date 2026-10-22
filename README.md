@@ -64,7 +64,10 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
 |---|---|
 | **Notch** | Pil hitam di atas layar. Arahin kursor ke sana, dia melebar di tengah layar. Pilnya bisa diseret ke kiri atau kanan kalau ngalangin (Pip-nya ikut kegoncang, diguncang terus malah pusing), dan posisinya diinget. Klik di luar atau tekan `Esc` buat nutup. Area di sekitarnya tembus klik, jadi nggak ngalangin app lain. |
 | **Beranda = kanvas widget** | Beranda isinya widget yang bisa lu susun sendiri: 2 baris, dan notch-nya makin lebar tiap widget nambah (kalau udah mentok lebar layar, tinggal geser). Tahan lama widget mana aja atau klik ikon grid buat masuk mode **Atur**: widget goyang, seret buat mindahin, ganti ukuran (kecil, lebar, besar, jumbo), hapus, atur isinya, atau tambah dari galeri. Susunannya kesimpen di pengaturan. |
-| **22 widget** | Jam (+zona kedua), kalender, hitung mundur, to-do, catatan, riwayat clipboard, timer fokus, minum air, peluncur app/folder/link, usage Claude (hitung mundur reset + notif), prompt cepat (`{clipboard}` diganti teks yang lagi dicopy), sesi Claude, musik, Pip, sistem (CPU, RAM, disk, baterai), internet, tombol cepat (volume, mic, mode tenang), cuaca ([Open-Meteo](https://open-meteo.com)), jadwal sholat ([Aladhan](https://aladhan.com), metode Kemenag), kurs ([Frankfurter](https://frankfurter.dev)), GitHub, dan widget kustom yang ngambil angka dari API JSON mana aja. |
+| **23 widget** | Jam (+zona kedua), statistik "Minggu ini" (fokus, minum, waktu layar, app & lagu teratas), kalender, hitung mundur, to-do, catatan, riwayat clipboard, timer fokus, minum air, peluncur app/folder/link, usage Claude (hitung mundur reset + notif), prompt cepat (`{clipboard}` diganti teks yang lagi dicopy), sesi Claude, musik, Pip, sistem (CPU, RAM, disk, baterai), internet, tombol cepat (volume, mic, mode tenang), cuaca ([Open-Meteo](https://open-meteo.com)), jadwal sholat ([Aladhan](https://aladhan.com), metode Kemenag), kurs ([Frankfurter](https://frankfurter.dev)), GitHub, dan widget kustom yang ngambil angka dari API JSON mana aja. |
+| **Pil yang hidup** | Pas lagi sepi, notch kecil gantian nunjukin logo + nama app yang lagi lu buka, CPU, RAM, jam, dan suhu (cuaca + CPU). Lagu tetap paling utama: kalau lagi muter, pil nggak ganti-ganti. Timer fokus cukup jadi cincin kecil di pojok kanan. |
+| **Progres download** | File yang lagi didownload di folder Downloads (Chrome, Edge, Firefox, Opera) keliatan ukuran + kecepatannya di notch. Pas kelar, ada tombol buka folder atau taruh di Rak. |
+| **Command palette** | `Alt+Space` (bisa diganti) buka kotak cari: buka app & file terbaru, hitung-hitungan (`350000*12%`), kurs (`50 usd ke idr`), perintah PoinTify, tanya Claude, atau cari di web. |
 | **Live di notch kecil** | Widget yang Live-nya nyala ngelapor ke notch kecil pas ada yang penting: hitung mundur tinggal sejam, 15 menit sebelum sholat, usage mau reset, baterai sekarat, CPU mentok, disk mau penuh. Pip juga ikut ngerasain: keringetan pas CPU panas, lemes pas baterai mau habis, kehujanan kalau di luar hujan. |
 | **Musik + lirik** | Baca lagu dari kontrol media Windows (Spotify, YouTube di browser, dll): cover, judul, artis, progress yang bisa diklik buat lompat, tombol putar. Lirik sinkron dari [LRCLIB](https://lrclib.net) jalan ngikutin lagu. |
 | **Chat dengan Claude** | Ngobrol sama Claude langsung dari notch lewat Claude Code, pakai login langganan Claude lu. Mode **Ngobrol** (cuma baca, buat brainstorm) dan **Kerjain** (boleh ngedit file di folder project). Pilih Opus, Sonnet, atau Haiku. Sesi bisa dilanjutin di Claude Desktop. |
@@ -90,11 +93,13 @@ PoinTify jalan di PC lu dan nggak punya server sendiri. Yang keluar dari PC cuma
 | Ikon link di Peluncur | Nama domain | Situs itu sendiri, cadangannya DuckDuckGo |
 | Chat Claude | Pesan lu | Anthropic, lewat Claude Code di PC lu |
 | Update otomatis | Permintaan biasa buat ngecek versi terbaru | GitHub Releases |
+| Cari di web (palette) | Kata yang lu ketik, cuma kalau lu pilih "Cari di web" | Google, lewat browser lu |
 
 Yang nggak pernah keluar dari PC:
 
 - **Riwayat clipboard:** cuma dipantau selama widget Clipboard dipasang, disimpen di memori, hilang pas PoinTify ditutup.
 - **Deteksi ngetik buat Pip:** cuma ngitung jumlah pencetan; tombol mana yang dipencet langsung dibuang, nggak pernah disimpen atau dikirim.
+- **Statistik "Minggu ini" dan app yang lagi kebuka:** nama app yang di depan layar dicatat buat logo di pil dan waktu layar per app, bareng menit fokus, gelas air, dan lagu yang diputer. Semuanya disimpen di PC (35 hari terakhir), nggak pernah dikirim.
 - **Pengaturan, susunan widget, dan Rak:** tersimpan sebagai file JSON di folder aplikasi.
 
 ## Arsitektur
@@ -185,9 +190,11 @@ Setelah itu buka tab Chat di PoinTify dan ikutin langkah login-nya.
 
 **A little helper that lives at the top of your Windows screen.** PoinTify is a Dynamic Island-style notch for Windows, built with Tauri 2, Rust, and React. It ships in English and Indonesian and follows your Windows language automatically.
 
-- **Notch with a widget canvas:** 22 widgets (clock, calendar, countdown, to-do, notes, clipboard history, focus timer, water, launcher, Claude usage, quick prompts, sessions, music, Pip, system stats, network, quick toggles, weather, prayer times, exchange rates, GitHub, and a custom JSON widget). Arrange them, resize them, and let important ones go **Live** in the small notch.
+- **Notch with a widget canvas:** 23 widgets (clock, weekly stats, calendar, countdown, to-do, notes, clipboard history, focus timer, water, launcher, Claude usage, quick prompts, sessions, music, Pip, system stats, network, quick toggles, weather, prayer times, exchange rates, GitHub, and a custom JSON widget). Arrange them, resize them, and let important ones go **Live** in the small notch.
 - **Music + synced lyrics** from Windows media controls (Spotify, browsers, and more), with lyrics from [LRCLIB](https://lrclib.net).
 - **Pip, the mascot,** is a letter P with a spring-physics animation engine. Drag him out of the notch and he becomes a real desktop pet: throw him, pet him, feed him files, play chase, watch him perch on windows, dance to music, and snack on popcorn while you watch videos.
+- **A living pill:** when nothing's going on, the small notch cycles through the app you're using (with its icon), CPU, RAM, the time, and temperature. Music always wins. It also shows **download progress** from your browser.
+- **Command palette** (`Alt+Space`): launch apps and recent files, do math, convert currencies, run PoinTify commands, ask Claude, or search the web.
 - **Shelf** for dragging files in and back out, a **Pomodoro focus timer**, and **water reminders**.
 - **Claude integration (optional):** chat with Claude from the notch through Claude Code, and monitor/approve Claude Code terminal sessions. These need [Claude Code](https://code.claude.com/docs/en/setup) and a Claude subscription. **Everything else works without Claude or any account.**
 - **Welcome tour** on first launch and **automatic updates** from GitHub Releases.

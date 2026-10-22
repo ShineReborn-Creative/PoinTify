@@ -85,6 +85,10 @@ export type Settings = {
   theme: "dark" | "light" | "auto";
   /** Nama warna aksen (lihat src/lib/theme.ts). */
   accent: string;
+  /** Progres download di notch. */
+  downloadWatch: boolean;
+  /** Shortcut command palette (kosong = mati). */
+  paletteShortcut: string;
 };
 
 export type SysStats = {
@@ -96,6 +100,8 @@ export type SysStats = {
   battery: { percent: number; charging: boolean } | null;
   netDown: number;
   netUp: number;
+  /** Suhu CPU (°C), kalau PC-nya ngelapor. */
+  cpuTemp?: number | null;
 };
 
 export type ClipItem = { text: string; at: number };
@@ -258,6 +264,8 @@ export const api = {
   clipboardRead: () => invoke<string | null>("clipboard_read"),
   httpGetJson: <T = unknown>(url: string) => invoke<T>("http_get_json", { url }),
   launchOpen: (target: string) => invoke("launch_open", { target }),
+  paletteApps: () => invoke<{ name: string; path: string }[]>("palette_apps"),
+  paletteRecent: () => invoke<{ name: string; path: string }[]>("palette_recent"),
   /** Ikon asli app/file/folder/situs (data URL), null kalau nggak ada. */
   /** Lokasi PC dari layanan lokasi Windows. */
   geoLocate: () => invoke<{ lat: number; lon: number; accuracy: number }>("geo_locate"),

@@ -107,7 +107,7 @@ html, body, #root {
 }
 .peek[role="button"] { cursor: pointer; }
 .peek-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.peek-text strong { font-size: 14px; font-weight: 600; }
+.peek-text strong { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .peek-text span {
   font-size: 12px;
   color: var(--muted);
@@ -678,3 +678,74 @@ html, body, #root {
 :root[data-theme="light"] .tool-chip.status-error,
 :root[data-theme="light"] .shelf-warn { color: #b35c00; }
 :root[data-theme="light"] .msg.error { color: #c92a2a; }
+
+/* ---------- Pil pas sepi: info gantian ---------- */
+.ambient { display: inline-flex; align-items: center; min-width: 0; max-width: 168px; height: 20px; overflow: hidden; }
+.ambient-slide {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+  color: var(--text);
+  animation: ambient-in 0.42s var(--spring-open) both;
+}
+.ambient-slide > svg { color: var(--muted); flex-shrink: 0; }
+.ambient-slide b { font-weight: 650; }
+.ambient-k { color: var(--muted); font-size: 11.5px; }
+.ambient-app-icon { width: 16px; height: 16px; border-radius: 4px; object-fit: contain; flex-shrink: 0; }
+@keyframes ambient-in {
+  from { opacity: 0; transform: translateY(9px); filter: blur(2px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+.compact-timer-mini { display: inline-flex; flex-shrink: 0; color: var(--muted); }
+.compact-timer-mini .ring-center svg { position: static; }
+@media (prefers-reduced-motion: reduce) { .ambient-slide { animation: none; } }
+
+/* Download yang lagi jalan */
+.compact-download { gap: 7px; max-width: 220px; }
+.compact-download > .muted { flex-shrink: 0; font-size: 11.5px; }
+.download-arrow { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 18%, transparent); flex-shrink: 0; }
+.download-arrow svg { animation: download-bob 1.1s ease-in-out infinite; }
+@keyframes download-bob { 0%, 100% { transform: translateY(-1.5px); } 50% { transform: translateY(1.5px); } }
+@media (prefers-reduced-motion: reduce) { .download-arrow svg { animation: none; } }
+
+/* ---------- Command palette ---------- */
+.palette { display: flex; flex-direction: column; height: 100%; padding: 10px 10px 8px; gap: 6px; }
+.pal-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 12px 0 14px;
+  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.pal-search:focus-within { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+.pal-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: var(--text); font: inherit; font-size: 15px; }
+.pal-search input::placeholder { color: var(--faint); }
+.pal-search kbd { font-family: var(--mono); font-size: 10.5px; color: var(--faint); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+.pal-copied { font-size: 11.5px; color: var(--green); font-weight: 600; }
+.pal-list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; padding: 0 2px; }
+.pal-group { padding: 8px 10px 3px; font-size: 10.5px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); }
+.pal-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  text-align: left;
+  color: var(--text);
+}
+.pal-item.on { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.pal-icon { display: grid; place-items: center; width: 22px; height: 22px; flex-shrink: 0; color: var(--muted); }
+.pal-item.on .pal-icon { color: var(--accent-strong); }
+.pal-img { width: 18px; height: 18px; object-fit: contain; border-radius: 4px; }
+.pal-title { flex: 1; min-width: 0; font-size: 13px; }
+.pal-sub { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.pal-enter { font-size: 12px; color: var(--muted); flex-shrink: 0; }

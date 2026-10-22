@@ -1,4 +1,5 @@
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { Palette } from "./Palette";
 import { Icon, type IconName } from "../components/Icon";
 import { Pip, type PipMood } from "../components/Pip";
 import { canvasPipStore } from "../state/pipSpot";
@@ -40,6 +41,15 @@ export function ExpandedView({ mood }: { mood: PipMood }) {
     (id === "chat" && chat.running) ||
     (id === "timer" && timer.running) ||
     (id === "agents" && agents.sessions.some((s) => s.status === "working" || s.status === "waiting"));
+
+  // Command palette: tampilan sendiri, tanpa tab bar.
+  if (island.tab === "palette") {
+    return (
+      <div className="expanded fade-in">
+        <Palette />
+      </div>
+    );
+  }
 
   return (
     <div className="expanded fade-in">

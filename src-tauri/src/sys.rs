@@ -26,6 +26,8 @@ pub struct SysStats {
     /// Byte per detik.
     pub net_down: u64,
     pub net_up: u64,
+    /// Suhu CPU (°C) dari zona termal Windows. None kalau PC-nya nggak ngelapor.
+    pub cpu_temp: Option<f32>,
 }
 
 #[derive(Default)]
@@ -41,7 +43,7 @@ pub struct SysState(Mutex<Prev>);
 #[cfg(windows)]
 mod imp {
     use super::{Battery, Prev, SysStats};
-    use std::time::Instant;
+    use std::{sync::Mutex, time::Instant};
     use windows::{
         Win32::{
             Foundation::FILETIME,
@@ -51,20 +53,80 @@ mod imp {
             },
             Storage::FileSystem::GetDiskFreeSpaceExW,
             System::{
+                Performance::{
+                    PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_DOUBLE, PDH_HCOUNTER, PDH_HQUERY, PDH_MORE_DATA, PdhAddEnglishCounterW,
+                    PdhCloseQuery, PdhCollectQueryData, PdhGetFormattedCounterArrayW, PdhOpenQueryW,
+                },
                 Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS},
                 SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX},
                 Threading::GetSystemTimes,
             },
         },
-        core::w,
+        core::{PCWSTR, w},
     };
 
     fn ft(f: FILETIME) -> u64 {
         ((f.dwHighDateTime as u64) << 32) | f.dwLowDateTime as u64
     }
 
+    /// Penghitung kinerja "Thermal Zone Information": jalan tanpa Administrator,
+    /// tapi nggak semua laptop/PC ngisi. Dibuka sekali, dipakai ulang.
+    struct Thermal {
+        query: PDH_HQUERY,
+        counter: PDH_HCOUNTER,
+    }
+    // Handle PDH cuma dipakai di balik Mutex, satu thread sekali jalan.
+    unsafe impl Send for Thermal {}
+    static THERMAL: Mutex<Option<Option<Thermal>>> = Mutex::new(None);
+
+    fn open_thermal() -> Option<Thermal> {
+        unsafe {
+            let mut query = PDH_HQUERY::default();
+            if PdhOpenQueryW(PCWSTR::null(), 0, &mut query) != 0 {
+                return None;
+            }
+            let mut counter = PDH_HCOUNTER::default();
+            if PdhAddEnglishCounterW(query, w!("\\Thermal Zone Information(*)\\Temperature"), 0, &mut counter) != 0 {
+                PdhCloseQuery(query);
+                return None;
+            }
+            Some(Thermal { query, counter })
+        }
+    }
+
+    fn cpu_temp() -> Option<f32> {
+        let mut guard = THERMAL.lock().ok()?;
+        if guard.is_none() {
+            *guard = Some(open_thermal());
+        }
+        let t = guard.as_ref()?.as_ref()?;
+        unsafe {
+            if PdhCollectQueryData(t.query) != 0 {
+                return None;
+            }
+            let (mut size, mut count) = (0u32, 0u32);
+            if PdhGetFormattedCounterArrayW(t.counter, PDH_FMT_DOUBLE, &mut size, &mut count, None) != PDH_MORE_DATA || size == 0 {
+                return None;
+            }
+            // Buffer-nya pakai u64 biar rata (alignment) buat struct di dalamnya.
+            let mut buf = vec![0u64; (size as usize).div_ceil(8)];
+            let items_ptr = buf.as_mut_ptr() as *mut PDH_FMT_COUNTERVALUE_ITEM_W;
+            if PdhGetFormattedCounterArrayW(t.counter, PDH_FMT_DOUBLE, &mut size, &mut count, Some(items_ptr)) != 0 {
+                return None;
+            }
+            let items = std::slice::from_raw_parts(items_ptr, count as usize);
+            // Satuannya Kelvin. Ambil zona paling panas, buang angka yang nggak masuk akal.
+            items
+                .iter()
+                .filter(|i| i.FmtValue.CStatus == 0)
+                .map(|i| (i.FmtValue.Anonymous.doubleValue - 273.15) as f32)
+                .filter(|c| (5.0..=120.0).contains(c))
+                .reduce(f32::max)
+        }
+    }
+
     pub fn read(prev: &mut Prev) -> SysStats {
-        let mut s = SysStats::default();
+        let mut s = SysStats { cpu_temp: cpu_temp(), ..Default::default() };
         unsafe {
             // CPU: selisih waktu idle vs total sejak panggilan sebelumnya.
             let (mut idle, mut kernel, mut user) = (FILETIME::default(), FILETIME::default(), FILETIME::default());
