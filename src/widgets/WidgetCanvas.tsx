@@ -19,6 +19,10 @@ import {
   setCfg,
   setDragId,
   setEditing,
+  CELL_H,
+  CELL_W,
+  GAP,
+  SIZE_CELLS,
   SIZE_LABEL,
   updateWidget,
   widgetStore,
@@ -26,6 +30,7 @@ import {
   type WidgetSize,
 } from "./layout";
 import { groupLabel, GROUPS, widgetDef, WIDGETS, type Field, type WidgetDef } from "./registry";
+import { PreviewCtx } from "../state/pipSpot";
 import { tr } from "../i18n";
 
 const LONG_PRESS_MS = 550;
@@ -263,11 +268,10 @@ function Gallery() {
           const taken = !!d.single && has(d);
           return (
             <button key={d.type} className="w-gal-item" disabled={taken} onClick={() => add(d)} title={taken ? tr("Udah kepasang", "Already added") : d.desc}>
-              <span className="w-gal-icon">
-                <Icon name={d.icon} size={17} />
-              </span>
+              <WidgetPreview def={d} />
               <span className="w-gal-text">
                 <b>
+                  <Icon name={d.icon} size={13} />
                   {d.name}
                   {d.Live && <span className="w-live-mini">Live</span>}
                 </b>
@@ -278,6 +282,37 @@ function Gallery() {
         })}
       </div>
     </div>
+  );
+}
+
+/** Ukuran kotak preview di kartu galeri (px). */
+const PREVIEW_W = 158;
+const PREVIEW_H = 78;
+
+/** Widget beneran yang dikecilin, biar keliatan bentuknya sebelum ditambah. */
+function WidgetPreview({ def }: { def: WidgetDef }) {
+  const size: WidgetSize = def.sizes.includes("w") ? "w" : def.sizes[0];
+  const [cw, ch] = SIZE_CELLS[size];
+  const w = cw * CELL_W + (cw - 1) * GAP;
+  const h = ch * CELL_H + (ch - 1) * GAP;
+  const k = Math.min(PREVIEW_W / w, PREVIEW_H / h);
+  const item = useMemo<WidgetItem>(
+    () => ({ id: `preview-${def.type}`, type: def.type, size, cfg: { ...(def.defaultCfg ?? {}), ...(def.previewCfg?.() ?? {}) } }),
+    [def, size],
+  );
+  const C = def.Component;
+  return (
+    <span className="w-gal-preview" aria-hidden="true">
+      <PreviewCtx.Provider value={true}>
+        <div className={`w-tile type-${def.type} size-${size}`} style={{ width: w, height: h, transform: `translate(-50%, -50%) scale(${k})` }} inert>
+          <div className="w-tile-body">
+            <ErrorBoundary label={def.name} fallback={() => <Icon name={def.icon} size={28} />}>
+              <C item={item} size={size} mood="idle" />
+            </ErrorBoundary>
+          </div>
+        </div>
+      </PreviewCtx.Provider>
+    </span>
   );
 }
 

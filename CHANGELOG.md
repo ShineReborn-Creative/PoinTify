@@ -1,5 +1,12 @@
 # Catatan rilis
 
+## Berikutnya
+
+- **Tema terang** dan **8 warna aksen** (Pengaturan › Umum). Bisa juga ikut mode terang/gelap Windows.
+- **Galeri widget pakai preview:** tiap widget keliatan bentuk aslinya sebelum ditambah.
+- **Pengaturan bisa dicari** (`Ctrl+F`), plus bagian **Lanjutan** buat setelan yang jarang disentuh dan tombol buat balikin notch ke tengah.
+- Notch melar kenyal kayak pegas, angka di semua widget pakai skala yang sama, widget Minum didesain ulang.
+
 ## 0.4.0
 
 **Baru**
@@ -23,6 +30,13 @@
 ---
 
 # Release notes
+
+## Next
+
+- **Light theme** and **8 accent colors** (Settings › General). It can also follow Windows' light/dark mode.
+- **Widget gallery with previews:** every widget shows what it actually looks like before you add it.
+- **Searchable settings** (`Ctrl+F`), plus an **Advanced** section for rarely used options and a button to re-center the notch.
+- The notch stretches open with a springy bounce, numbers across all widgets share one scale, and the Water widget was redesigned.
 
 ## 0.4.0
 

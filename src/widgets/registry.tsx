@@ -51,6 +51,8 @@ export type WidgetDef = {
   sizes: WidgetSize[];
   defaultSize: WidgetSize;
   defaultCfg?: Record<string, unknown>;
+  /** Isi contoh buat preview di galeri (kalau beda dari defaultCfg). */
+  previewCfg?: () => Record<string, unknown>;
   fields?: Field[];
   /** Editor khusus di panel pengaturan (di bawah field biasa). */
   Config?: ComponentType<{ item: WidgetItem }>;
@@ -110,6 +112,7 @@ export const WIDGETS: WidgetDef[] = [
     sizes: ["s", "w"],
     defaultSize: "s",
     defaultCfg: { title: "Deadline" },
+    previewCfg: () => ({ title: tr("Demo day", "Demo day"), target: new Date(Date.now() + 2 * 3600e3 + 14 * 60e3).toISOString() }),
     fields: [
       { key: "title", label: tr("Nama acara", "Event name"), kind: "text", placeholder: "Deadline" },
       { key: "target", label: tr("Waktunya", "When"), kind: "datetime" },
@@ -121,6 +124,13 @@ export const WIDGETS: WidgetDef[] = [
   // Produktif
   {
     type: "todo",
+    previewCfg: () => ({
+      items: [
+        { id: "1", text: tr("Rapihin README", "Tidy up the README"), done: true },
+        { id: "2", text: tr("Rekam demo", "Record a demo"), done: false },
+        { id: "3", text: tr("Rilis versi baru", "Ship the new version"), done: false },
+      ],
+    }),
     name: tr("To-do", "To-do"),
     desc: tr("Daftar kerjaan singkat, centang langsung dari notch.", "A short task list you can tick off right from the notch."),
     icon: "checklist",
@@ -132,6 +142,7 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     type: "note",
+    previewCfg: () => ({ text: tr("Beli kopi ☕\nTelpon mama", "Buy coffee ☕\nCall mom"), color: "yellow" }),
     name: tr("Catatan", "Note"),
     desc: tr("Sticky note buat coretan cepat.", "A sticky note for quick scribbles."),
     icon: "note",
@@ -176,6 +187,14 @@ export const WIDGETS: WidgetDef[] = [
   },
   {
     type: "launcher",
+    previewCfg: () => ({
+      items: [
+        { id: "1", label: "GitHub", target: "https://github.com" },
+        { id: "2", label: "YouTube", target: "https://youtube.com" },
+        { id: "3", label: tr("Dokumen", "Documents"), target: "C:\\Users\\Public\\Documents" },
+        { id: "4", label: "Figma", target: "https://figma.com" },
+      ],
+    }),
     name: tr("Peluncur", "Launcher"),
     desc: tr("Buka app, folder, atau link favorit sekali klik.", "Open favorite apps, folders, or links in one click."),
     icon: "rocket",
@@ -195,6 +214,7 @@ export const WIDGETS: WidgetDef[] = [
     sizes: ["s", "w"],
     defaultSize: "w",
     defaultCfg: { cycleHours: 5 },
+    previewCfg: () => ({ cycleHours: 5, resetAt: new Date(Date.now() + 3 * 3600e3 + 25 * 60e3).toISOString() }),
     fields: [
       { key: "resetAt", label: tr("Jam reset berikutnya", "Next reset time"), kind: "datetime", hint: tr("Liat di claude.ai › Settings › Usage.", "Find it at claude.ai › Settings › Usage.") },
       { key: "cycleHours", label: tr("Siklus (jam)", "Cycle (hours)"), kind: "number", min: 1, max: 168 },

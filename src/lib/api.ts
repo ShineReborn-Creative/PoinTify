@@ -81,6 +81,10 @@ export type Settings = {
   tourDone: boolean;
   /** Cek versi baru pas PoinTify nyala. */
   autoUpdate: boolean;
+  /** "dark", "light", atau "auto" (ikut Windows). */
+  theme: "dark" | "light" | "auto";
+  /** Nama warna aksen (lihat src/lib/theme.ts). */
+  accent: string;
 };
 
 export type SysStats = {

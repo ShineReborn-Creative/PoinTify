@@ -75,6 +75,10 @@ pub struct Settings {
     pub tour_done: bool,
     /// Cek versi baru di GitHub pas PoinTify nyala.
     pub auto_update: bool,
+    /// "dark", "light", atau "auto" (ikut mode Windows).
+    pub theme: String,
+    /// Warna aksen: violet, blue, teal, green, amber, orange, pink, red.
+    pub accent: String,
 }
 
 impl Default for Settings {
@@ -119,6 +123,8 @@ impl Default for Settings {
             language: "auto".into(),
             tour_done: false,
             auto_update: true,
+            theme: "dark".into(),
+            accent: "violet".into(),
         }
     }
 }

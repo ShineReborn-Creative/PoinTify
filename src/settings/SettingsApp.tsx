@@ -9,6 +9,7 @@ import { api, type ClaudeStatus, type HooksStatus, type Settings } from "../lib/
 import { emitTo } from "@tauri-apps/api/event";
 import { tr } from "../i18n";
 import { useStore } from "../lib/store";
+import { ACCENTS, type Accent } from "../lib/theme";
 import { settingsStore, updateSettings } from "../state/settings";
 import { OFFSET_KEY } from "../state/island";
 import { checkUpdate, installUpdate, updateStore } from "../state/update";
@@ -38,6 +39,17 @@ function takeRequestedSection(): Section | null {
     return null;
   }
 }
+
+const ACCENT_NAME: Record<Accent, () => string> = {
+  violet: () => tr("Ungu (Pip)", "Violet (Pip)"),
+  blue: () => tr("Biru", "Blue"),
+  teal: () => tr("Toska", "Teal"),
+  green: () => tr("Hijau", "Green"),
+  amber: () => tr("Kuning", "Amber"),
+  orange: () => tr("Oranye", "Orange"),
+  pink: () => tr("Pink", "Pink"),
+  red: () => tr("Merah", "Red"),
+};
 
 /** Kata yang lagi dicari di kolom cari (kosong = nggak lagi nyari). */
 const SearchCtx = createContext("");
@@ -330,6 +342,37 @@ function GeneralSection({ s }: { s: Settings }) {
             <option value="id">Bahasa Indonesia</option>
             <option value="en">English</option>
           </select>
+        </Row>
+        <Row label={tr("Tema", "Theme")} hint={tr("Notch, widget, dan pengaturan ikut berubah.", "The notch, widgets, and settings all follow it.")}>
+          <div className="segmented small theme-seg">
+            {(
+              [
+                ["dark", tr("Gelap", "Dark")],
+                ["light", tr("Terang", "Light")],
+                ["auto", tr("Ikut Windows", "System")],
+              ] as const
+            ).map(([v, label]) => (
+              <button key={v} className={(s.theme ?? "dark") === v ? "active" : ""} onClick={() => updateSettings({ theme: v })}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </Row>
+        <Row label={tr("Warna aksen", "Accent color")} hint={tr("Dipakai buat tombol, sakelar, dan sorotan.", "Used for buttons, toggles, and highlights.")}>
+          <div className="accent-swatches" role="radiogroup" aria-label={tr("Warna aksen", "Accent color")}>
+            {(Object.keys(ACCENTS) as Accent[]).map((a) => (
+              <button
+                key={a}
+                role="radio"
+                aria-checked={(s.accent ?? "violet") === a}
+                aria-label={ACCENT_NAME[a]()}
+                title={ACCENT_NAME[a]()}
+                className={`swatch${(s.accent ?? "violet") === a ? " on" : ""}`}
+                style={{ ["--sw" as string]: ACCENTS[a] }}
+                onClick={() => updateSettings({ accent: a })}
+              />
+            ))}
+          </div>
         </Row>
         <Row label={tr("Jalan otomatis pas Windows nyala", "Start with Windows")} hint={tr("PoinTify langsung nongol tiap lu nyalain PC.", "PoinTify shows up every time you turn on your PC.")}>
           <Toggle label={tr("Jalan otomatis", "Start with Windows")} checked={s.launchAtStartup} onChange={(v) => updateSettings({ launchAtStartup: v })} />

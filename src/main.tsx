@@ -11,6 +11,7 @@ import { initChat } from "./state/chat";
 import { initMedia } from "./state/media";
 import { initSettings, settingsStore } from "./state/settings";
 import { setLanguage, tr } from "./i18n";
+import { initTheme } from "./lib/theme";
 import { initShelf } from "./state/shelf";
 import { setPointer } from "./pip/engine";
 import { initClipboard } from "./widgets/data";
@@ -23,6 +24,7 @@ async function boot() {
   document.documentElement.dataset.window = label;
   await initSettings();
   setLanguage(settingsStore.get()?.language);
+  initTheme();
   settingsStore.subscribe(() => setLanguage(settingsStore.get()?.language));
 
   // Mata Pip ngikutin kursor: dari DOM kalau kursornya di dalam jendela,

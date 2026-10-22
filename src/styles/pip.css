@@ -26,3 +26,8 @@
   transition: background 0.5s ease;
   pointer-events: none;
 }
+
+/* Tema terang: badan Pip putih, jadi dikasih garis tipis + bayangan biar nggak ilang di latar terang. */
+:root[data-theme="light"] .pip {
+  filter: drop-shadow(0 0 0.7px rgba(21, 19, 28, 0.55)) drop-shadow(0 1px 2px rgba(21, 19, 28, 0.18));
+}
