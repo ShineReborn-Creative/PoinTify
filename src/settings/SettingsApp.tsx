@@ -927,8 +927,8 @@ const HOOKS_TEXT = (): Record<HooksStatus["state"], { title: string; body: strin
   installed: {
     title: tr("Sesi terminal dipantau", "Terminal sessions are monitored"),
     body: tr(
-      "Sesi Claude Code di terminal muncul di tab Sesi. Permintaan izin dan pertanyaannya bisa dijawab dari notch.",
-      "Claude Code sessions in your terminal show up in the Sessions tab. You can answer permission requests and questions from the notch.",
+      "Sesi Claude Code di terminal muncul di tab Claude › Sesi. Permintaan izin dan pertanyaannya bisa dijawab dari notch.",
+      "Claude Code sessions in your terminal show up under Claude › Sessions. You can answer permission requests and questions from the notch.",
     ),
   },
   outdated: {

@@ -35,7 +35,7 @@ Udah kepasang? PoinTify ngecek versi baru di GitHub tiap nyala dan nawarin updat
 
 ### Nggak langganan Claude?
 
-Tenang, hampir semuanya jalan tanpa Claude. Yang butuh [Claude Code](https://code.claude.com/docs/en/setup) plus langganan Claude cuma **chat**, **tab Sesi** (pantau dan izinin Claude Code di terminal), dan widget **Prompt cepat** & **Sesi Claude**. Sisanya gratis tanpa akun apa pun: notch, musik + lirik, semua widget lain, Live, Rak file, timer fokus, pengingat minum, dan Pip di desktop.
+Tenang, hampir semuanya jalan tanpa Claude. Yang butuh [Claude Code](https://code.claude.com/docs/en/setup) plus langganan Claude cuma tab **Claude** (chat, plus Sesi buat pantau dan izinin Claude Code di terminal), dan widget **Prompt cepat** & **Sesi Claude**. Sisanya gratis tanpa akun apa pun: notch, musik + lirik, semua widget lain, Live, Rak file, timer fokus, pengingat minum, dan Pip di desktop.
 
 ## Kenalan sama Pip
 
@@ -69,12 +69,12 @@ Pip digerakin mesin animasi kecil buatan sendiri ([`src/pip/engine.ts`](src/pip/
 | **Progres download** | File yang lagi didownload di folder Downloads (Chrome, Edge, Firefox, Opera) keliatan ukuran + kecepatannya di notch. Pas kelar, ada tombol buka folder atau taruh di Rak. |
 | **Command palette** | `Alt+Space` (bisa diganti) buka kotak cari: buka app & file terbaru, hitung-hitungan (`350000*12%`), kurs (`50 usd ke idr`), perintah PoinTify, tanya Claude, atau cari di web. |
 | **Live di notch kecil** | Widget yang Live-nya nyala ngelapor ke notch kecil pas ada yang penting: hitung mundur tinggal sejam, 15 menit sebelum sholat, usage mau reset, baterai sekarat, CPU mentok, disk mau penuh. Pip juga ikut ngerasain: keringetan pas CPU panas, lemes pas baterai mau habis, kehujanan kalau di luar hujan. |
-| **Musik + lirik** | Baca lagu dari kontrol media Windows (Spotify, YouTube di browser, dll): cover, judul, artis, progress yang bisa diklik buat lompat, tombol putar. Lirik sinkron dari [LRCLIB](https://lrclib.net) jalan ngikutin lagu. |
+| **Musik + lirik** | Baca lagu dari kontrol media Windows (Spotify, YouTube di browser, dll): cover, judul, artis, progress yang bisa diklik buat lompat, tombol putar. Lirik sinkron dari [LRCLIB](https://lrclib.net) jalan ngikutin lagu. Selama ada lagu, nongol tab **Musik**: cover gede plus lirik yang jalan kayak karaoke (klik baris buat lompat). |
 | **Chat dengan Claude** | Ngobrol sama Claude langsung dari notch lewat Claude Code, pakai login langganan Claude lu. Mode **Ngobrol** (cuma baca, buat brainstorm) dan **Kerjain** (boleh ngedit file di folder project). Pilih Opus, Sonnet, atau Haiku. Sesi bisa dilanjutin di Claude Desktop. |
-| **Sesi Claude Code** | Sesi `claude` yang lu jalanin di terminal mana aja muncul di tab Sesi: prompt, file yang dibaca dan diedit (+baris −baris), perintah yang dijalanin. Pas Claude minta izin, kartu nyembul dari notch dengan pilihan Izinin, Selalu, Tolak, atau jawab di terminal. Pertanyaan pilihan ganda dari Claude juga bisa dijawab dari notch. Pas sesi beres, Pip lompat senang. |
+| **Sesi Claude Code** | Sesi `claude` yang lu jalanin di terminal mana aja muncul di tab Claude › Sesi: prompt, file yang dibaca dan diedit (+baris −baris), perintah yang dijalanin. Pas Claude minta izin, kartu nyembul dari notch dengan pilihan Izinin, Selalu, Tolak, atau jawab di terminal. Pertanyaan pilihan ganda dari Claude juga bisa dijawab dari notch. Pas sesi beres, Pip lompat senang. |
 | **Progres chat Claude** | Kerjaan yang lagi dikerjain Claude di app Claude (chat yang nyambung ke PC) ikut kepantau: judul tugas, langkah ke berapa, dan notif pas Claude beres atau butuh jawaban. Claude nulis kabar kecil ke `~/.pointify/feed`, PoinTify mantau folder itu. |
 | **Rak file** | Drag file ke notch buat disimpan sementara, drag keluar lagi ke app lain, atau lampirin ke chat Claude. |
-| **Timer fokus** | Pomodoro lengkap: fokus, istirahat pendek, istirahat panjang, statistik harian. Hitung mundurnya keliatan di notch kecil. |
+| **Timer fokus** | Pomodoro lengkap: fokus, istirahat pendek, istirahat panjang, statistik harian. Pas jalan, ada cincin kecil di pil; klik buat buka tab Fokus. |
 | **Pengingat minum** | Pip nyembul dari notch tiap sekian menit, ngitung gelas harian, cuma di jam aktif yang lu atur. |
 | **Tour perkenalan** | Pas pertama buka, Pip ngenalin fitur yang nggak keliatan (geser notch, Rak, Pip desktop, cara main). Bisa diulang dari Pengaturan › Umum. |
 | **Bahasa Indonesia & Inggris** | Otomatis ngikutin bahasa Windows, atau pilih sendiri di Pengaturan. Semua teks ikut ganti, termasuk omongan Pip dan menu tray. |
@@ -184,7 +184,7 @@ Fitur chat butuh [Claude Code](https://code.claude.com/docs/en/setup) dan langga
 irm https://claude.ai/install.ps1 | iex
 ```
 
-Setelah itu buka tab Chat di PoinTify dan ikutin langkah login-nya.
+Setelah itu buka tab Claude di PoinTify (ikon ✦ di ujung kanan tab) dan ikutin langkah login-nya. Tab ini baru nongol setelah Claude Code kepasang.
 
 ## English
 

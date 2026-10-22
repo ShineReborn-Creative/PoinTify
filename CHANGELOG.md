@@ -7,6 +7,8 @@
 - **Command palette** (`Alt+Space`, bisa diganti): cari & buka app, file terbaru, hitung-hitungan (`350000*12%`), konversi kurs (`50 usd ke idr`), perintah PoinTify, tanya Claude, atau cari di web.
 - **Atur pil sendiri** (Pengaturan › Pil notch): pilih info yang ikut gantian (app, CPU, RAM, jam, suhu, info Live), seberapa cepet gantinya, dan app mana yang nggak usah ditampilin. App yang disembunyiin juga nggak dicatat di statistik.
 - **Pip nemenin pas fullscreen:** notch tetap sembunyi pas main game atau nonton, tapi Pip desktop tetap nongol, dan klik tembus ke app-nya.
+- **Tab bar lebih rapi:** yang selalu ada cuma Beranda sama Rak. Tab **Fokus** nongol pas timer jalan (atau pas lu klik widget Timer / cincin timer di pil). Chat dan Sesi digabung jadi satu tab **Claude** di ujung (ganti Chat/Sesi di kanan atas), ngumpet sendiri kalau Claude Code belum kepasang, dan titiknya jadi oranye kalau Claude nunggu jawaban lu.
+- **Tab Musik:** nongol cuma pas ada lagu. Cover gede, kontrol, dan lirik sinkron yang jalan kayak karaoke; klik baris lirik buat lompat ke situ. Bisa juga dibuka dengan klik cover di widget Musik.
 - **Widget "Minggu ini":** grafik 7 hari buat fokus, gelas air, dan waktu layar, plus app sama lagu yang paling sering lu pake. Datanya cuma disimpen di PC lu.
 - **Tema terang** dan **8 warna aksen** (Pengaturan › Umum). Bisa juga ikut mode terang/gelap Windows. Titik Pip ikut warna aksen pas lagi santai.
 - **Galeri widget pakai preview:** tiap widget keliatan bentuk aslinya sebelum ditambah.
@@ -44,6 +46,8 @@
 - **Command palette** (`Alt+Space`, configurable): find and open apps, recent files, math (`350000*12%`), currency conversion (`50 usd to idr`), PoinTify commands, ask Claude, or search the web.
 - **Customize the pill** (Settings › Notch pill): choose what it cycles through (app, CPU, RAM, clock, temperature, Live info), how fast it switches, and which apps to leave out. Hidden apps aren't recorded in stats either.
 - **Pip stays with you in fullscreen:** the notch still hides while you game or watch, but desktop Pip stays visible, and clicks pass right through him.
+- **A cleaner tab bar:** only Home and Shelf are always there. **Focus** appears while a timer runs (or when you click the Timer widget or the timer ring in the pill). Chat and Sessions merged into a single **Claude** tab at the end (switch between them at the top right); it hides itself until Claude Code is installed, and its dot turns orange when Claude is waiting on you.
+- **Music tab:** shows up only while a song plays. Big cover art, controls, and synced lyrics that scroll karaoke-style; click a line to jump there. You can also open it by clicking the cover in the Music widget.
 - **"This week" widget:** a 7-day chart of focus time, glasses of water, and screen time, plus your most-used apps and most-played songs. The data never leaves your PC.
 - **Light theme** and **8 accent colors** (Settings › General). It can also follow Windows' light/dark mode. Pip's dot takes on the accent color when he's relaxed.
 - **Widget gallery with previews:** every widget shows what it actually looks like before you add it.

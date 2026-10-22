@@ -764,3 +764,70 @@ html, body, #root {
   45% { opacity: 0.85; }
   100% { opacity: 0; transform: scale(0.94) translateY(-6px); filter: blur(3px); }
 }
+
+/* Tab bar: utama di kiri, Claude dipisah garis tipis di ujung. */
+.tab-sep { width: 1px; height: 16px; margin: 0 6px; background: rgba(var(--fg), 0.14); flex-shrink: 0; }
+.tab-dot.warn { background: #ffb547; box-shadow: 0 0 0 3px rgba(255, 181, 71, 0.18); }
+.tab:not(.active) .tab-dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; }
+.claude-seg { margin-right: 4px; }
+.claude-seg button { display: inline-flex; align-items: center; gap: 5px; }
+.claude-seg .tab-dot { width: 5px; height: 5px; }
+.seg-count {
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: rgba(var(--fg), 0.14);
+  color: var(--text);
+  font-size: 9.5px;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+}
+.seg-count.warn { background: #ffb547; color: #1a1205; }
+
+/* ---------- Tab Musik ---------- */
+.music-tab { position: relative; display: flex; gap: 18px; height: 100%; padding: 6px 6px 2px; overflow: hidden; border-radius: 18px; }
+.music-tab > * { position: relative; }
+.music-tab .music-backdrop { opacity: 0.3; }
+.music-tab-side { display: flex; flex-direction: column; align-items: center; gap: 10px; flex-shrink: 0; }
+.music-tab-cover { width: 150px; height: 150px; border-radius: 16px; object-fit: cover; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45); }
+.music-tab-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.music-tab-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.music-tab-meta strong { font-size: 16px; font-weight: 650; }
+.music-tab-meta span { font-size: 12px; }
+.music-tab-status { flex: 1; display: grid; place-items: center start; font-size: 13px; }
+.music-tab.empty { align-items: center; gap: 18px; padding: 0 24px; }
+.music-tab.empty strong { display: block; font-size: 17px; margin-bottom: 4px; }
+.music-tab.empty p { font-size: 12.5px; max-width: 320px; line-height: 1.5; }
+
+.karaoke {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 78%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 78%, transparent);
+}
+.karaoke-track { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 4px 0 60px; transition: transform 0.55s var(--ease); }
+.karaoke-line {
+  max-width: 100%;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border-radius: 7px;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(var(--fg), 0.34);
+  transition: color 0.3s ease, transform 0.3s var(--ease), background 0.15s ease;
+  transform-origin: 0 50%;
+}
+.karaoke-line.past { color: rgba(var(--fg), 0.22); }
+.karaoke-line.now { color: var(--text); transform: scale(1.06); }
+.karaoke-line:hover { background: rgba(var(--fg), 0.07); color: rgba(var(--fg), 0.75); }
+.karaoke-line.now:hover { color: var(--text); }
+@media (prefers-reduced-motion: reduce) { .karaoke-track, .karaoke-line { transition: none; } }
+.cover-btn { display: block; flex-shrink: 0; border-radius: 12px; transition: transform 0.15s var(--ease); }
+.cover-btn:hover { transform: scale(1.04); }
+.cover-btn:active { transform: scale(0.97); }
+.compact-timer-mini { cursor: pointer; }

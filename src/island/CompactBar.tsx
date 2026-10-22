@@ -24,6 +24,7 @@ import { widgetStore } from "../widgets/layout";
 import type { LiveInfo } from "../widgets/data";
 import { LiveActivity } from "../widgets/live";
 import { tr } from "../i18n";
+import { expand } from "../state/island";
 
 /** "ambient" = lagi sepi: logo app, CPU, RAM, jam, suhu gantian. */
 export type Activity = "claude" | "agent" | "download" | "live" | "music" | "ambient" | null;
@@ -131,11 +132,19 @@ function TimerMini() {
   const total = fullDuration(timer);
   const label = `${PHASE_LABEL[timer.phase]} · ${mmss(left)}`;
   return (
-    <span className="compact-timer-mini" title={label} aria-label={label}>
+    <button
+      className="compact-timer-mini"
+      title={label}
+      aria-label={label}
+      onClick={(e) => {
+        e.stopPropagation();
+        expand("timer");
+      }}
+    >
       <Ring size={17} stroke={2.4} progress={1 - left / total} color={timer.phase === "focus" ? "var(--accent)" : "var(--green)"}>
         <Icon name="timer" size={9} />
       </Ring>
-    </span>
+    </button>
   );
 }
 

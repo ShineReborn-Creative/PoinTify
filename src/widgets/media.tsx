@@ -11,6 +11,7 @@ import { settingsStore } from "../state/settings";
 import { useClaimPip } from "../state/pipSpot";
 import type { WidgetProps } from "./common";
 import { tr } from "../i18n";
+import { setTab } from "../state/island";
 
 type Props = WidgetProps & { mood: PipMood };
 
@@ -58,7 +59,9 @@ export function MusicWidget({ size, mood }: Props) {
     return (
       <div className="w-music-w">
         {media.thumbnail && <div className="music-backdrop" style={{ backgroundImage: `url(${media.thumbnail})` }} />}
-        {media.thumbnail ? <img className="cover small" src={media.thumbnail} alt="" /> : <div className="cover small cover-empty"><Icon name="music" size={18} /></div>}
+        <button className="cover-btn" title={tr("Buka tab Musik", "Open the Music tab")} aria-label={tr("Buka tab Musik", "Open the Music tab")} onClick={() => setTab("music")}>
+          {media.thumbnail ? <img className="cover small" src={media.thumbnail} alt="" /> : <div className="cover small cover-empty"><Icon name="music" size={18} /></div>}
+        </button>
         <div className="music-meta">
           <strong className="ellipsis">{media.title}</strong>
           <span className="muted ellipsis">{current ?? media.artist}</span>
@@ -72,7 +75,9 @@ export function MusicWidget({ size, mood }: Props) {
     <div className={`music w-music size-${size}`}>
       {media.thumbnail && <div className="music-backdrop" style={{ backgroundImage: `url(${media.thumbnail})` }} />}
       <div className="music-top">
-        {media.thumbnail ? <img className="cover" src={media.thumbnail} alt="" /> : <div className="cover cover-empty"><Icon name="music" size={22} /></div>}
+        <button className="cover-btn" title={tr("Buka tab Musik", "Open the Music tab")} aria-label={tr("Buka tab Musik", "Open the Music tab")} onClick={() => setTab("music")}>
+          {media.thumbnail ? <img className="cover" src={media.thumbnail} alt="" /> : <div className="cover cover-empty"><Icon name="music" size={22} /></div>}
+        </button>
         <div className="music-meta">
           <strong className="ellipsis">{media.title}</strong>
           <span className="muted ellipsis">

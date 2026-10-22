@@ -5,7 +5,7 @@ import { quietStore } from "./quiet";
 import type { PipMood } from "../components/Pip";
 
 export type Mode = "compact" | "peek" | "expanded";
-export type Tab = "home" | "chat" | "agents" | "shelf" | "timer" | "palette";
+export type Tab = "home" | "chat" | "agents" | "shelf" | "timer" | "music" | "palette";
 
 export type PeekAction = { label: string; primary?: boolean; run: () => void };
 
@@ -116,6 +116,7 @@ export const SIZES = {
     agents: { w: 620, h: 360 },
     shelf: { w: 620, h: 262 },
     timer: { w: 620, h: 262 },
+    music: { w: 620, h: 270 },
     palette: { w: 600, h: 330 },
   } satisfies Record<Tab, { w: number; h: number }>,
 };

@@ -411,4 +411,9 @@ export async function initChat() {
   });
 
   void refreshClaudeStatus();
+  // Tab Claude disembunyiin selama Claude Code belum kepasang. Dicek ulang
+  // sesekali, biar abis lu pasang tab-nya nongol tanpa perlu restart.
+  window.setInterval(() => {
+    if (claudeStatusStore.get()?.installed === false && !claudeStatusLoading.get()) void refreshClaudeStatus();
+  }, 3 * 60_000);
 }

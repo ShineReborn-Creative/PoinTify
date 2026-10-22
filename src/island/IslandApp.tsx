@@ -10,6 +10,7 @@ import { chatStore, onClaudeFinished } from "../state/chat";
 import {
   beforeCollapse,
   blurGuard,
+  setTab,
   clampOffset,
   collapse,
   dismissPeek,
@@ -445,6 +446,13 @@ export function IslandApp() {
   useEffect(() => {
     if (edit.editing && (island.mode !== "expanded" || island.tab !== "home")) setEditing(false);
   }, [island.mode, island.tab, edit.editing]);
+
+  // Tab Musik cuma ada selama ada lagu: abis nutup dan lagunya udah berhenti,
+  // hover berikutnya balik ke Beranda.
+  const noSong = !media || media.kind === "video";
+  useEffect(() => {
+    if (island.mode !== "expanded" && island.tab === "music" && noSong) setTab("home");
+  }, [island.mode, island.tab, noSong]);
 
   const size = useMemo(() => {
     if (request) return approvalSize(request);

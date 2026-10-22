@@ -11,6 +11,24 @@ import { WLabel, type WidgetProps } from "./common";
 
 type Metric = "focus" | "water" | "screen";
 
+/** Pilihan Fokus/Minum/Layar diinget, biar nggak balik ke Fokus tiap notch nutup. */
+const METRIC_KEY = "pointify.stats.metric";
+function loadMetric(): Metric {
+  try {
+    const v = localStorage.getItem(METRIC_KEY);
+    return v === "water" || v === "screen" ? v : "focus";
+  } catch {
+    return "focus";
+  }
+}
+function saveMetric(m: Metric) {
+  try {
+    localStorage.setItem(METRIC_KEY, m);
+  } catch {
+    // nggak kesimpen, nggak apa-apa
+  }
+}
+
 /** 135 menit → "2j 15m" / "2h 15m". */
 function hm(ms: number): string {
   const m = Math.round(ms / 60_000);
@@ -47,7 +65,11 @@ function AppIcon({ exe }: { exe: string }) {
 export function StatsWidget({ size }: WidgetProps) {
   const stats = useStore(statsStore);
   const settings = useStore(settingsStore);
-  const [metric, setMetric] = useState<Metric>("focus");
+  const [metric, setMetricState] = useState<Metric>(loadMetric);
+  const setMetric = (m: Metric) => {
+    setMetricState(m);
+    saveMetric(m);
+  };
   const days = lastDays(7);
   const week = days.map((d) => stats.days[d.key]);
 
