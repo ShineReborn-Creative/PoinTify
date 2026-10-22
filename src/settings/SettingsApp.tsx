@@ -2,7 +2,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "../components/Icon";
 import { Pip } from "../components/Pip";
 import { api, type ClaudeStatus, type HooksStatus, type Settings } from "../lib/api";
@@ -10,9 +10,10 @@ import { emitTo } from "@tauri-apps/api/event";
 import { tr } from "../i18n";
 import { useStore } from "../lib/store";
 import { settingsStore, updateSettings } from "../state/settings";
+import { OFFSET_KEY } from "../state/island";
 import { checkUpdate, installUpdate, updateStore } from "../state/update";
 
-type Section = "umum" | "pip" | "musik" | "fokus" | "minum" | "claude" | "tentang";
+type Section = "umum" | "pip" | "musik" | "fokus" | "minum" | "claude" | "lanjutan" | "tentang";
 
 const SECTIONS: { id: Section; label: () => string; icon: IconName }[] = [
   { id: "umum", label: () => tr("Umum", "General"), icon: "gear" },
@@ -21,6 +22,7 @@ const SECTIONS: { id: Section; label: () => string; icon: IconName }[] = [
   { id: "fokus", label: () => tr("Timer fokus", "Focus timer"), icon: "timer" },
   { id: "minum", label: () => tr("Pengingat minum", "Water reminder"), icon: "drop" },
   { id: "claude", label: () => "Claude", icon: "chat" },
+  { id: "lanjutan", label: () => tr("Lanjutan", "Advanced"), icon: "wrench" },
   { id: "tentang", label: () => tr("Tentang", "About"), icon: "info" },
 ];
 
@@ -37,9 +39,38 @@ function takeRequestedSection(): Section | null {
   }
 }
 
+/** Kata yang lagi dicari di kolom cari (kosong = nggak lagi nyari). */
+const SearchCtx = createContext("");
+
+/** Huruf kecil tanpa tanda baca, biar "wi-fi" ketemu pas ngetik "wifi". */
+const norm = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N} ]/gu, "");
+function matches(text: string, q: string) {
+  const hay = norm(text);
+  return norm(q)
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((w) => hay.includes(w));
+}
+
 export function SettingsApp() {
   const settings = useStore(settingsStore);
   const [section, setSection] = useState<Section>(() => takeRequestedSection() ?? "umum");
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const searching = query.trim().length > 0;
+
+  // Ctrl+F buat nyari, Esc buat ngosongin.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Jendela udah kebuka: tetap pindah ke bagian yang diminta.
   useEffect(() => {
@@ -73,36 +104,108 @@ export function SettingsApp() {
 
       <div className="settings-body">
         <nav className="sidebar">
+          <label className="search-box">
+            <Icon name="search" size={14} />
+            <input
+              ref={searchRef}
+              value={query}
+              placeholder={tr("Cari pengaturan", "Search settings")}
+              spellCheck={false}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && setQuery("")}
+            />
+            {searching && (
+              <button className="search-clear" aria-label={tr("Hapus pencarian", "Clear search")} onClick={() => setQuery("")}>
+                <Icon name="close" size={12} />
+              </button>
+            )}
+          </label>
           {SECTIONS.map((s) => (
-            <button key={s.id} className={section === s.id ? "active" : ""} onClick={() => setSection(s.id)}>
+            <button
+              key={s.id}
+              className={!searching && section === s.id ? "active" : ""}
+              onClick={() => {
+                setQuery("");
+                setSection(s.id);
+              }}
+            >
               <Icon name={s.icon} size={16} />
               {s.label()}
             </button>
           ))}
         </nav>
-        <main className="panel">
-          {section === "umum" && <GeneralSection s={settings} />}
-          {section === "pip" && <PipSection s={settings} />}
-          {section === "musik" && <MusicSection s={settings} />}
-          {section === "fokus" && <FocusSection s={settings} />}
-          {section === "minum" && <WaterSection s={settings} />}
-          {section === "claude" && <ClaudeSection s={settings} />}
-          {section === "tentang" && <AboutSection />}
+        <main className={`panel${searching ? " searching" : ""}`}>
+          {searching ? (
+            <div className="search-results">
+              {SECTIONS.filter((s) => s.id !== "tentang").map((s) => (
+                // Nama bagiannya cocok: tampilin semua isinya.
+                <SearchCtx.Provider key={s.id} value={matches(s.label(), query) ? "" : query}>
+                  <section className="search-section">
+                    <SectionBody id={s.id} s={settings} />
+                  </section>
+                </SearchCtx.Provider>
+              ))}
+              <div className="search-empty">
+                <Pip mood="thinking" size={56} />
+                <span>{tr(`Nggak nemu "${query.trim()}".`, `Nothing found for "${query.trim()}".`)}</span>
+              </div>
+            </div>
+          ) : (
+            <SectionBody id={section} s={settings} />
+          )}
         </main>
       </div>
     </div>
   );
 }
 
+function SectionBody({ id, s }: { id: Section; s: Settings }) {
+  switch (id) {
+    case "umum":
+      return <GeneralSection s={s} />;
+    case "pip":
+      return <PipSection s={s} />;
+    case "musik":
+      return <MusicSection s={s} />;
+    case "fokus":
+      return <FocusSection s={s} />;
+    case "minum":
+      return <WaterSection s={s} />;
+    case "claude":
+      return <ClaudeSection s={s} />;
+    case "lanjutan":
+      return <AdvancedSection s={s} />;
+    case "tentang":
+      return <AboutSection />;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Komponen kecil
 // ---------------------------------------------------------------------------
 
+/** Tebelin bagian label yang cocok sama pencarian. */
+function Highlight({ text }: { text: string }) {
+  const q = useContext(SearchCtx).trim();
+  if (!q) return <>{text}</>;
+  const words = q.split(/\s+/).filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const parts = text.split(new RegExp(`(${words.join("|")})`, "gi"));
+  return (
+    <>
+      {parts.map((p, i) => (i % 2 ? <mark key={i}>{p}</mark> : p))}
+    </>
+  );
+}
+
 function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  const q = useContext(SearchCtx);
+  if (q.trim() && !matches(`${label} ${hint ?? ""}`, q)) return null;
   return (
     <div className="row">
       <div className="row-text">
-        <span className="row-label">{label}</span>
+        <span className="row-label">
+          <Highlight text={label} />
+        </span>
         {hint && <span className="row-hint">{hint}</span>}
       </div>
       <div className="row-control">{children}</div>
@@ -234,9 +337,6 @@ function GeneralSection({ s }: { s: Settings }) {
         <Row label={tr("Buka pas kursor lewat", "Open on hover")} hint={tr("Kalau dimatiin, notch baru kebuka pas diklik.", "When off, the notch only opens when clicked.")}>
           <Toggle label={tr("Buka pas kursor lewat", "Open on hover")} checked={s.openOnHover} onChange={(v) => updateSettings({ openOnHover: v })} />
         </Row>
-        <Row label={tr("Jeda sebelum kebuka", "Hover delay")} hint={tr("Biar notch nggak kebuka pas kursor cuma lewat sekilas.", "So the notch doesn't open when the cursor just passes by.")}>
-          <Stepper label={tr("jeda", "delay")} value={s.hoverDelayMs} min={0} max={1000} step={50} suffix="ms" onChange={(v) => updateSettings({ hoverDelayMs: v })} />
-        </Row>
         <Row label={tr("Sembunyi pas app fullscreen", "Hide when an app is fullscreen")} hint={tr("Nonton film atau main game tanpa diganggu.", "Watch movies or play games undisturbed.")}>
           <Toggle label={tr("Sembunyi pas fullscreen", "Hide in fullscreen")} checked={s.hideInFullscreen} onChange={(v) => updateSettings({ hideInFullscreen: v })} />
         </Row>
@@ -245,9 +345,6 @@ function GeneralSection({ s }: { s: Settings }) {
         </Row>
         <Row label={tr("Shortcut buka chat", "Chat shortcut")} hint={tr("Klik, lalu tekan kombinasi baru. Backspace buat matiin.", "Click, then press a new combination. Backspace turns it off.")}>
           <ShortcutRecorder value={s.shortcut} onChange={(v) => updateSettings({ shortcut: v })} />
-        </Row>
-        <Row label={tr("Update otomatis", "Automatic updates")} hint={tr("Cek versi baru di GitHub tiap PoinTify nyala. Masangnya tetap nunggu izin lu.", "Checks GitHub for a new version on startup. Installing still asks you first.")}>
-          <Toggle label={tr("Update otomatis", "Automatic updates")} checked={s.autoUpdate !== false} onChange={(v) => updateSettings({ autoUpdate: v })} />
         </Row>
         <Row label={tr("Tour perkenalan", "Welcome tour")} hint={tr("Pip ngenalin fitur-fitur PoinTify satu-satu.", "Pip walks you through PoinTify's features.")}>
           <button className="btn" onClick={replayTour}>
@@ -367,9 +464,6 @@ function MusicSection({ s }: { s: Settings }) {
             disabled={!s.showLyrics}
             onChange={(v) => updateSettings({ compactLyrics: v })}
           />
-        </Row>
-        <Row label={tr("Geser waktu lirik", "Lyrics offset")} hint={tr("Tambah kalau lirik kerasa telat, kurangi kalau kecepetan.", "Increase if lyrics feel late, decrease if they're early.")}>
-          <Stepper label={tr("geser lirik", "lyrics offset")} value={s.lyricOffsetMs} min={-3000} max={3000} step={100} suffix="ms" onChange={(v) => updateSettings({ lyricOffsetMs: v })} />
         </Row>
       </div>
     </>
@@ -541,15 +635,6 @@ function ClaudeSection({ s }: { s: Settings }) {
             <option value="work">{tr("Kerjain", "Work")}</option>
           </select>
         </Row>
-        <Row label={tr("Lokasi claude.exe", "claude.exe location")} hint={tr("Kosongin biar dicari otomatis.", "Leave empty to find it automatically.")}>
-          <input
-            className="text-input"
-            value={s.claudePath}
-            placeholder={tr("Otomatis", "Automatic")}
-            spellCheck={false}
-            onChange={(e) => updateSettings({ claudePath: e.target.value })}
-          />
-        </Row>
       </div>
 
       <div className="group">
@@ -580,6 +665,56 @@ function ClaudeSection({ s }: { s: Settings }) {
             </div>
           ))
         )}
+      </div>
+    </>
+  );
+}
+
+function AdvancedSection({ s }: { s: Settings }) {
+  const [centered, setCentered] = useState(false);
+  return (
+    <>
+      <Heading
+        title={tr("Lanjutan", "Advanced")}
+        desc={tr("Setelan yang jarang perlu diubah. Biarin aja kalau semuanya udah enak.", "Settings you rarely need to touch. Leave them be if everything feels right.")}
+      />
+      <div className="group">
+        <Row label={tr("Jeda sebelum kebuka", "Hover delay")} hint={tr("Biar notch nggak kebuka pas kursor cuma lewat sekilas.", "So the notch doesn't open when the cursor just passes by.")}>
+          <Stepper label={tr("jeda", "delay")} value={s.hoverDelayMs} min={0} max={1000} step={50} suffix="ms" onChange={(v) => updateSettings({ hoverDelayMs: v })} />
+        </Row>
+        <Row label={tr("Balikin notch ke tengah", "Center the notch")} hint={tr("Kalau notch-nya pernah lu geser ke kiri atau kanan.", "If you've dragged the notch to the left or right.")}>
+          <button
+            className="btn"
+            onClick={() => {
+              // Lewat localStorage (semua jendela PoinTify berbagi), plus event buat jaga-jaga.
+              try {
+                localStorage.setItem(OFFSET_KEY, "0");
+              } catch {
+                // Nggak apa-apa, event di bawah tetap jalan.
+              }
+              void emitTo("main", "island-reset-offset");
+              setCentered(true);
+              window.setTimeout(() => setCentered(false), 1600);
+            }}
+          >
+            <Icon name={centered ? "check" : "reset"} size={14} /> {centered ? tr("Udah", "Done") : tr("Tengahin", "Center")}
+          </button>
+        </Row>
+        <Row label={tr("Geser waktu lirik", "Lyrics offset")} hint={tr("Tambah kalau lirik kerasa telat, kurangi kalau kecepetan.", "Increase if lyrics feel late, decrease if they're early.")}>
+          <Stepper label={tr("geser lirik", "lyrics offset")} value={s.lyricOffsetMs} min={-3000} max={3000} step={100} suffix="ms" onChange={(v) => updateSettings({ lyricOffsetMs: v })} />
+        </Row>
+        <Row label={tr("Update otomatis", "Automatic updates")} hint={tr("Cek versi baru di GitHub tiap PoinTify nyala. Masangnya tetap nunggu izin lu.", "Checks GitHub for a new version on startup. Installing still asks you first.")}>
+          <Toggle label={tr("Update otomatis", "Automatic updates")} checked={s.autoUpdate !== false} onChange={(v) => updateSettings({ autoUpdate: v })} />
+        </Row>
+        <Row label={tr("Lokasi claude.exe", "claude.exe location")} hint={tr("Kosongin biar dicari otomatis.", "Leave empty to find it automatically.")}>
+          <input
+            className="text-input"
+            value={s.claudePath}
+            placeholder={tr("Otomatis", "Automatic")}
+            spellCheck={false}
+            onChange={(e) => updateSettings({ claudePath: e.target.value })}
+          />
+        </Row>
       </div>
     </>
   );

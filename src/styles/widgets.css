@@ -30,6 +30,24 @@
   padding: 10px 11px;
   overflow: hidden;
   transition: border-color 0.15s ease, transform 0.25s var(--ease), opacity 0.2s ease, box-shadow 0.2s ease;
+  /* Skala angka bareng semua widget: angka utama, angka utama di widget lebar, nilai biasa. */
+  --w-hero: 28px;
+  --w-hero-w: 32px;
+  --w-value: 20px;
+}
+
+/* Angka utama: semua widget pakai ukuran, tebal, dan rapat huruf yang sama. */
+.w-big,
+.w-clock-main strong,
+.w-cal-s strong,
+.w-weather-now strong,
+.w-timer-time {
+  font-size: var(--w-hero);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-feature-settings: "tnum";
+  white-space: nowrap;
 }
 .w-tile-body { flex: 1; display: flex; min-width: 0; min-height: 0; }
 .w-tile-body > * { flex: 1; min-width: 0; min-height: 0; }
@@ -267,7 +285,7 @@ input.w-input[type="datetime-local"] { color-scheme: dark; }
 }
 .w-label > span:not(.w-label-right) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .w-label-right { margin-left: auto; font-weight: 500; color: var(--faint); white-space: nowrap; flex-shrink: 0; }
-.w-big { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.1; }
+.w-big small { font-size: 0.55em; font-weight: 600; color: var(--muted); margin-left: 1px; letter-spacing: 0; }
 .w-hint { font-size: 11px; line-height: 1.4; }
 .w-link { font-size: 11px; color: var(--accent-strong); font-weight: 500; }
 .w-link:hover { text-decoration: underline; }
@@ -296,18 +314,18 @@ input.w-input[type="datetime-local"] { color-scheme: dark; }
 .w-usage.size-w > .muted { grid-row: 3; }
 .w-usage.size-w .w-usage-now { grid-column: 2; grid-row: 2 / 4; align-self: end; margin: 0; }
 .w-custom-src { font-size: 10.5px !important; }
-.w-custom.size-s .w-big, .w-fx .w-big { font-size: 19px; }
+.w-custom .w-big, .w-fx .w-big { font-size: var(--w-value); }
 
 /* ---------- Waktu ---------- */
 
 .w-clock { display: flex; flex-direction: column; justify-content: space-between; }
 .w-clock-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.w-clock-main strong { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; line-height: 1; }
+
 .w-clock-main strong small { font-size: 14px; color: var(--muted); margin-left: 3px; font-weight: 600; }
 .w-clock-main span { font-size: 11.5px; }
 .w-clock.size-s { justify-content: center; gap: 6px; }
 .w-clock.size-w { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
-.w-clock.size-w .w-clock-main strong { font-size: 34px; }
+.w-clock.size-w .w-clock-main strong { font-size: var(--w-hero-w); }
 .w-clock-second { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: 11px; }
 .w-clock-second .tabular { font-size: 17px; font-weight: 600; }
 .w-clock.size-s .w-clock-second { flex-direction: row; gap: 5px; align-items: baseline; border-top: 1px solid var(--line); padding-top: 5px; }
@@ -315,7 +333,7 @@ input.w-input[type="datetime-local"] { color-scheme: dark; }
 
 .w-cal-s { display: flex; flex-direction: column; justify-content: center; line-height: 1.1; }
 .w-cal-day { font-size: 11px; font-weight: 700; color: var(--red); text-transform: capitalize; }
-.w-cal-s strong { font-size: 36px; font-weight: 650; letter-spacing: -0.02em; }
+.w-cal-s strong { margin: 2px 0; }
 .w-cal-s .muted { font-size: 11px; }
 .w-cal { display: flex; flex-direction: column; gap: 4px; }
 .w-cal-grid { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; text-align: center; align-items: center; font-size: 11px; }
@@ -383,7 +401,19 @@ input.w-input[type="datetime-local"] { color-scheme: dark; }
 .w-mini.size-s > :nth-child(1) { grid-column: 1; grid-row: 1; }
 .w-mini.size-s > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; align-self: end; }
 .w-mini.size-s > :nth-child(3) { grid-column: 2; grid-row: 1; }
-.w-mini.water.size-s .water-buttons { flex-direction: row; }
+
+/* Minum air: judul + tombol, angka gede, bar gelas, keterangan. Sama kayak widget lain. */
+.w-water { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.w-water .w-label-right { display: inline-flex; gap: 3px; color: inherit; }
+.w-water-btn { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 6px; color: var(--muted); background: rgba(255, 255, 255, 0.06); }
+.w-water-btn:hover:not(:disabled) { color: var(--text); background: rgba(255, 255, 255, 0.12); }
+.w-water-btn:disabled { opacity: 0.35; }
+.w-water-btn.add { color: var(--blue); }
+.w-water .w-big { margin-top: auto; }
+.w-water-bar { display: flex; gap: 3px; }
+.w-water-bar i { flex: 1; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); transition: background 0.3s ease; }
+.w-water-bar i.full { background: var(--blue); }
+.w-water > .muted { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .w-launch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; align-content: center; }
 .w-launch.size-s { grid-template-columns: repeat(2, 1fr); }
@@ -508,7 +538,7 @@ input.w-input[type="datetime-local"] { color-scheme: dark; }
 .w-weather-s { justify-content: space-between; }
 .w-weather-now { display: flex; align-items: center; gap: 7px; }
 .w-weather-now svg { color: var(--amber); }
-.w-weather-now strong { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
+
 .w-weather-s > .muted, .w-weather-left > .muted { font-size: 11px; }
 .w-weather { display: flex; gap: 10px; }
 .w-weather-left { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
@@ -527,7 +557,7 @@ input.w-input[type="datetime-local"] { color-scheme: dark; }
 .w-weather-day svg { color: var(--amber); }
 
 .w-prayer-s { justify-content: space-between; }
-.w-prayer-s strong { font-size: 19px; font-weight: 650; }
+.w-prayer-s strong { font-size: var(--w-value); font-weight: 650; letter-spacing: -0.01em; }
 .w-prayer-s .muted { font-size: 11px; }
 .w-prayer-row { flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
 .w-prayer-cell {
@@ -652,15 +682,8 @@ input.w-input[type="datetime-local"] { color-scheme: dark; }
 .w-timer-btn.ghost:hover:not(:disabled) { color: var(--text); background: rgba(255, 255, 255, 0.12); }
 .w-timer-btn:disabled { opacity: 0.35; }
 
-.w-timer-time {
-  font-size: 27px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  font-feature-settings: "tnum";
-  transition: opacity 0.3s ease;
-}
-.w-timer.size-w .w-timer-time { font-size: 32px; }
+.w-timer-time { transition: opacity 0.3s ease; }
+.w-timer.size-w .w-timer-time { font-size: var(--w-hero-w); }
 .w-timer.paused .w-timer-time { opacity: 0.55; }
 .w-timer.idle .w-timer-time { opacity: 0.8; }
 

@@ -3,6 +3,7 @@ import { play } from "../lib/sound";
 import { createStore } from "../lib/store";
 import { quietStore } from "./quiet";
 import type { PipMood } from "../components/Pip";
+import {  } from "../i18n";
 
 export type Mode = "compact" | "peek" | "expanded";
 export type Tab = "home" | "chat" | "agents" | "shelf" | "timer";
@@ -39,7 +40,7 @@ export type IslandState = {
   dragging: boolean;
 };
 
-const OFFSET_KEY = "pointify.island.offset";
+export const OFFSET_KEY = "pointify.island.offset";
 
 function loadOffset(): number {
   try {

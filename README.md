@@ -31,7 +31,7 @@ Ambil installer terbaru di [halaman Releases](https://github.com/ShineReborn-Cre
 
 Installer-nya belum ditandatangani, jadi Windows mungkin nampilin "Windows protected your PC". Klik **More info**, lalu **Run anyway**.
 
-Udah kepasang? PoinTify ngecek versi baru di GitHub tiap nyala dan nawarin update sendiri (bisa dimatiin di Pengaturan › Umum). Pas pertama buka, Pip ngajak tour singkat ngenalin fitur-fiturnya. Bahasanya otomatis ngikutin Windows: Indonesia atau Inggris.
+Udah kepasang? PoinTify ngecek versi baru di GitHub tiap nyala dan nawarin update sendiri (bisa dimatiin di Pengaturan › Lanjutan). Pas pertama buka, Pip ngajak tour singkat ngenalin fitur-fiturnya. Bahasanya otomatis ngikutin Windows: Indonesia atau Inggris.
 
 ### Nggak langganan Claude?
 

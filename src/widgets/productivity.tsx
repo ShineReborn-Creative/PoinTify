@@ -272,29 +272,37 @@ export function WaterWidget({ size }: WidgetProps) {
   const goal = settings?.waterGoal ?? 8;
   const minutesLeft = Math.max(0, Math.round((water.nextAt - now) / 60_000));
   return (
-    <div className={`w-mini water size-${size}`}>
-      <div className="water-glasses" aria-label={tr(`${water.count} dari ${goal} gelas`, `${water.count} of ${goal} glasses`)}>
-        {Array.from({ length: Math.min(goal, 12) }, (_, i) => (
-          <span key={i} className={i < water.count ? "glass full" : "glass"} />
+    <div className={`w-water size-${size}`}>
+      <WLabel
+        icon="drop"
+        right={
+          <>
+            <button className="w-water-btn" aria-label={tr("Kurangi satu gelas", "Remove one glass")} onClick={undoDrink} disabled={water.count === 0}>
+              <Icon name="minus" size={12} />
+            </button>
+            <button className="w-water-btn add" aria-label={tr("Tambah satu gelas", "Add one glass")} onClick={drink}>
+              <Icon name="plus" size={12} />
+            </button>
+          </>
+        }
+      >
+        {tr("Minum", "Water")}
+      </WLabel>
+      <strong className="w-big tabular">
+        {water.count}
+        <small>
+          /{goal}
+          {size !== "s" && tr(" gelas", " glasses")}
+        </small>
+      </strong>
+      <div className="w-water-bar" aria-label={tr(`${water.count} dari ${goal} gelas`, `${water.count} of ${goal} glasses`)}>
+        {Array.from({ length: Math.min(goal, 16) }, (_, i) => (
+          <i key={i} className={i < water.count ? "full" : ""} />
         ))}
       </div>
-      <div className="mini-text">
-        <strong>
-          {water.count}/{goal}
-          {size !== "s" && tr(" gelas", " glasses")}
-        </strong>
-        <span className="muted">
-          {!settings?.waterEnabled ? tr("Pengingat mati", "Reminder off") : water.count >= goal ? tr("Target tercapai", "Goal reached") : tr(`${minutesLeft} mnt lagi`, `in ${minutesLeft} min`)}
-        </span>
-      </div>
-      <div className="water-buttons">
-        <button className="icon-btn" aria-label={tr("Kurangi satu gelas", "Remove one glass")} onClick={undoDrink} disabled={water.count === 0}>
-          <Icon name="minus" size={14} />
-        </button>
-        <button className="icon-btn solid water-add" aria-label={tr("Tambah satu gelas", "Add one glass")} onClick={drink}>
-          <Icon name="drop" size={15} />
-        </button>
-      </div>
+      <span className="muted">
+        {!settings?.waterEnabled ? tr("Pengingat mati", "Reminder off") : water.count >= goal ? tr("Target tercapai 🎉", "Goal reached 🎉") : tr(`Minum lagi ${minutesLeft} mnt`, `Next in ${minutesLeft} min`)}
+      </span>
     </div>
   );
 }

@@ -13,10 +13,13 @@ import {
   dismissPeek,
   expand,
   islandStore,
+  OFFSET_KEY,
   pin,
   reportHit,
+  saveOffset,
   setFileOver,
   setHover,
+  setOffset,
   setVisible,
   showPeek,
   SIZES,
@@ -130,10 +133,25 @@ export function IslandApp() {
     };
   }, []);
 
+  // Posisi notch diubah dari jendela lain (Pengaturan › Lanjutan › Tengahin).
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== OFFSET_KEY) return;
+      const v = Number(e.newValue);
+      setOffset(Number.isFinite(v) ? v : 0);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   // ---- Event lain dari Rust: tray, shortcut, app fullscreen ----
   useEffect(() => {
     const subs = [
       listen<string>("island-open", () => expand("home")),
+      listen("island-reset-offset", () => {
+        setOffset(0);
+        saveOffset();
+      }),
       listen("island-toggle-chat", () => {
         const s = islandStore.get();
         if (s.mode === "expanded" && s.tab === "chat") {
