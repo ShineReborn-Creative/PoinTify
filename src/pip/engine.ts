@@ -22,17 +22,22 @@ export type PipMood =
   | "music"
   | "watching";
 
+/**
+ * Warna titik Pip per suasana. Suasana santai ikut warna aksen pilihan lu
+ * (Pengaturan › Umum); yang punya arti (mikir, notif, senang, error, tidur)
+ * tetap warnanya sendiri biar langsung kebaca.
+ */
 export const MOOD_COLOR: Record<PipMood, string> = {
-  idle: "#8B7CFF",
-  wave: "#8B7CFF",
+  idle: "var(--accent, #8B7CFF)",
+  wave: "var(--accent, #8B7CFF)",
   thinking: "#4DA3FF",
   working: "#4DA3FF",
   notify: "#FFB340",
   happy: "#34C77B",
   sleep: "#5F5E66",
-  listening: "#8B7CFF",
+  listening: "var(--accent, #8B7CFF)",
   error: "#FF5C5C",
-  music: "#B98CFF",
+  music: "var(--accent-strong, #B98CFF)",
   watching: "#FFB547",
 };
 
@@ -683,7 +688,7 @@ export class PipEngine {
 
     // Titik "point"
     this.els.dotGroup = this.make("g", {}, root);
-    this.els.dot = this.make("circle", { cx: DOT_REST.x, cy: DOT_REST.y, r: 8.5, fill: MOOD_COLOR.idle }, this.els.dotGroup);
+    this.els.dot = this.make("circle", { cx: DOT_REST.x, cy: DOT_REST.y, r: 8.5, style: `fill: ${MOOD_COLOR.idle}` }, this.els.dotGroup);
     this.els.dotShine = this.make("circle", { r: 2.3, fill: "#fff", opacity: 0.7 }, this.els.dotGroup);
     this.els.badge = this.make(
       "text",
@@ -1277,7 +1282,8 @@ export class PipEngine {
     this.els.dot.setAttribute("cx", dx.toFixed(2));
     this.els.dot.setAttribute("cy", dy.toFixed(2));
     this.els.dot.setAttribute("r", dr.toFixed(2));
-    this.els.dot.setAttribute("fill", color);
+    // Lewat style (bukan atribut) biar var(--accent) kebaca.
+    this.els.dot.style.fill = color;
     this.els.dotGroup.setAttribute("opacity", String(dotOpacity));
     this.els.dotShine.setAttribute("cx", (dx - dr * 0.3).toFixed(2));
     this.els.dotShine.setAttribute("cy", (dy - dr * 0.3).toFixed(2));
